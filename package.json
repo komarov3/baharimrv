@@ -1,0 +1,23 @@
+{
+  "name": "baharimrv",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "web",
+    "admin-dashboard"
+  ],
+  "scripts": {
+    "dev:api": "cd backend && go run ./cmd/api",
+    "dev:web": "npm run dev --workspace baharimrv-web",
+    "dev:admin": "npm run dev --workspace baharimrv-admin-dashboard",
+    "build:web": "npm run build --workspace baharimrv-web",
+    "build:admin": "npm run build --workspace baharimrv-admin-dashboard",
+    "test": "npm run test:api && npm run test:web",
+    "test:api": "cd backend && go test ./...",
+    "test:web": "npm run test --workspace baharimrv-web",
+    "typecheck": "npm run typecheck --workspace baharimrv-web"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

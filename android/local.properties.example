@@ -1,0 +1,5 @@
+# Copy to local.properties and supply environment-specific values. Never commit real tokens or client secrets.
+BAHARIMRV_API_BASE_URL=
+JAHAZI_ISSUER_URL=
+JAHAZI_CLIENT_ID=
+JAHAZI_REDIRECT_URI=

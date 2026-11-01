@@ -1,0 +1,8 @@
+CREATE TABLE system_configs (id TEXT PRIMARY KEY, key TEXT NOT NULL UNIQUE, value TEXT NOT NULL, type TEXT NOT NULL, description TEXT, updated_by TEXT, updated_at TIMESTAMP NOT NULL, created_at TIMESTAMP NOT NULL);
+CREATE TABLE alerts (id TEXT PRIMARY KEY, scope TEXT NOT NULL, severity TEXT NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL, detail TEXT, action TEXT, status TEXT NOT NULL, created_at TIMESTAMP NOT NULL, resolved_at TIMESTAMP, resolved_by TEXT);
+CREATE TABLE incidents (id TEXT PRIMARY KEY, type TEXT NOT NULL, status TEXT NOT NULL, started_at TIMESTAMP NOT NULL, finished_at TIMESTAMP, duration_ms INTEGER NOT NULL DEFAULT 0, error TEXT, retry_count INTEGER NOT NULL DEFAULT 0, resource_type TEXT, resource_id TEXT, metadata TEXT, created_at TIMESTAMP NOT NULL);
+CREATE TABLE admin_notes (id TEXT PRIMARY KEY, target_type TEXT NOT NULL, target_id TEXT NOT NULL, author_id TEXT NOT NULL, body TEXT NOT NULL, created_at TIMESTAMP NOT NULL);
+CREATE TABLE export_jobs (id TEXT PRIMARY KEY, requester TEXT NOT NULL, kind TEXT NOT NULL, filters TEXT, status TEXT NOT NULL, file_ref TEXT, expires_at TIMESTAMP, created_at TIMESTAMP NOT NULL, completed_at TIMESTAMP);
+CREATE TABLE saved_views (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, page TEXT NOT NULL, name TEXT NOT NULL, filters TEXT, shared INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL);
+CREATE TABLE verification_overrides (id TEXT PRIMARY KEY, request_id TEXT NOT NULL, admin_id TEXT NOT NULL, reason TEXT NOT NULL, step_up_receipt TEXT, created_at TIMESTAMP NOT NULL);
+CREATE TABLE public_proof_verification_logs (id TEXT PRIMARY KEY, proof_id TEXT NOT NULL, checked_at TIMESTAMP NOT NULL, overall TEXT NOT NULL, failed_checks TEXT, ip_hash TEXT);

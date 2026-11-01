@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BahariLink — Integrated Blue Economy Platform · App Wireframe (§5.3)</title>
+<style>
+:root{
+  --bg:#e9eef4; --panel:#ffffff; --ink:#152238; --mut:#5b6b80; --line:#d8e0ea;
+  --wire:#b9c6d6; --sk:#dfe7f0; --skd:#c7d2e0; --paper:#f7fafc;
+  --cyan:#0e7490; --blue:#2563eb; --amber:#d97706; --green:#059669;
+  --violet:#7c3aed; --slate:#475569; --red:#dc2626;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:"Segoe UI",Inter,-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+svg.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.ic.s{width:14px;height:14px}
+svg.ic.l{width:22px;height:22px}
+svg.ic.xl{width:30px;height:30px}
+
+/* ---------- hero ---------- */
+.hero{background:linear-gradient(135deg,#082f3f 0%,#0e7490 55%,#155e75 100%);color:#eaf6fa;padding:44px 0 34px}
+.wrap{max-width:1340px;margin:0 auto;padding:0 30px}
+.hero .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:#8fd6e8;font-weight:700}
+.hero h1{margin:8px 0 6px;font-size:34px;letter-spacing:-.5px;color:#fff}
+.hero h1 span{color:#7de3f5}
+.hero p.sub{margin:0;max-width:860px;color:#c9e7f0;font-size:15px}
+.hero .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hero .pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#dff4fa;border-radius:999px;padding:6px 13px;font-size:12px;display:flex;gap:7px;align-items:center}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:20px;background:rgba(8,47,63,.5);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:12px 16px;font-size:12px;color:#cfe9f1}
+.legend b{color:#fff}
+.legend .li{display:flex;align-items:center;gap:8px}
+.lg-sw{width:26px;height:12px;border-radius:4px;background:#3a536e}
+.lg-ds{width:26px;height:12px;border-radius:4px;border:1.5px dashed #7fb6c9}
+.lg-an{width:16px;height:16px;border-radius:50%;background:#f59e0b;color:#111;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.lg-pr{width:26px;height:12px;border-radius:4px;background:#2563eb}
+
+/* ---------- tabs ---------- */
+nav.tabs{position:sticky;top:0;z-index:60;background:#0b1c2c;box-shadow:0 2px 14px rgba(5,20,35,.35)}
+nav.tabs .wrap{display:flex;gap:2px;overflow-x:auto;padding:0 18px}
+.tab{white-space:nowrap;padding:13px 16px;font-size:13px;font-weight:600;color:#9fb4c8;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;display:flex;gap:8px;align-items:center}
+.tab:hover{color:#e2eef6}
+.tab.on{color:#fff;border-bottom-color:#22d3ee}
+.tab .dot{width:8px;height:8px;border-radius:50%}
+
+/* ---------- sections ---------- */
+section{display:none;padding:36px 0 70px}
+section.on{display:block}
+.sec-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+.sec-head h2{margin:0;font-size:24px;letter-spacing:-.4px}
+.sec-head .num{font-size:12px;font-weight:800;color:#fff;background:var(--cyan);border-radius:8px;padding:5px 10px;letter-spacing:.08em}
+.lede{color:var(--mut);max-width:920px;margin:6px 0 26px}
+.lede b{color:var(--ink)}
+
+/* ---------- wireframe board ---------- */
+.board{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.unit{width:304px;flex:none}
+.unit.wide{width:640px}
+.ph{width:296px;height:608px;background:#0a1420;border-radius:44px;padding:11px;box-shadow:0 18px 40px rgba(15,35,60,.28),inset 0 0 0 2px #24344b;margin:0 auto}
+.pscr{background:#fff;border-radius:34px;height:100%;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:110px;height:22px;background:#0a1420;border-radius:0 0 14px 14px;z-index:5}
+.pstat{height:30px;display:flex;justify-content:space-between;align-items:center;padding:4px 18px 0;font-size:11px;font-weight:600;color:#33415c;background:#fff;flex:none}
+.pstat .sic{display:flex;gap:4px;align-items:center;color:#33415c}
+.papp{padding:10px 14px 9px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex:none;background:#fff}
+.papp .ttl{font-weight:700;font-size:13.5px}
+.papp .sub{font-size:10px;color:var(--mut)}
+.papp .grow{flex:1}
+.pbody{flex:1;padding:12px 13px;overflow:hidden;display:flex;flex-direction:column;gap:9px;font-size:11px;color:var(--ink);background:#fdfefe}
+.pnav{height:54px;border-top:1px solid var(--line);display:flex;flex:none;background:#fff}
+.nv{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:8.5px;color:#9aa8ba;font-weight:600}
+.nv.on{color:var(--blue)}
+.pnav.green .nv.on{color:var(--green)}
+.pnav.amber .nv.on{color:var(--amber)}
+.pnav.violet .nv.on{color:var(--violet)}
+.cap{padding:12px 4px 0}
+.cap h4{margin:0 0 2px;font-size:13px}
+.cap .sid{font-size:10px;font-weight:800;color:#fff;background:var(--slate);border-radius:6px;padding:2px 7px;margin-right:6px;letter-spacing:.05em}
+.cap p{margin:4px 0 0;font-size:11.5px;color:var(--mut)}
+.notes{margin:8px 0 0;padding:0;list-style:none;font-size:11px;color:var(--mut)}
+.notes li{display:flex;gap:7px;margin-top:5px;line-height:1.45}
+.an{width:16px;height:16px;border-radius:50%;background:#f59e0b;color:#231a04;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.arr{align-self:center;color:#8fa1b5;flex:none;display:flex;align-items:center;justify-content:center;width:22px}
+
+/* ---------- in-screen components ---------- */
+.sk{height:8px;border-radius:5px;background:var(--sk)}
+.sk.d{background:var(--skd)}
+.card{border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:#fff;display:flex;flex-direction:column;gap:7px}
+.card.hl{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset}
+.dash{border:1.5px dashed var(--wire);border-radius:12px;background:repeating-linear-gradient(45deg,#f7fafc,#f7fafc 9px,#edf3f8 9px,#edf3f8 18px);display:flex;align-items:center;justify-content:center;color:#8ca0b6;gap:8px;font-size:10px;font-weight:600}
+.row{display:flex;align-items:center;gap:8px}
+.row.between{justify-content:space-between}
+.grow{flex:1}
+.icn{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;background:#e8eef6;color:var(--slate)}
+.icn.blue{background:#dbeafe;color:var(--blue)}
+.icn.green{background:#d1fae5;color:var(--green)}
+.icn.amber{background:#fef3c7;color:var(--amber)}
+.icn.violet{background:#ede9fe;color:var(--violet)}
+.icn.cyan{background:#cffafe;color:var(--cyan)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;padding:9px 10px;font-size:11px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink);text-align:center}
+.btn.p{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.g{background:var(--green);border-color:var(--green);color:#fff}
+.btn.a{background:var(--amber);border-color:var(--amber);color:#fff}
+.btn.v{background:var(--violet);border-color:var(--violet);color:#fff}
+.btn.ghost{color:var(--mut)}
+.btn.sm{padding:6px 8px;font-size:10px;border-radius:8px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;font-size:9.5px;font-weight:600;color:var(--mut);background:#fff}
+.chip.on{background:#eaf1ff;border-color:#bfd4ff;color:var(--blue)}
+.chip.green{background:#e7f8f1;border-color:#b7e8d4;color:var(--green)}
+.chip.amber{background:#fdf3e3;border-color:#f2ddb3;color:var(--amber)}
+.inp{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--mut);display:flex;align-items:center;gap:7px;background:#fff}
+.ttl-xs{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.big{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.mut{color:var(--mut)}
+.xs{font-size:9.5px}
+.b{font-weight:700}
+.pill-off{display:inline-flex;align-items:center;gap:5px;background:#1f2b3c;color:#ffd166;border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700}
+.pill-sync{display:inline-flex;align-items:center;gap:5px;background:#e7f8f1;color:var(--green);border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700}
+.qr{width:64px;height:64px;border-radius:8px;background:#fff;border:1px solid var(--line);padding:5px;flex:none}
+.qr svg{width:100%;height:100%;display:block}
+.avl{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#c3d2e4,#93a9c4);flex:none;display:flex;align-items:center;justify-content:center;color:#fff}
+.bar{height:6px;border-radius:4px;background:var(--sk);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;background:var(--green)}
+.step{display:flex;gap:8px;align-items:flex-start}
+.st-ic{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
+.st-ok{background:#d1fae5;color:var(--green)}
+.st-wip{background:#fef3c7;color:var(--amber)}
+.st-todo{background:#e5ebf2;color:#8ca0b6}
+.st-line{width:2px;background:var(--line);flex:1;margin-left:9px;min-height:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.species{display:flex;flex-direction:column;align-items:center;gap:4px;border:1px solid var(--line);border-radius:10px;padding:7px 4px;font-size:9px;font-weight:600;color:var(--mut);background:#fff}
+.species.on{border-color:var(--blue);color:var(--blue);background:#eaf1ff}
+.toast{margin-top:auto;background:#12263b;color:#dff2fb;border-radius:12px;padding:9px 11px;font-size:10px;display:flex;gap:8px;align-items:center}
+.sw{width:34px;height:20px;border-radius:999px;background:var(--green);position:relative;flex:none}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff}
+.sw.off{background:#c9d4e2}.sw.off::after{left:3px;right:auto}
+.splitbar{display:flex;height:14px;border-radius:7px;overflow:hidden;font-size:8px;color:#fff;font-weight:700}
+.splitbar div{display:flex;align-items:center;justify-content:center}
+.hash{font-family:Consolas,monospace;font-size:8.5px;color:var(--mut);background:#f1f5f9;border-radius:6px;padding:3px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+<style>
+/* ---------- architecture diagram ---------- */
+.arch{display:flex;flex-direction:column;gap:10px}
+.lrow{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:stretch}
+.ltag{border-radius:12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:10px 14px;color:#fff;font-weight:700;font-size:12px;gap:2px}
+.ltag small{font-weight:500;opacity:.75;font-size:10px}
+.lbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:9px;flex-wrap:wrap;align-items:stretch}
+.bx{border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:8px 11px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.bx small{display:block;font-weight:500;color:var(--mut);font-size:9.5px}
+.bx.solid{background:#0e7490;border-color:#0e7490;color:#fff}
+.bx.solid small{color:#bce7f2}
+.bx.dark{background:#12263b;border-color:#12263b;color:#dff2fb}
+.bx.dark small{color:#9fc0d4}
+.bx.chain{background:#1e1b4b;border-color:#1e1b4b;color:#e0e7ff}
+.bx.chain small{color:#b3b8e8}
+.conn{display:flex;justify-content:center;color:#8fa1b5;font-size:16px;line-height:1}
+.modbox{flex:1;min-width:180px;border-radius:10px;padding:9px 11px;font-size:11px;font-weight:700;color:#fff;display:flex;flex-direction:column;gap:3px}
+.modbox small{font-weight:500;opacity:.85;font-size:9.5px}
+
+/* ---------- flow diagrams ---------- */
+.flow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:22px}
+.flow h3{margin:0 0 3px;font-size:15px;display:flex;align-items:center;gap:9px}
+.flow .fdesc{font-size:12px;color:var(--mut);margin:0 0 14px}
+.fline{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+.fbox{border:1.5px solid var(--line);border-radius:11px;background:var(--paper);padding:9px 12px;font-size:11px;font-weight:700;min-width:120px;display:flex;flex-direction:column;gap:2px;justify-content:center}
+.fbox small{font-weight:500;color:var(--mut);font-size:9.5px}
+.fbox.b{border-color:var(--blue);background:#eaf1ff}
+.fbox.g{border-color:var(--green);background:#e9faf3}
+.fbox.a{border-color:var(--amber);background:#fdf4e4}
+.fbox.v{border-color:var(--violet);background:#f1edfe}
+.fbox.c{border-color:var(--cyan);background:#e6f9fd}
+.fbox.drk{background:#12263b;border-color:#12263b;color:#dff2fb}
+.fbox.drk small{color:#9fc0d4}
+.farr{display:flex;align-items:center;padding:0 7px;color:#8fa1b5;position:relative}
+.farr .lbl{position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:8.5px;font-weight:700;color:var(--mut);white-space:nowrap;background:#fff;padding:0 4px;border-radius:4px}
+
+/* ---------- spec tables ---------- */
+table.spec{width:100%;border-collapse:collapse;background:var(--panel);border-radius:14px;overflow:hidden;font-size:12.5px;margin-bottom:26px;box-shadow:0 1px 3px rgba(15,35,60,.06)}
+table.spec th{background:#12263b;color:#cfe4f0;text-align:left;padding:11px 14px;font-size:11px;letter-spacing:.07em;text-transform:uppercase}
+table.spec td{padding:11px 14px;border-top:1px solid var(--line);vertical-align:top}
+table.spec tr td:first-child{font-weight:700;white-space:nowrap}
+table.spec code{background:#eef3f8;border-radius:5px;padding:1px 6px;font-size:11px;color:#0e7490;font-family:Consolas,monospace}
+.sphead{font-size:16px;font-weight:800;margin:30px 0 12px;display:flex;align-items:center;gap:9px}
+.sphead .bar-v{width:5px;height:20px;border-radius:3px;background:var(--cyan)}
+.callout{border-left:4px solid var(--cyan);background:#e6f9fd;border-radius:0 12px 12px 0;padding:12px 16px;font-size:12.5px;color:#0c4a5e;margin:14px 0 24px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 26px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px}
+.kpi .v{font-size:21px;font-weight:800;letter-spacing:-.4px}
+.kpi .l{font-size:10.5px;color:var(--mut);font-weight:600}
+footer{background:#0b1c2c;color:#8fa7bd;padding:26px 0;font-size:12px}
+footer .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+@media (max-width:720px){.lrow{grid-template-columns:1fr}.ltag{padding:8px 12px}}
+</style>
+</head>
+<body>
+
+<!-- ======================= SVG ICON LIBRARY ======================= -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 0 2 2h14"/><path d="M8 7h8M8 11h5"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9l1.2-5h13.6L20 9M4 9v11h16V9M4 9h16M9.5 20v-6h5v6"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13" r="1.3"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5"/><path d="M16 5a3 3 0 1 1 0 6M18 15c2 .7 3.2 2.2 3.5 5"/></symbol>
+    <symbol id="i-fish" viewBox="0 0 24 24"><path d="M5 12c2.5-3.5 6-5 9-5 3.5 0 6 2.5 7 5-1 2.5-3.5 5-7 5-3 0-6.5-1.5-9-5z"/><path d="M5 12 2 8.5v7z"/><circle cx="16.5" cy="11" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/><path d="M5 19C7.5 12 11.5 8 20 4"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h.01M20 17h.01M20 20h.01"/></symbol>
+    <symbol id="i-sat" viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/><path d="M3.5 8.5 8 4M16 20l4.5-4.5M2 13l2.5 2.5M19.5 8.5 22 6"/><path d="M14 18c2 2 5 2 7 0M6 10C4 8 4 5 6 3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 2.8V11c0 4.8-3 8.2-7 10-4-1.8-7-5.2-7-10V5.8z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="14" r="3.5"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 1 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5 10 18 19.5 6.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2-5.6-3.2L6.4 20l1.3-6.2L3 9.5l6.3-.7z"/></symbol>
+    <symbol id="i-anchor" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="2.5"/><path d="M12 8v13M5 12H2c0 5 4.5 9 10 9s10-4 10-9h-3"/></symbol>
+    <symbol id="i-waves" viewBox="0 0 24 24"><path d="M2 8c2.5-2 5-2 7.5 0S15 10 17.5 8 21 6.5 22 7M2 14c2.5-2 5-2 7.5 0s3 2 5.5 0 5-2 7-1.5M2 20c2.5-2 5-2 7.5 0s3 2 5.5 0 5-2 7-1.5"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M3 12h18"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14.6 4.5M4 12a8 8 0 0 1 14.6-4.5"/><path d="M18.5 3v4.5H14M5.5 21v-4.5H10"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/></symbol>
+    <symbol id="i-boat" viewBox="0 0 24 24"><path d="M4 16h16l-2 4H6z"/><path d="M12 3v13M12 5c3 1 5 3 6 6h-6M12 8c-2 .8-3.5 2.5-4 5h4"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10.5h18M7 15h4"/></symbol>
+    <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5V18.5c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8V5.5"/><path d="M4 12c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.6-5.6l-1.7 1.7M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.6 5.6l1.7-1.7"/></symbol>
+    <symbol id="i-tts" viewBox="0 0 24 24"><path d="M4 10v4h3l5 4V6l-5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></symbol>
+    <symbol id="i-arr" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-bat" viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21 11v2"/><rect x="5.5" y="10.5" width="8" height="3" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-sig" viewBox="0 0 24 24"><path d="M5 18v-3M10 18v-6M15 18V8M20 18V4" stroke-width="2.4"/></symbol>
+    <symbol id="i-co2" viewBox="0 0 24 24"><path d="M7 17a4 4 0 1 1 .6-7.97A5 5 0 0 1 17.3 8.7 3.5 3.5 0 0 1 17 17z"/><path d="M9 20h6"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M12 10v10M4 14h16M12 10S9 9.5 8 7.5C7.2 5.8 9 4 10.5 5c1.4.9 1.5 5 1.5 5zm0 0s3-.5 4-2.5C16.8 5.8 15 4 13.5 5c-1.4.9-1.5 5-1.5 5z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ======================= HERO ======================= -->
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Wireframe · Report §5.3 Integration Architecture</div>
+    <h1>Bahari<span>Link</span> — Combined Blue Economy App</h1>
+    <p class="sub">One mobile platform, three interconnected modules — <b>Fisheries</b> (digital logbook · marketplace · traceability), <b>Tourism</b> (discovery · booking · conservation contributions) and <b>Conservation</b> (project management · monitoring · carbon marketplace) — sharing a single blockchain backbone and one user identity, per the integration architecture in §5.3 of the report.</p>
+    <div class="meta">
+      <div class="pill"><svg class="ic s"><use href="#i-pin"/></svg> Pilot: Mombasa, Kenya</div>
+      <div class="pill"><svg class="ic s"><use href="#i-user"/></svg> Mobile-first · offline-capable · USSD fallback</div>
+      <div class="pill"><svg class="ic s"><use href="#i-link"/></svg> Permissioned blockchain + public anchor</div>
+      <div class="pill"><svg class="ic s"><use href="#i-card"/></svg> M-Pesa native payments</div>
+    </div>
+    <div class="legend">
+      <b>How to read this wireframe:</b>
+      <span class="li"><span class="lg-sw"></span> grey block = content placeholder</span>
+      <span class="li"><span class="lg-ds"></span> dashed = photo / map / media</span>
+      <span class="li"><span class="lg-an">1</span> numbered annotation (listed under each screen)</span>
+      <span class="li"><span class="lg-pr"></span> blue / coloured = primary action</span>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= TABS ======================= -->
+<nav class="tabs">
+  <div class="wrap">
+    <button class="tab on" data-t="arch"><span class="dot" style="background:#22d3ee"></span>System Architecture</button>
+    <button class="tab" data-t="id"><span class="dot" style="background:#94a3b8"></span>1 · Identity &amp; Onboarding</button>
+    <button class="tab" data-t="fish"><span class="dot" style="background:#2563eb"></span>2 · Fisheries Module</button>
+    <button class="tab" data-t="tour"><span class="dot" style="background:#d97706"></span>3 · Tourism Module</button>
+    <button class="tab" data-t="cons"><span class="dot" style="background:#059669"></span>4 · Conservation Module</button>
+    <button class="tab" data-t="syn"><span class="dot" style="background:#7c3aed"></span>5 · Cross-Module Synergies</button>
+    <button class="tab" data-t="impl"><span class="dot" style="background:#0e7490"></span>6 · Implementation Spec</button>
+  </div>
+</nav>
+<main>
+<!-- ======================= SECTION: ARCHITECTURE ======================= -->
+<section id="arch" class="on">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">§5.3</span><h2>Integration Architecture — One Backbone, Three Modules</h2></div>
+    <p class="lede">Per report §5.3, the recommended architecture is <b>three interconnected modules sharing a common blockchain backbone and user identity system</b>. Below is the full stack: every actor, every module, and the shared services that make the cross-sector synergies possible.</p>
+
+    <div class="arch">
+      <!-- USERS -->
+      <div class="lrow">
+        <div class="ltag" style="background:#334155">ACTORS<small>roles share one identity</small></div>
+        <div class="lbox">
+          <div class="bx"><svg class="ic s"><use href="#i-fish"/></svg><span>Fisher<small>app + USSD fallback</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-boat"/></svg><span>Tour Operator<small>bookings & listings</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-leaf"/></svg><span>Conservation Team<small>projects & MRV</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-user"/></svg><span>Tourist<small>lite PWA, no install</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-co2"/></svg><span>Corporate Buyer<small>carbon credits</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-chart"/></svg><span>Gov / NGO / Research<small>data API (KMFRI, KWS)</small></span></div>
+        </div>
+      </div>
+      <div class="conn">▲ ▼</div>
+      <!-- APP SHELL -->
+      <div class="lrow">
+        <div class="ltag" style="background:#0e7490">APP SHELL<small>one install · one login</small></div>
+        <div class="lbox" style="border:2px solid #0e7490">
+          <div class="modbox" style="background:#2563eb">FISHERIES MODULE<small>digital logbook · marketplace · traceability QR</small></div>
+          <div class="modbox" style="background:#d97706">TOURISM MODULE<small>discovery · booking · conservation contribution</small></div>
+          <div class="modbox" style="background:#059669">CONSERVATION MODULE<small>project mgmt · monitoring · carbon marketplace</small></div>
+          <div class="modbox" style="background:#12263b">SHARED CORE<small>Blue ID (DID) · wallet (KES + credits) · notifications (SMS/USSD) · offline sync engine</small></div>
+        </div>
+      </div>
+      <div class="conn">▲ ▼</div>
+      <!-- SERVICES -->
+      <div class="lrow">
+        <div class="ltag" style="background:#475569">SERVICES<small>API gateway · modular</small></div>
+        <div class="lbox">
+          <div class="bx"><svg class="ic s"><use href="#i-shield"/></svg><span>Identity Service<small>DID + verifiable credentials</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-store"/></svg><span>Marketplace Service<small>listings · bids · escrow</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-cal"/></svg><span>Booking Service<small>availability · payments split</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-sat"/></svg><span>MRV Service<small>field data + satellite fusion</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-card"/></svg><span>Payments Service<small>M-Pesa Daraja · STK / B2C</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-db"/></svg><span>Data & Analytics<small>gov/NGO API product</small></span></div>
+        </div>
+      </div>
+      <div class="conn">▲ ▼</div>
+      <!-- BLOCKCHAIN -->
+      <div class="lrow">
+        <div class="ltag" style="background:#1e1b4b">BLOCKCHAIN<small>common backbone</small></div>
+        <div class="lbox" style="border:2px solid #1e1b4b">
+          <div class="bx chain"><svg class="ic s"><use href="#i-link"/></svg><span>Permissioned ledger (Hyperledger Fabric)<small>channels: fisheries · tourism · conservation</small></span></div>
+          <div class="bx chain"><svg class="ic s"><use href="#i-doc"/></svg><span>Smart contracts<small>CatchRegistry · MarketEscrow · BookingEscrow · ContributionSplit · CreditMRV · Retirement · CoBenefit</small></span></div>
+          <div class="bx chain"><svg class="ic s"><use href="#i-globe"/></svg><span>Public anchor (Polygon)<small>Merkle-root notarisation for public trust</small></span></div>
+          <div class="bx chain"><svg class="ic s"><use href="#i-db"/></svg><span>Off-chain storage (IPFS)<small>photos · certificates · reports — hashes on-chain</small></span></div>
+        </div>
+      </div>
+      <div class="conn">▲ ▼</div>
+      <!-- EXTERNAL -->
+      <div class="lrow">
+        <div class="ltag" style="background:#0f766e">ORACLES &<br>EXTERNAL<small>real-world data</small></div>
+        <div class="lbox">
+          <div class="bx"><svg class="ic s"><use href="#i-sat"/></svg><span>Satellite (Sentinel-2 / Planet)<small>mangrove NDVI monitoring</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-card"/></svg><span>M-Pesa<small>payments & identity anchor</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-waves"/></svg><span>Weather & Tide API<small>fisher safety + pricing</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-shield"/></svg><span>Carbon Registries<small>Verra VCS · Gold Standard</small></span></div>
+          <div class="bx"><svg class="ic s"><use href="#i-users"/></svg><span>Partners<small>co-ops · KWS · KMFRI · hotels</small></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:24px"><b>Why one backbone matters:</b> the fisheries, tourism and conservation modules write to the same ledger under the same user identity. That single design decision is what unlocks the three cross-module synergies — restaurant seafood traceability, tourism-funded conservation, and fisher-income co-benefit verification — shown in tab 5.</div>
+  </div>
+</section>
+<!-- ======================= SECTION: IDENTITY ======================= -->
+<section id="id">
+  <div class="wrap">
+    <div class="sec-head"><span class="num" style="background:#475569">MODULE 0</span><h2>Shared Identity &amp; Onboarding — "Blue ID"</h2></div>
+    <p class="lede">§5.3 requires a <b>common user identity system</b> across all three modules. Every actor onboards once, receives a blockchain-anchored decentralised identifier (DID) and a custodial wallet, then sees only the modules matching their role. Designed for low digital literacy: icon-first, voice-assisted, Kiswahili/English.</p>
+
+    <div class="board">
+
+      <!-- S1 SPLASH -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:41</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="pbody" style="background:linear-gradient(170deg,#0e7490,#082f3f);color:#eaf6fa;justify-content:center;gap:14px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+              <div class="icn" style="width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.14);color:#7de3f5"><svg class="ic xl"><use href="#i-waves"/></svg></div>
+              <div style="font-size:24px;font-weight:800;letter-spacing:-.5px">BahariLink</div>
+              <div class="xs" style="color:#a8dcea;text-align:center">One ocean. One ledger.<br>Fish · Travel · Conserve</div>
+            </div>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+              <div class="ttl-xs" style="color:#7fb6c9">Choose language · Chagua lugha <em class="an">1</em></div>
+              <div class="btn" style="background:#fff;border-color:#fff;font-size:12px">English</div>
+              <div class="btn" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#eaf6fa;font-size:12px">Kiswahili</div>
+              <div class="row" style="justify-content:center;gap:6px;color:#a8dcea"><svg class="ic s"><use href="#i-tts"/></svg><span class="xs">Voice guidance available in both languages <em class="an">2</em></span></div>
+            </div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">S1</span>Splash &amp; Language</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Language locked before any text-heavy screen — literacy-safe default.</li>
+            <li><em class="an">2</em>Text-to-speech toggle persists across all modules (risk mitigation: low fisher digital literacy, report §9).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- S2 ROLE -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:41</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Who are you?</div><div class="sub">This unlocks your modules <em class="an">1</em></div></div><svg class="ic" style="color:#94a3b8"><use href="#i-tts"/></svg></div>
+          <div class="pbody">
+            <div class="card hl"><div class="row"><div class="icn blue"><svg class="ic"><use href="#i-fish"/></svg></div><div class="grow"><div class="b" style="font-size:12.5px">Fisher / Co-op member</div><div class="xs mut">Logbook · market · traceability</div></div><svg class="ic" style="color:var(--blue)"><use href="#i-arr"/></svg></div></div>
+            <div class="card"><div class="row"><div class="icn amber"><svg class="ic"><use href="#i-boat"/></svg></div><div class="grow"><div class="b" style="font-size:12.5px">Tour operator</div><div class="xs mut">Listings · bookings · payouts</div></div><svg class="ic" style="color:#c3cedb"><use href="#i-arr"/></svg></div></div>
+            <div class="card"><div class="row"><div class="icn green"><svg class="ic"><use href="#i-leaf"/></svg></div><div class="grow"><div class="b" style="font-size:12.5px">Conservation project</div><div class="xs mut">Monitoring · carbon credits</div></div><svg class="ic" style="color:#c3cedb"><use href="#i-arr"/></svg></div></div>
+            <div class="card"><div class="row"><div class="icn cyan"><svg class="ic"><use href="#i-user"/></svg></div><div class="grow"><div class="b" style="font-size:12.5px">Tourist / Buyer</div><div class="xs mut">Discover · book · track impact</div></div><svg class="ic" style="color:#c3cedb"><use href="#i-arr"/></svg></div></div>
+            <div class="toast" style="margin-top:auto"><svg class="ic s"><use href="#i-link"/></svg><span>One account works across all modules — switch roles later without re-registering. <em class="an">2</em></span></div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">S2</span>Role Selection</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Role is a verifiable credential attached to the DID — not a separate account.</li>
+            <li><em class="an">2</em>A fisher who also runs a tour boat carries both roles on one Blue ID — the basis for cross-module data reuse.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- S3 PHONE + MPESA -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:41</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Verify your number</div><div class="sub">Step 2 of 3</div></div></div>
+          <div class="pbody">
+            <div class="ttl-xs">Phone number (M-Pesa line) <em class="an">1</em></div>
+            <div class="inp"><span class="b" style="color:var(--ink)">+254</span><span style="color:#c3cedb">|</span>7XX XXX XXX</div>
+            <div class="ttl-xs">One-time code (SMS)</div>
+            <div class="row" style="gap:7px">
+              <div class="inp grow" style="justify-content:center;font-weight:800">3</div>
+              <div class="inp grow" style="justify-content:center;font-weight:800">8</div>
+              <div class="inp grow" style="justify-content:center;font-weight:800">·</div>
+              <div class="inp grow" style="justify-content:center;font-weight:800">·</div>
+            </div>
+            <div class="card"><div class="row"><div class="icn green"><svg class="ic"><use href="#i-card"/></svg></div><div class="grow"><div class="b" style="font-size:12px">Link M-Pesa wallet</div><div class="xs mut">Receive payments & payouts instantly</div></div><div class="sw"></div></div></div>
+            <div class="inp"><svg class="ic s"><use href="#i-users"/></svg>Co-op / partner code (optional) <em class="an">2</em></div>
+            <div class="btn p" style="margin-top:auto">Verify &amp; continue</div>
+            <div class="btn ghost sm">No smartphone? Use USSD *384*77# <em class="an">3</em></div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">S3</span>Phone + M-Pesa Verification</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Phone number is the human-memorable alias of the DID; SIM swap triggers re-verification.</li>
+            <li><em class="an">2</em>Co-op code auto-attaches the "co-op member" credential — enables group onboarding at landing sites.</li>
+            <li><em class="an">3</em>Feature-phone users get full logbook/market access via USSD; sessions map to the same DID.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- S4 BLUE ID -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:41</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Your Blue ID is ready</div><div class="sub">Anchored on the shared ledger</div></div><svg class="ic" style="color:var(--green)"><use href="#i-check"/></svg></div>
+          <div class="pbody">
+            <div class="card" style="background:linear-gradient(135deg,#12263b,#0e7490);border:none;color:#eaf6fa;gap:10px">
+              <div class="row between"><span class="ttl-xs" style="color:#8fd6e8">Blue ID · DID <em class="an">1</em></span><span class="pill-sync" style="background:rgba(255,255,255,.15);color:#a7f3d0">On-chain ✓</span></div>
+              <div class="row"><div class="qr" data-qr></div>
+                <div class="grow"><div class="b" style="font-size:13px">Juma Mwidau</div><div class="hash" style="background:rgba(255,255,255,.12);color:#bfeaf5">did:blue:2547…9f3a <em class="an">2</em></div>
+                <div class="xs" style="color:#8fd6e8;margin-top:3px">Fisher · Mombasa · English/Kiswahili</div></div></div>
+            </div>
+            <div class="ttl-xs">Verifiable credentials <em class="an">3</em></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-shield"/></svg><span class="grow b">Mkomani Co-op member</span><span class="xs mut">issued by co-op</span></div></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-shield"/></svg><span class="grow b">KWS fishing licence</span><span class="xs mut">verified</span></div></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:#94a3b8"><use href="#i-clock"/></svg><span class="grow mut">Income history credential</span><span class="xs mut">builds over time</span></div></div>
+            <div class="toast"><svg class="ic s"><use href="#i-users"/></svg><span>Recovery guardians: co-op chair + spouse. Lost phone ≠ lost identity. <em class="an">4</em></span></div>
+            <div class="btn p">Enter BahariLink</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">S4</span>Blue ID — DID Wallet Card</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>One decentralised identity is the join key for all three modules — the "common user identity system" of §5.3.</li>
+            <li><em class="an">2</em>Only the DID + credential hashes live on-chain; personal data stays off-chain (Kenya Data Protection Act 2019).</li>
+            <li><em class="an">3</em>Credentials accumulate: licence, co-op membership, eco-training, income history — later reused for loans &amp; carbon co-benefits.</li>
+            <li><em class="an">4</em>Social recovery via guardians (custodial wallet with co-op co-sign) — no seed phrases for low-literacy users.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- ======================= SECTION: FISHERIES ======================= -->
+<section id="fish">
+  <div class="wrap">
+    <div class="sec-head"><span class="num" style="background:#2563eb">MODULE 1</span><h2>Fisheries — Logbook, Marketplace, Traceability</h2></div>
+    <p class="lede">Per §5.3, the fisheries module provides <b>digital logbooks, marketplace access and traceability</b>. It targets the report's four pain points: broker-captured markets (94% of sales), 55% post-harvest loss, zero traceability, and no provable income. Offline-first: fishers log at sea with no signal; everything syncs at the landing site.</p>
+
+    <div class="board">
+
+      <!-- F1 HOME -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>5:52</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="avl"><svg class="ic s" style="color:#fff"><use href="#i-user"/></svg></div><div class="grow"><div class="ttl">Habari, Juma</div><div class="sub">Mkomani Beach · Mombasa</div></div><span class="pill-off"><svg class="ic s"><use href="#i-sync"/></svg>OFFLINE <em class="an">1</em></span></div>
+          <div class="pbody">
+            <div class="card" style="background:#eaf1ff;border-color:#bfd4ff"><div class="row"><div class="icn blue"><svg class="ic"><use href="#i-waves"/></svg></div><div class="grow"><div class="xs mut">Tide &amp; weather (cached 04:00) <em class="an">2</em></div><div class="b" style="font-size:12.5px">High tide 06:40 · calm · go</div></div><svg class="ic" style="color:var(--blue)"><use href="#i-boat"/></svg></div></div>
+            <div class="ttl-xs">Beach prices today (KSh/kg) <em class="an">3</em></div>
+            <div class="grid3">
+              <div class="card" style="align-items:center;gap:2px"><svg class="ic" style="color:var(--blue)"><use href="#i-fish"/></svg><span class="b">Tuna</span><span class="xs mut">420</span></div>
+              <div class="card" style="align-items:center;gap:2px"><svg class="ic" style="color:var(--blue)"><use href="#i-fish"/></svg><span class="b">Octopus</span><span class="xs mut">380</span></div>
+              <div class="card" style="align-items:center;gap:2px"><svg class="ic" style="color:var(--blue)"><use href="#i-fish"/></svg><span class="b">Snapper</span><span class="xs mut">510</span></div>
+            </div>
+            <div class="card"><div class="row between"><span class="ttl-xs">Today's catch</span><span class="chip">2 batches · 14 kg</span></div>
+              <div class="row"><svg class="ic s" style="color:var(--blue)"><use href="#i-fish"/></svg><span class="grow">Tuna · 9 kg</span><span class="xs mut">unsold</span></div>
+              <div class="row"><svg class="ic s" style="color:var(--blue)"><use href="#i-fish"/></svg><span class="grow">Octopus · 5 kg</span><span class="xs" style="color:var(--green)">1 bid</span></div>
+            </div>
+            <div class="grid2" style="margin-top:auto">
+              <div class="btn p"><svg class="ic s"><use href="#i-plus"/></svg>Log catch</div>
+              <div class="btn"><svg class="ic s"><use href="#i-store"/></svg>Sell</div>
+            </div>
+          </div>
+          <div class="pnav">
+            <div class="nv on"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+            <div class="nv"><svg class="ic"><use href="#i-book"/></svg>Logbook</div>
+            <div class="nv"><svg class="ic"><use href="#i-store"/></svg>Market</div>
+            <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">F1</span>Fisher Home Dashboard</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Persistent offline pill with pending-sync count; all features work without signal (report §5.2 low-bandwidth imperative).</li>
+            <li><em class="an">2</em>Weather/tide cached at last sync — go/no-go safety decision aid for small boats.</li>
+            <li><em class="an">3</em>Transparent beach-gate prices aggregated from marketplace trades — counters broker price opacity.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- F2 LOGBOOK -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>6:15</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Log catch</div><div class="sub">Digital logbook · offline OK</div></div><span class="pill-off">AT SEA</span></div>
+          <div class="pbody">
+            <div class="ttl-xs">Species — tap picture <em class="an">1</em></div>
+            <div class="grid3">
+              <div class="species on"><svg class="ic l"><use href="#i-fish"/></svg>Tuna</div>
+              <div class="species"><svg class="ic l"><use href="#i-fish"/></svg>Octopus</div>
+              <div class="species"><svg class="ic l"><use href="#i-fish"/></svg>Snapper</div>
+              <div class="species"><svg class="ic l"><use href="#i-fish"/></svg>Grouper</div>
+              <div class="species"><svg class="ic l"><use href="#i-fish"/></svg>Prawn</div>
+              <div class="species"><svg class="ic l"><use href="#i-fish"/></svg>Other</div>
+            </div>
+            <div class="row" style="gap:8px">
+              <div class="inp grow"><span class="mut">Weight</span><span class="b" style="color:var(--ink);font-size:14px">9 kg</span></div>
+              <div class="dash" style="width:86px;height:44px;flex-direction:column;gap:2px"><svg class="ic"><use href="#i-cam"/></svg><span>photo</span></div>
+            </div>
+            <div class="row" style="gap:7px;flex-wrap:wrap">
+              <span class="chip on"><svg class="ic s"><use href="#i-pin"/></svg>GPS auto −4.05, 39.71 <em class="an">2</em></span>
+              <span class="chip">Gear: handline</span>
+            </div>
+            <div class="btn" style="border-style:dashed"><svg class="ic s"><use href="#i-mic"/></svg>Voice note instead of typing <em class="an">3</em></div>
+            <div class="toast" style="background:#e7f8f1;color:#065f46"><svg class="ic s"><use href="#i-check"/></svg><span>Saved on device. Will anchor to ledger when back in coverage. <em class="an">4</em></span></div>
+            <div class="btn p">Save batch</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">F2</span>Digital Logbook — Log Catch</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Icon grid with local species photos — no reading required; names read aloud on tap.</li>
+            <li><em class="an">2</em>GPS + timestamp captured automatically: the raw material of the immutable catch record (report §5.1).</li>
+            <li><em class="an">3</em>Voice-first input per risk table (digital literacy mitigation).</li>
+            <li><em class="an">4</em>Batch hash queued locally → written to CatchRegistry contract at sync → becomes the traceability root.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- F3 MARKETPLACE -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>8:03</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Marketplace</div><div class="sub">Synced ✓ · 3 batches live</div></div><span class="pill-sync"><svg class="ic s"><use href="#i-check"/></svg>SYNCED</span></div>
+          <div class="pbody">
+            <div class="card hl">
+              <div class="row between"><span class="b" style="font-size:12.5px">Tuna · 9 kg</span><span class="chip"><svg class="ic s"><use href="#i-qr"/></svg>QR batch #B-1042</span></div>
+              <div class="sk" style="width:70%"></div>
+              <div class="ttl-xs">Bids received <em class="an">1</em></div>
+              <div class="card" style="background:#f8fafc"><div class="row"><div class="avl"><svg class="ic s" style="color:#fff"><use href="#i-store"/></svg></div><div class="grow"><div class="b">Ocean Grill Restaurant</div><div class="xs mut">verified buyer · tourism module <em class="an">2</em></div></div><div style="text-align:right"><div class="b" style="color:var(--blue)">460/kg</div><div class="xs mut">KSh 4,140</div></div></div></div>
+              <div class="card" style="background:#f8fafc"><div class="row"><div class="avl"><svg class="ic s" style="color:#fff"><use href="#i-store"/></svg></div><div class="grow"><div class="b">Bahari Exporters Ltd</div><div class="xs mut">verified buyer</div></div><div style="text-align:right"><div class="b">430/kg</div><div class="xs mut">KSh 3,870</div></div></div></div>
+              <div class="grid2"><div class="btn p"><svg class="ic s"><use href="#i-check"/></svg>Accept 460</div><div class="btn ghost sm">Counter</div></div>
+            </div>
+            <div class="toast"><svg class="ic s"><use href="#i-card"/></svg><span>Escrow: buyer's M-Pesa is locked on accept; released on QR handover scan. <em class="an">3</em></span></div>
+          </div>
+          <div class="pnav">
+            <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+            <div class="nv"><svg class="ic"><use href="#i-book"/></svg>Logbook</div>
+            <div class="nv on"><svg class="ic"><use href="#i-store"/></svg>Market</div>
+            <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">F3</span>Marketplace — Bids &amp; Escrow</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Direct bidding removes the broker layer that captures 94% of market linkage (report §1.2).</li>
+            <li><em class="an">2</em>Buyers from the tourism module (restaurants, hotels) appear cross-module — synergy S-2, see tab 5.</li>
+            <li><em class="an">3</em>MarketEscrow contract: funds locked at accept, split released on delivery scan (fisher 90% · co-op 5% · platform 5%).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- F4 TRACEABILITY -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:20</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Batch passport</div><div class="sub">#B-1042 · on-chain ✓</div></div><svg class="ic" style="color:var(--blue)"><use href="#i-shield"/></svg></div>
+          <div class="pbody">
+            <div class="card" style="align-items:center;gap:8px"><div class="qr" data-qr style="width:92px;height:92px"></div>
+              <div class="xs mut">Buyer / restaurant scans to verify origin <em class="an">1</em></div>
+              <div class="hash">0x7f3a…c91e · CatchRegistry ✓ anchored</div>
+            </div>
+            <div class="ttl-xs">Journey — boat to plate <em class="an">2</em></div>
+            <div class="step"><div class="st-ic st-ok"><svg class="ic s"><use href="#i-check"/></svg></div><div class="grow"><div class="b">Caught 05:48 · handline</div><div class="xs mut">−4.05, 39.71 · reef-safe zone ✓</div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-ok"><svg class="ic s"><use href="#i-check"/></svg></div><div class="grow"><div class="b">Landed Mkomani 08:10</div><div class="xs mut">cold box · temp logged 4°C <em class="an">3</em></div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-wip">3</div><div class="grow"><div class="b">Sold → Ocean Grill</div><div class="xs mut">escrow pending handover scan</div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-todo">4</div><div class="grow"><div class="mut">Served — menu QR live</div></div></div>
+            <div class="btn" style="margin-top:auto"><svg class="ic s"><use href="#i-send"/></svg>Share passport link</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">F4</span>Traceability Passport</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Every marketplace batch carries a QR; scanning resolves the public anchor so anyone can verify without an account.</li>
+            <li><em class="an">2</em>Each custody step appends a signed event to the batch's ledger trail — the "immutable catch record" of §5.1.</li>
+            <li><em class="an">3</em>Cold-chain logging attacks the 55% post-harvest loss problem and unlocks export-grade buyers (report §1.2).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- F5 WALLET -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>17:40</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Wallet &amp; income</div><div class="sub">Shared core · same across modules</div></div><svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg></div>
+          <div class="pbody">
+            <div class="card" style="background:linear-gradient(135deg,#12263b,#1d4ed8);border:none;color:#eaf6fa">
+              <div class="xs" style="color:#bfeaf5">Balance (M-Pesa linked)</div>
+              <div class="big" style="color:#fff">KSh 12,480</div>
+              <div class="row" style="gap:7px"><div class="btn sm grow" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff">Cash out</div><div class="btn sm grow" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff">History</div></div>
+            </div>
+            <div class="card"><div class="row between"><span class="ttl-xs">Earnings — 6 months</span><span class="chip green">▲ 38% <em class="an">1</em></span></div>
+              <div style="display:flex;align-items:flex-end;gap:6px;height:56px;padding-top:4px">
+                <div style="flex:1;background:#dbeafe;border-radius:4px 4px 0 0;height:30%"></div>
+                <div style="flex:1;background:#dbeafe;border-radius:4px 4px 0 0;height:45%"></div>
+                <div style="flex:1;background:#bfd9fb;border-radius:4px 4px 0 0;height:40%"></div>
+                <div style="flex:1;background:#a9cdf8;border-radius:4px 4px 0 0;height:60%"></div>
+                <div style="flex:1;background:#8dbdf4;border-radius:4px 4px 0 0;height:75%"></div>
+                <div style="flex:1;background:#2563eb;border-radius:4px 4px 0 0;height:100%"></div>
+              </div>
+              <div class="xs mut">Verified by on-chain sales — not self-reported</div>
+            </div>
+            <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+              <div class="row"><div class="icn green"><svg class="ic"><use href="#i-shield"/></svg></div><div class="grow"><div class="b" style="font-size:12px">Income credential <em class="an">2</em></div><div class="xs mut">Share with SACCO / lender for gear loans</div></div><svg class="ic s" style="color:var(--green)"><use href="#i-check"/></svg></div></div>
+            <div class="card"><div class="row"><div class="icn violet"><svg class="ic"><use href="#i-leaf"/></svg></div><div class="grow"><div class="b" style="font-size:12px">Co-benefit contributor <em class="an">3</em></div><div class="xs mut">Your income data (anonymised) earns carbon projects a premium — see tab 5</div></div></div></div>
+          </div>
+          <div class="pnav">
+            <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+            <div class="nv"><svg class="ic"><use href="#i-book"/></svg>Logbook</div>
+            <div class="nv"><svg class="ic"><use href="#i-store"/></svg>Market</div>
+            <div class="nv on"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">F5</span>Wallet &amp; Verifiable Income</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Income trend built from settled marketplace trades — fishers in comparable platforms report 100–300% income gains (Abalobi benchmark, report §1.3).</li>
+            <li><em class="an">2</em>The "verifiable income history" of §5.1: a signed credential lenders can trust → breaks the low-capital poverty cycle (report §1.2).</li>
+            <li><em class="an">3</em>Same wallet &amp; DID reused in tourism and conservation modules — one balance, one history.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- ======================= SECTION: TOURISM ======================= -->
+<section id="tour">
+  <div class="wrap">
+    <div class="sec-head"><span class="num" style="background:#d97706">MODULE 2</span><h2>Tourism — Discovery, Booking, Conservation Contribution</h2></div>
+    <p class="lede">Per §5.3, the tourism module provides <b>booking, experience discovery and conservation contributions</b>. It answers the report's gaps: fragmented operators with no booking platform, no mechanism channelling tourist money to conservation, and no sustainability verification. Tourists use a lightweight PWA — no app-store install at the beach.</p>
+
+    <div class="board">
+
+      <!-- T1 DISCOVER -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>11:24</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Explore Mombasa</div><div class="sub">Marine experiences · 43 listed</div></div><svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg></div>
+          <div class="pbody">
+            <div class="inp"><svg class="ic s"><use href="#i-search"/></svg>Snorkelling, dhow, diving…</div>
+            <div class="row" style="gap:6px;flex-wrap:wrap">
+              <span class="chip on">All</span><span class="chip">Snorkel</span><span class="chip">Dive</span><span class="chip">Dhow</span><span class="chip">Fishing</span>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div class="dash" style="height:74px;border-radius:0;border:none;border-bottom:1.5px dashed var(--wire)"><svg class="ic"><use href="#i-cam"/></svg>photo · reef snorkel trip</div>
+              <div style="padding:9px 10px;display:flex;flex-direction:column;gap:5px">
+                <div class="row between"><span class="b" style="font-size:12.5px">Coral Gardens Snorkel</span><span class="b" style="color:var(--amber)">$35</span></div>
+                <div class="row" style="gap:6px;flex-wrap:wrap">
+                  <span class="chip green"><svg class="ic s"><use href="#i-leaf"/></svg>Reef-safe verified ✓ <em class="an">1</em></span>
+                  <span class="chip"><svg class="ic s"><use href="#i-star"/></svg>4.8</span>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <div class="dash" style="height:74px;border-radius:0;border:none;border-bottom:1.5px dashed var(--wire)"><svg class="ic"><use href="#i-cam"/></svg>photo · sunset dhow cruise</div>
+              <div style="padding:9px 10px;display:flex;flex-direction:column;gap:5px">
+                <div class="row between"><span class="b" style="font-size:12.5px">Tudor Creek Dhow Sunset</span><span class="b" style="color:var(--amber)">$28</span></div>
+                <div class="row" style="gap:6px"><span class="chip green"><svg class="ic s"><use href="#i-leaf"/></svg>Mangrove-friendly</span><span class="chip"><svg class="ic s"><use href="#i-star"/></svg>4.6</span></div>
+              </div>
+            </div>
+            <div class="toast" style="background:#fdf4e4;color:#92400e;margin-top:auto"><svg class="ic s"><use href="#i-leaf"/></svg><span>Every booking can fund mangrove restoration. <em class="an">2</em></span></div>
+          </div>
+          <div class="pnav amber">
+            <div class="nv on"><svg class="ic"><use href="#i-home"/></svg>Discover</div>
+            <div class="nv"><svg class="ic"><use href="#i-cal"/></svg>Bookings</div>
+            <div class="nv"><svg class="ic"><use href="#i-scan"/></svg>Scan</div>
+            <div class="nv"><svg class="ic"><use href="#i-leaf"/></svg>Impact</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">T1</span>Discovery Feed</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Sustainability badge is a verifiable credential issued on-chain to the operator — the report's missing "certification/verification system" (§2.2).</li>
+            <li><em class="an">2</em>Conservation funding is surfaced at discovery, not buried at checkout — primes the $2–5 opt-in (report §2.4).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- T2 DETAIL -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>11:26</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="pbody" style="padding:0">
+            <div class="dash" style="height:120px;border-radius:0;border:none;border-bottom:1.5px dashed var(--wire)"><svg class="ic"><use href="#i-cam"/></svg>gallery · 6 photos</div>
+            <div style="padding:11px 13px;display:flex;flex-direction:column;gap:9px;flex:1">
+              <div class="row between"><span class="b" style="font-size:15px">Coral Gardens Snorkel</span><span class="chip amber"><svg class="ic s"><use href="#i-star"/></svg>4.8 · 212</span></div>
+              <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+                <div class="row"><div class="icn green"><svg class="ic"><use href="#i-shield"/></svg></div>
+                <div class="grow"><div class="b" style="font-size:12px">Operator sustainability score 92/100 <em class="an">1</em></div>
+                <div class="xs mut">No-anchor mooring · reef briefings · local crew — verified on-chain</div></div></div>
+                <div class="hash">credential: vc:blue:op-118… anchored ✓</div>
+              </div>
+              <div class="ttl-xs">Included</div>
+              <div class="row" style="gap:6px;flex-wrap:wrap"><span class="chip">Gear</span><span class="chip">Marine park fee</span><span class="chip">Guide</span><span class="chip">Fruit</span></div>
+              <div class="row between" style="margin-top:auto"><div><div class="xs mut">per person</div><div class="big" style="color:var(--amber)">$35</div></div><div class="btn a" style="padding:11px 22px">Book now</div></div>
+            </div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">T2</span>Experience Detail</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Score is computed from auditable practices logged by the operator + ranger attestations; lets operators differentiate on sustainability and capture the eco-tourism premium (report §2.2).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- T3 CHECKOUT -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>11:29</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Checkout</div><div class="sub">BookingEscrow · smart contract</div></div></div>
+          <div class="pbody">
+            <div class="row" style="gap:8px">
+              <div class="inp grow"><svg class="ic s"><use href="#i-cal"/></svg>Sat 22 Mar</div>
+              <div class="inp" style="width:86px"><svg class="ic s"><use href="#i-users"/></svg>2 guests</div>
+            </div>
+            <div class="card">
+              <div class="row between"><span class="mut">2 × snorkel trip</span><span class="b">$70.00</span></div>
+              <div class="row between"><span class="mut">Platform fee (10%) <em class="an">1</em></span><span class="b">incl.</span></div>
+            </div>
+            <div class="card hl" style="border-color:#b7e8d4;background:#f2fbf7;box-shadow:none">
+              <div class="row"><div class="icn green"><svg class="ic"><use href="#i-leaf"/></svg></div>
+                <div class="grow"><div class="b" style="font-size:12px">Add $3.00 for mangroves <em class="an">2</em></div>
+                <div class="xs mut">100% to Gazi Bay restoration — track it in Impact</div></div>
+                <div class="sw"></div></div>
+              <div class="sk" style="width:85%"></div>
+            </div>
+            <div class="row between" style="padding:0 2px"><span class="b">Total</span><span class="big" style="color:var(--amber)">$73.00</span></div>
+            <div class="btn a" style="margin-top:auto"><svg class="ic s"><use href="#i-card"/></svg>Pay with M-Pesa / card <em class="an">3</em></div>
+            <div class="xs mut" style="text-align:center">Escrow holds funds until trip completion · auto-refund on operator cancel</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">T3</span>Checkout + Contribution Toggle</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>8–12% operator commission per the report's tourism revenue model (§2.4) — below the 15–25% charged by global OTAs.</li>
+            <li><em class="an">2</em>The opt-in $2–5 conservation contribution (report §2.4). Visitors already show $6.7–8 median willingness-to-pay for reef quality (§2.1) — the toggle operationalises it.</li>
+            <li><em class="an">3</em>One payment → ContributionSplit contract routes operator share, platform fee and the $3 to the project's wallet atomically.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- T4 IMPACT RECEIPT -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>11:31</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="pbody" style="align-items:stretch;text-align:left">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:6px">
+              <div class="icn green" style="width:52px;height:52px;border-radius:50%"><svg class="ic l"><use href="#i-check"/></svg></div>
+              <div class="b" style="font-size:15px">Booking confirmed</div>
+              <div class="xs mut">Sat 22 Mar · 2 guests · meet 08:30 @ Nyali jetty</div>
+              <div class="qr" data-qr style="width:78px;height:78px"></div>
+              <div class="xs mut">show QR at jetty</div>
+            </div>
+            <div class="card">
+              <div class="ttl-xs">Where your $73 went <em class="an">1</em></div>
+              <div class="splitbar"><div style="width:86%;background:#d97706">operator $63</div><div style="width:10%;background:#475569"></div><div style="width:4%;background:#059669"></div></div>
+              <div class="row between xs"><span class="mut">Operator (escrow)</span><span class="b">$63.00</span></div>
+              <div class="row between xs"><span class="mut">Platform</span><span class="b">$7.00</span></div>
+              <div class="row between xs"><span style="color:var(--green)">Gazi mangrove wallet</span><span class="b" style="color:var(--green)">$3.00</span></div>
+              <div class="hash">tx 0x51be…77d2 · ContributionSplit ✓ <em class="an">2</em></div>
+            </div>
+            <div class="card" style="border-color:#b7e8d4;background:#f2fbf7"><div class="row"><svg class="ic" style="color:var(--green)"><use href="#i-gift"/></svg><div class="grow"><div class="b" style="font-size:12px">Impact certificate earned <em class="an">3</em></div><div class="xs mut">≈ 2 mangrove seedlings · verifiable in your Impact tab</div></div></div></div>
+            <div class="btn" style="margin-top:auto"><svg class="ic s"><use href="#i-leaf"/></svg>Track my impact</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">T4</span>Confirmation &amp; Impact Receipt</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Full fund-flow transparency on the receipt itself — the report's "transparent conservation contribution tracking" (§5.1).</li>
+            <li><em class="an">2</em>Any donor/tourist can audit the tx on the public anchor — no "did my donation arrive?" problem.</li>
+            <li><em class="an">3</em>Contribution mints a verifiable impact credential into the tourist's Blue ID — feeds retention and the Impact tab.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- T5 SCANNER -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>19:12</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Menu scan — Ocean Grill</div><div class="sub">Boat-to-plate check</div></div></div>
+          <div class="pbody">
+            <div class="dash" style="height:110px;flex-direction:column;gap:4px"><svg class="ic l"><use href="#i-scan"/></svg><span>point at QR on menu / table tent</span></div>
+            <div class="card hl" style="border-color:#b7e8d4;box-shadow:none">
+              <div class="row"><div class="icn blue"><svg class="ic"><use href="#i-fish"/></svg></div><div class="grow"><div class="b" style="font-size:12.5px">Tonight's tuna — verified ✓ <em class="an">1</em></div><div class="xs mut">Batch #B-1042 · caught today 05:48</div></div></div>
+              <div class="row"><div class="avl"><svg class="ic s" style="color:#fff"><use href="#i-user"/></svg></div><div class="grow"><div class="b" style="font-size:11.5px">Juma Mwidau <em class="an">2</em></div><div class="xs mut">Mkomani co-op · handline · reef-safe zone</div></div><span class="chip green">trace ✓</span></div>
+              <div class="hash">passport 0x7f3a…c91e · anchored ✓</div>
+            </div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-leaf"/></svg><span class="grow xs">Eating verified-traceable seafood supports <b>fair fisher incomes</b> and healthy reefs.</span></div></div>
+            <div class="btn a" style="margin-top:auto"><svg class="ic s"><use href="#i-star"/></svg>Tip the fisher $2 <em class="an">3</em></div>
+          </div>
+          <div class="pnav amber">
+            <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Discover</div>
+            <div class="nv"><svg class="ic"><use href="#i-cal"/></svg>Bookings</div>
+            <div class="nv on"><svg class="ic"><use href="#i-scan"/></svg>Scan</div>
+            <div class="nv"><svg class="ic"><use href="#i-leaf"/></svg>Impact</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">T5</span>Restaurant Traceability Scan <span style="font-size:10px;color:var(--violet);font-weight:800">· SYNERGY</span></h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Same QR the fisher generated in F4 — resolved from the tourism side. This is §5.3's "seafood traceability for tourism restaurants" synergy, live.</li>
+            <li><em class="an">2</em>The fisher's Blue ID appears on the plate — story-telling that justifies a menu premium, shared back to the fisher.</li>
+            <li><em class="an">3</em>Direct tip flows tourist → fisher wallet (ContributionSplit), closing the loop between modules.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- ======================= SECTION: CONSERVATION ======================= -->
+<section id="cons">
+  <div class="wrap">
+    <div class="sec-head"><span class="num" style="background:#059669">MODULE 3</span><h2>Conservation — Projects, Monitoring, Carbon Marketplace</h2></div>
+    <p class="lede">Per §5.3, the conservation module provides <b>project management, monitoring tools and carbon credit marketplace access</b>. It attacks the report's blue-carbon bottlenecks: 3–5-year manual verification, no digital bridge between East African projects and global buyers, and communities locked out of carbon revenue.</p>
+
+    <div class="board">
+
+      <!-- C1 PROJECT DASHBOARD -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>7:48</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Gazi Bay Mangrove</div><div class="sub">Project dashboard · 2 sites</div></div><svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg></div>
+          <div class="pbody">
+            <div class="dash" style="height:86px;position:relative"><svg class="ic"><use href="#i-pin"/></svg>map · plots &amp; NDVI overlay <em class="an">1</em></div>
+            <div class="grid2">
+              <div class="card" style="align-items:flex-start"><span class="xs mut">Area restored</span><span class="big" style="color:var(--green)">117 ha</span></div>
+              <div class="card" style="align-items:flex-start"><span class="xs mut">Seedlings alive</span><span class="big" style="color:var(--green)">84%</span></div>
+              <div class="card" style="align-items:flex-start"><span class="xs mut">Est. CO₂e (30y)</span><span class="big">24,500 t</span></div>
+              <div class="card" style="align-items:flex-start"><span class="xs mut">Credits issued</span><span class="big">1,850</span></div>
+            </div>
+            <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+              <div class="row between"><span class="ttl-xs">Project wallet <em class="an">2</em></span><span class="pill-sync">on-chain</span></div>
+              <div class="row between"><span class="mut xs">From tourism contributions (this month)</span><span class="b" style="color:var(--green)">$1,214</span></div>
+              <div class="row between"><span class="mut xs">From carbon credit sales</span><span class="b" style="color:var(--green)">$8,900</span></div>
+              <div class="row between" style="border-top:1px dashed var(--line);padding-top:5px"><span class="xs b">Community share (60%)</span><span class="b">$6,068</span></div>
+            </div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--amber)"><use href="#i-bell"/></svg><span class="grow xs">Plot P-14 survival dipped below 75% — schedule replanting visit.</span></div></div>
+            <div class="grid2" style="margin-top:auto"><div class="btn g"><svg class="ic s"><use href="#i-plus"/></svg>Field visit</div><div class="btn"><svg class="ic s"><use href="#i-doc"/></svg>Reports</div></div>
+          </div>
+          <div class="pnav green">
+            <div class="nv on"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+            <div class="nv"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+            <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+            <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">C1</span>Project Dashboard</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Satellite NDVI tiles + GPS plots on one map — the "digital verification tools (satellite integration)" of report §4.4.</li>
+            <li><em class="an">2</em>Two revenue streams land in one auditable wallet: tourism contributions (synergy S-1) and carbon sales; the 60% community share is enforced by smart contract, answering the report's community-exclusion pain point (§4.2).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- C2 MRV CAPTURE -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>9:05</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Field monitoring</div><div class="sub">Plot P-14 · MRV capture</div></div><span class="pill-off">6 queued <em class="an">1</em></span></div>
+          <div class="pbody">
+            <div class="row" style="gap:7px;flex-wrap:wrap"><span class="chip on"><svg class="ic s"><use href="#i-pin"/></svg>GPS locked ±3 m</span><span class="chip">Plot P-14</span></div>
+            <div class="ttl-xs">Survival count</div>
+            <div class="row" style="gap:8px"><div class="inp grow"><span class="mut">alive</span><span class="b" style="color:var(--ink)">212</span></div><div class="inp grow"><span class="mut">planted</span><span class="b" style="color:var(--ink)">280</span></div></div>
+            <div class="grid2">
+              <div class="inp"><span class="mut">Avg height</span><span class="b" style="color:var(--ink)">1.4 m</span></div>
+              <div class="inp"><span class="mut">Species</span><span class="b" style="color:var(--ink)">R. mucronata</span></div>
+            </div>
+            <div class="dash" style="height:74px;flex-direction:column;gap:3px"><svg class="ic l"><use href="#i-cam"/></svg><span>geo-tagged photos · 3 taken <em class="an">2</em></span></div>
+            <div class="btn" style="border-style:dashed"><svg class="ic s"><use href="#i-mic"/></svg>Voice observation</div>
+            <div class="toast" style="background:#e7f8f1;color:#065f46"><svg class="ic s"><use href="#i-check"/></svg><span>Queued. Hash anchors to CreditMRV contract on sync. <em class="an">3</em></span></div>
+            <div class="btn g">Save monitoring record</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">C2</span>MRV Field Capture</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Community monitors work offline in the creek; records queue like the fisher logbook — one sync engine for all modules.</li>
+            <li><em class="an">2</em>Photos stored on IPFS with on-chain hashes — tamper-proof evidence for auditors.</li>
+            <li><em class="an">3</em>Each record is a signed attestation by the monitor's Blue ID → accountability + paid micro-work for community members.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- C3 VERIFICATION PIPELINE -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>14:20</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Verification pipeline</div><div class="sub">Vintage 2026 · 1,850 tCO₂e</div></div></div>
+          <div class="pbody">
+            <div class="step"><div class="st-ic st-ok"><svg class="ic s"><use href="#i-check"/></svg></div><div class="grow"><div class="b">Field data complete</div><div class="xs mut">312 plot records · 14 monitors</div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-ok"><svg class="ic s"><use href="#i-check"/></svg></div><div class="grow"><div class="b">Satellite corroboration <em class="an">1</em></div><div class="xs mut">NDVI +12% YoY · Sentinel-2 tile matched</div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-wip">3</div><div class="grow"><div class="b">Third-party audit</div><div class="xs mut">Verra VCS reviewer · due 12 days</div></div></div>
+            <div class="st-line"></div>
+            <div class="step"><div class="st-ic st-todo">4</div><div class="grow"><div class="mut">Registry issuance → mint on-chain <em class="an">2</em></div></div></div>
+            <div class="ttl-xs" style="margin-top:6px">Documents (IPFS hashes) <em class="an">3</em></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-doc"/></svg><span class="grow">Project Design Document</span><span class="xs" style="color:var(--green)">✓</span></div></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-doc"/></svg><span class="grow">Monitoring report Q1</span><span class="xs" style="color:var(--green)">✓</span></div></div>
+            <div class="card"><div class="row"><svg class="ic s" style="color:var(--amber)"><use href="#i-doc"/></svg><span class="grow">Co-benefit attestation <em class="an">4</em></span><span class="xs" style="color:var(--amber)">building…</span></div></div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">C3</span>Verification Pipeline</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Field + satellite fusion shrinks the 3–5-year, $50–500K verification bottleneck (report §4.2).</li>
+            <li><em class="an">2</em>Credits mint only after registry issuance — never before — so on-chain supply always equals registry supply (no double-counting, §5.1).</li>
+            <li><em class="an">3</em>Every document's hash is on the ledger; auditors and buyers see the same immutable evidence.</li>
+            <li><em class="an">4</em>Aggregated, anonymised fisher-income deltas from the fisheries module attach as SDG co-benefits → price premium (synergy S-3).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+      <!-- C4 CARBON MARKETPLACE -->
+      <div class="unit">
+        <div class="ph"><div class="pscr"><div class="notch"></div>
+          <div class="pstat"><span>16:02</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+          <div class="papp"><div class="grow"><div class="ttl">Blue carbon market</div><div class="sub">Buyer view · verified credits</div></div><svg class="ic" style="color:var(--green)"><use href="#i-globe"/></svg></div>
+          <div class="pbody">
+            <div class="card hl" style="border-color:#b7e8d4;box-shadow:none">
+              <div class="row between"><span class="b" style="font-size:12.5px">Gazi Bay Mangrove · 2026</span><span class="chip green"><svg class="ic s"><use href="#i-shield"/></svg>Verra</span></div>
+              <div class="row" style="gap:6px;flex-wrap:wrap"><span class="chip"><svg class="ic s"><use href="#i-co2"/></svg>1,850 t available</span><span class="chip green"><svg class="ic s"><use href="#i-users"/></svg>SDG co-benefits ✓ <em class="an">1</em></span></div>
+              <div class="row between"><div><div class="xs mut">price / tCO₂e</div><div class="big" style="color:var(--green)">$28 <em class="an">2</em></div></div><div class="btn g sm" style="padding:8px 14px">Buy credits</div></div>
+            </div>
+            <div class="card"><div class="row between"><span class="b" style="font-size:12px">Vanga Seagrass · 2026</span><span class="chip green">Gold Std</span></div><div class="row between xs mut"><span>920 t · pre-issuance forward</span><span class="b" style="color:var(--ink)">$22</span></div></div>
+            <div class="ttl-xs">After purchase — retirement <em class="an">3</em></div>
+            <div class="card" style="background:#12263b;border-color:#12263b;color:#dff2fb">
+              <div class="row"><svg class="ic" style="color:#7de3f5"><use href="#i-doc"/></svg><div class="grow"><div class="b" style="font-size:11.5px">Retirement certificate</div><div class="xs" style="color:#9fc0d4">100 tCO₂e · Acme Corp · serial-retired on registry + burned on-chain</div></div></div>
+              <div class="hash" style="background:rgba(255,255,255,.1);color:#bfeaf5">retire 0xa91c…44e0 ✓ · registry ref GS-7712</div>
+            </div>
+            <div class="row between xs" style="padding:0 2px"><span class="mut">Revenue split (contract-enforced)</span><span class="b">community 60 · project 25 · platform 15 <em class="an">4</em></span></div>
+          </div>
+          <div class="pnav green">
+            <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+            <div class="nv"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+            <div class="nv on"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+            <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+            <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+          </div>
+        </div></div>
+        <div class="cap"><h4><span class="sid">C4</span>Carbon Credit Marketplace</h4>
+          <ul class="notes">
+            <li><em class="an">1</em>Co-benefit badge is backed by fisher income data from module 1 — the premium differentiator no other marketplace has.</li>
+            <li><em class="an">2</em>Priced in the report's $25–35 high-quality band (§4.1); platform takes a 10–15% transaction fee (§4.4).</li>
+            <li><em class="an">3</em>Retirement is dual-recorded — registry serial retired AND token burned — eliminating double-counting (§5.1).</li>
+            <li><em class="an">4</em>Contract-enforced split reverses the status quo where communities "receive minimal benefits" (§4.2).</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- ======================= SECTION: SYNERGIES ======================= -->
+<section id="syn">
+  <div class="wrap">
+    <div class="sec-head"><span class="num" style="background:#7c3aed">§5.3</span><h2>Cross-Module Synergies — Where the Combined App Wins</h2></div>
+    <p class="lede">§5.3 names exactly three cross-module synergies. Each is shown below end-to-end: the screens it touches, the contract that executes it, and the report value chain it completes. <b>None of these is possible with three standalone apps</b> — they require the shared ledger and shared Blue ID.</p>
+
+    <!-- S-1 -->
+    <div class="flow">
+      <h3><span class="num" style="background:#7c3aed;font-size:11px">S-1</span> Tourism bookings fund conservation</h3>
+      <p class="fdesc">"Conservation funding from tourism bookings" — every checkout (screen T3) routes the opt-in $2–5 straight into a project wallet; the tourist watches it grow in C1.</p>
+      <div class="fline">
+        <div class="fbox a"><svg class="ic s" style="color:#d97706"><use href="#i-user"/></svg>Tourist pays $73<small>T3 checkout · M-Pesa</small></div>
+        <div class="farr"><span class="lbl">one tx</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox drk"><svg class="ic s" style="color:#7de3f5"><use href="#i-doc"/></svg>ContributionSplit<small>smart contract · atomic</small></div>
+        <div class="farr"><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox a">Operator $63<small>escrow till trip done</small></div>
+        <div class="fbox c">Platform $7<small>10% commission</small></div>
+        <div class="farr"><span class="lbl">$3</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox g"><svg class="ic s" style="color:#059669"><use href="#i-leaf"/></svg>Gazi wallet<small>auditable in C1 · buys seedlings</small></div>
+        <div class="farr"><span class="lbl">mints</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox v"><svg class="ic s" style="color:#7c3aed"><use href="#i-gift"/></svg>Impact certificate<small>T4 receipt · tourist's Blue ID</small></div>
+      </div>
+    </div>
+
+    <!-- S-2 -->
+    <div class="flow">
+      <h3><span class="num" style="background:#7c3aed;font-size:11px">S-2</span> Seafood traceability for tourism restaurants</h3>
+      <p class="fdesc">"Seafood traceability for tourism restaurants" — the QR minted in the fisheries logbook (F2/F4) becomes a menu story tourists scan at the table (T5). Verified restaurants pay fishers a traceability premium.</p>
+      <div class="fline">
+        <div class="fbox b"><svg class="ic s" style="color:#2563eb"><use href="#i-fish"/></svg>Fisher logs catch<small>F2 · hash anchored</small></div>
+        <div class="farr"><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox b">QR passport #B-1042<small>F4 · boat-to-plate trail</small></div>
+        <div class="farr"><span class="lbl">buys w/ escrow</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox a"><svg class="ic s" style="color:#d97706"><use href="#i-store"/></svg>Restaurant / hotel<small>tourism module buyer</small></div>
+        <div class="farr"><span class="lbl">menu QR</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox a"><svg class="ic s" style="color:#d97706"><use href="#i-scan"/></svg>Tourist scans at table<small>T5 · sees fisher & origin</small></div>
+        <div class="farr"><span class="lbl">premium / tip</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox g"><svg class="ic s" style="color:#059669"><use href="#i-wallet"/></svg>Fisher earns more<small>income credential grows (F5)</small></div>
+      </div>
+    </div>
+
+    <!-- S-3 -->
+    <div class="flow">
+      <h3><span class="num" style="background:#7c3aed;font-size:11px">S-3</span> Fisher income data verifies carbon co-benefits</h3>
+      <p class="fdesc">"Fisher income data for conservation project co-benefit verification" — anonymised income uplift from the logbook (F5) is attested on-chain and attached to credit listings (C4), justifying the blue-carbon price premium.</p>
+      <div class="fline">
+        <div class="fbox b"><svg class="ic s" style="color:#2563eb"><use href="#i-chart"/></svg>Logbook income ledger<small>F5 · on-chain settled trades</small></div>
+        <div class="farr"><span class="lbl">aggregate + anonymise</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox drk"><svg class="ic s" style="color:#7de3f5"><use href="#i-doc"/></svg>CoBenefit attestation<small>contract · opt-in consent via DID</small></div>
+        <div class="farr"><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox g">SDG co-benefit badge<small>C3 pipeline → C4 listing</small></div>
+        <div class="farr"><span class="lbl">premium price</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox g"><svg class="ic s" style="color:#059669"><use href="#i-co2"/></svg>Credits sell at $25–35/t<small>23% premium band (report §4.1)</small></div>
+        <div class="farr"><span class="lbl">60%</span><svg class="ic"><use href="#i-arr"/></svg></div>
+        <div class="fbox v"><svg class="ic s" style="color:#7c3aed"><use href="#i-users"/></svg>Community revenue share<small>contract-enforced split</small></div>
+      </div>
+    </div>
+
+    <div class="callout"><b>Flywheel:</b> more fishers logging → more traceable seafood for tourists → more bookings + contributions → more mangrove funding → more credits with richer co-benefits → higher carbon revenue → more fishers want in. This is the integrated-model thesis behind the report's Year-2 break-even and $18.3M Year-5 revenue (§6.2).</div>
+  </div>
+</section>
+<!-- ======================= SECTION: IMPLEMENTATION ======================= -->
+<section id="impl">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">BUILD</span><h2>Detailed Implementation Specification</h2></div>
+    <p class="lede">Engineering blueprint for the wireframe above — stack, contracts, data model, flows, offline strategy, compliance, and a phased build plan aligned to the report's two-year roadmap (§8). Sized to the Year-1 budget of <b>$580K</b>.</p>
+
+    <div class="sphead"><span class="bar-v"></span>1 · Technology Stack</div>
+    <table class="spec">
+      <tr><th>Layer</th><th>Choice</th><th>Why (per report constraints)</th></tr>
+      <tr><td>Fisher / operator app</td><td>React Native (Expo) + on-device SQLite (WatermelonDB)</td><td>One codebase, low-spec Android first; offline queue is a DB table, not an afterthought (§5.2)</td></tr>
+      <tr><td>Tourist client</td><td>Installable PWA (Next.js), &lt;1 MB first load</td><td>No app-store friction at the beach; hotel QR codes deep-link to bookings</td></tr>
+      <tr><td>Feature phones</td><td>USSD gateway (Africa's Talking) + SMS receipts</td><td>Near-universal feature-phone penetration (§5.2); log catch, check prices, confirm sales via <code>*384*77#</code></td></tr>
+      <tr><td>Backend</td><td>Node.js (NestJS) modular monolith → split later; PostgreSQL + PostGIS; Redis; Kafka events</td><td>Modular per the three modules; PostGIS for landing sites, fishing zones, mangrove plots</td></tr>
+      <tr><td>Blockchain</td><td>Hyperledger Fabric (permissioned) — 3 channels (<code>fisheries</code>, <code>tourism</code>, <code>conservation</code>); Merkle-root anchor to Polygon daily</td><td>Report §5.1: permissioned suits regulated, privacy-sensitive supply chains; public anchor adds external trust without exposing commercial data</td></tr>
+      <tr><td>Storage</td><td>IPFS/Filecoin for media &amp; docs; hashes on-chain; S3 for app assets</td><td>Photos of catch/plots must be tamper-evident but not ledger-bloating</td></tr>
+      <tr><td>Identity</td><td>DID (<code>did:web</code>→<code>did:ion</code> later) + W3C Verifiable Credentials; custodial wallets, guardian recovery</td><td>The §5.3 "common user identity system"; co-op co-sign recovery for low-literacy users</td></tr>
+      <tr><td>Payments</td><td>Safaricom M-Pesa Daraja API (STK Push, B2C payouts, reversal); escrow logic in contracts</td><td>M-Pesa is the proven rail for mass adoption in Kenya (§5.2)</td></tr>
+      <tr><td>Earth observation</td><td>Sentinel-2 (free, 10 m) NDVI pipeline + Planet Labs tasking for audits; Google Earth Engine processing</td><td>Cheap, frequent corroboration of mangrove survival (§4.2)</td></tr>
+      <tr><td>Weather/tide</td><td>Open-Meteo + tide harmonic model, cached at sync</td><td>Fisher go/no-go safety card on F1</td></tr>
+      <tr><td>Infra</td><td>Kubernetes on cloud region serving E Africa; Fabric peers co-located with partners (co-op HQ, KWS, platform)</td><td>Kenya data-residency; partner-run peers reinforce the consortium trust model</td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>2 · Smart Contracts (chaincode)</div>
+    <table class="spec">
+      <tr><th>Contract</th><th>Channel</th><th>Purpose</th><th>Key functions</th></tr>
+      <tr><td><code>CatchRegistry</code></td><td>fisheries</td><td>Immutable catch record per batch (§5.1)</td><td><code>logBatch</code> · <code>appendCustody</code> · <code>issuePassportQR</code></td></tr>
+      <tr><td><code>MarketEscrow</code></td><td>fisheries</td><td>Lock buyer funds; release on handover scan; split fisher/co-op/platform</td><td><code>lock</code> · <code>confirmHandover</code> · <code>refund</code></td></tr>
+      <tr><td><code>BookingEscrow</code></td><td>tourism</td><td>Tourist payment held until trip completion</td><td><code>book</code> · <code>complete</code> · <code>cancelRefund</code></td></tr>
+      <tr><td><code>ContributionSplit</code></td><td>tourism + conservation</td><td>Atomic split incl. $2–5 conservation routing (synergy S-1)</td><td><code>split</code> · <code>routeToProject</code></td></tr>
+      <tr><td><code>CreditMRV</code></td><td>conservation</td><td>MRV evidence chain; mint credits only on registry issuance</td><td><code>attestRecord</code> · <code>registerIssuance</code> · <code>mint</code></td></tr>
+      <tr><td><code>Retirement</code></td><td>conservation</td><td>Dual retirement: burn token + retire registry serial (no double count)</td><td><code>retire</code> · <code>certificate</code></td></tr>
+      <tr><td><code>CoBenefit</code></td><td>cross-channel</td><td>Anonymised fisher-income attestations attached to credits (synergy S-3)</td><td><code>attestUplift</code> · <code>attachToVintage</code></td></tr>
+      <tr><td><code>IdentityRegistry</code></td><td>all</td><td>DID ↔ credential anchoring; role grants</td><td><code>anchorDID</code> · <code>issueCredential</code> · <code>revoke</code></td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>3 · Core Data Model</div>
+    <table class="spec">
+      <tr><th>Entity</th><th>Key fields</th><th>On-chain</th><th>Off-chain</th></tr>
+      <tr><td>User / Blue ID</td><td>DID, phone alias, roles[], credentials[], guardians[]</td><td>DID, credential hashes</td><td>PII (encrypted), preferences</td></tr>
+      <tr><td>CatchBatch</td><td>batchId, fisherDID, species, kg, geo, ts, mediaHash</td><td>batch hash, custody events</td><td>photos (IPFS), price signals</td></tr>
+      <tr><td>Listing / Bid</td><td>batchId, askKES, bids[], status</td><td>escrow state, settlement</td><td>catalogue, search index</td></tr>
+      <tr><td>Experience / Booking</td><td>operatorDID, slots, price, bookingId, guests</td><td>escrow, split tx, contribution</td><td>content, reviews, availability</td></tr>
+      <tr><td>Project / Plot</td><td>projectId, site polygon, plots[], species, survival</td><td>plot attestations</td><td>NDVI rasters, photos</td></tr>
+      <tr><td>CarbonCredit</td><td>vintage, tCO2e, registry serial, coBenefitRef</td><td>issuance, ownership, retirement</td><td>audit docs (IPFS)</td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>4 · Key Sequence Flows</div>
+    <table class="spec">
+      <tr><th>#</th><th>Flow</th><th>Steps</th></tr>
+      <tr><td>1</td><td>Log → sell → settle (fisheries)</td><td>F2 saves offline → sync anchors hash (<code>CatchRegistry.logBatch</code>) → QR passport issued → F3 lists → buyer bid → <code>MarketEscrow.lock</code> (M-Pesa STK) → handover QR scan → split release (90/5/5) → income credential updated (F5)</td></tr>
+      <tr><td>2</td><td>Book → contribute → certify (S-1)</td><td>T3 checkout → <code>BookingEscrow.book</code> + <code>ContributionSplit.split</code> → $3 to project wallet (visible C1) → impact VC minted to tourist DID (T4) → trip completion releases operator share</td></tr>
+      <tr><td>3</td><td>Monitor → verify → mint → sell → retire (conservation)</td><td>C2 records queued → sync → <code>CreditMRV.attestRecord</code> → satellite corroboration → auditor sign-off → registry issuance → <code>mint</code> → C4 listing → corporate purchase → <code>Retirement.retire</code> (burn + serial) → 60/25/15 split</td></tr>
+      <tr><td>4</td><td>Trace → plate → tip (S-2)</td><td>Restaurant buyer scans batch QR (F4) → custody appended → menu QR → tourist scan (T5) resolves public anchor → optional tip via <code>ContributionSplit</code> direct to fisher wallet</td></tr>
+      <tr><td>5</td><td>Income → co-benefit (S-3)</td><td>Nightly job aggregates settled-trade income deltas (opt-in cohorts, k-anonymity ≥ 20) → <code>CoBenefit.attestUplift</code> → badge on vintage (C3/C4) → premium pricing → community share flows back</td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>5 · Offline-First &amp; Low-Literacy Strategy</div>
+    <table class="spec">
+      <tr><th>Constraint (report)</th><th>Implementation</th></tr>
+      <tr><td>No signal at sea / in creeks (§5.2)</td><td>All writes go to local queue with signed payload; background sync on any connectivity; conflict rule = ledger append-only, no overwrites; USSD mirrors 4 core actions (log, price, accept, balance)</td></tr>
+      <tr><td>Low digital literacy (§9 risk)</td><td>Icon grids + photo species picker; text-to-speech in EN/SW on every screen; voice notes; max 2 decisions per screen; co-op-led onboarding with training mode (sandbox data)</td></tr>
+      <tr><td>Low-spec devices (§5.2)</td><td>&lt;40 MB APK, Android 8+, image downscale on-device, battery-saver sync windows</td></tr>
+      <tr><td>Trust in "blockchain" claims</td><td>Every on-screen ✓ resolves to a public-anchor proof anyone can open — no account needed (F4, T4, C4)</td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>6 · Security &amp; Compliance</div>
+    <table class="spec">
+      <tr><th>Area</th><th>Measure</th></tr>
+      <tr><td>Data protection</td><td>Kenya Data Protection Act 2019: PII off-chain, encrypted at rest (AES-256) &amp; in transit (TLS 1.3); DID carries hashes only; right-to-erasure via off-chain deletion + key shredding</td></tr>
+      <tr><td>Keys &amp; custody</td><td>Custodial wallets in HSM/KMS; guardian social recovery (co-op + family); operator/project treasuries are multi-sig</td></tr>
+      <tr><td>Carbon integrity</td><td>Mint only post-registry-issuance; dual retirement; Verra VCS + Gold Standard multi-standard path (§9 regulatory mitigation)</td></tr>
+      <tr><td>Fraud controls</td><td>GPS spoof detection (cell-triangulation cross-check), duplicate-photo hashing, bid-collusion heuristics, co-op vouching for new fishers</td></tr>
+    </table>
+
+    <div class="sphead"><span class="bar-v"></span>7 · Phased Build Plan (aligned to report §8)</div>
+    <table class="spec">
+      <tr><th>Phase</th><th>Timeline</th><th>Deliverables</th><th>Exit criteria / KPIs</th></tr>
+      <tr><td>0 · Foundation</td><td>Y1 Q1–Q2</td><td>Blue ID + wallet core; Fabric network (3 peers); fisheries logbook MVP (offline + USSD); 3–5 co-op partnerships</td><td>200 fishers onboarded; 100% offline logging success</td></tr>
+      <tr><td>1 · Pilot</td><td>Y1 Q3–Q4</td><td>Marketplace + escrow; tourism PWA (discovery, booking, $3 contribution); first mangrove site baseline; M-Pesa live</td><td>10–15 operators; $340K revenue run-rate; first contribution tx on-chain</td></tr>
+      <tr><td>2 · Coast scale</td><td>Y2 Q1–Q2</td><td>Kwale/Kilifi/Lamu rollout; MRV + satellite pipeline; carbon marketplace alpha; restaurant traceability (S-2) live</td><td>25 co-ops · 50 operators; first verified credits minted</td></tr>
+      <tr><td>3 · Revenue &amp; Series A</td><td>Y2 Q3–Q4</td><td>Co-benefit engine (S-3); gov/NGO data API; corporate carbon sales desk</td><td>Break-even (cumulative); 1,500+ fishers · 150+ operators; Series A $3–5M</td></tr>
+    </table>
+
+    <div class="kpis">
+      <div class="kpi"><div class="v" style="color:var(--blue)">200 → 25k</div><div class="l">Fishers, pilot → Year 5</div></div>
+      <div class="kpi"><div class="v" style="color:var(--amber)">15 → 500</div><div class="l">Tourism operators</div></div>
+      <div class="kpi"><div class="v" style="color:var(--green)">24,500 t</div><div class="l">CO₂e credits by Year 5</div></div>
+      <div class="kpi"><div class="v" style="color:var(--cyan)">Year 2</div><div class="l">Integrated break-even (§6.2)</div></div>
+      <div class="kpi"><div class="v" style="color:var(--violet)">$18.3M</div><div class="l">Year-5 platform revenue</div></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><b style="color:#dff2fb">BahariLink wireframe</b> · implements §5.3 Integration Architecture of "Blue Economy Technology Startup Opportunities — Mombasa, Kenya"</span>
+    <span>Wireframe conventions: grey = placeholder · dashed = media · amber number = annotation</span>
+  </div>
+</footer>
+
+<script>
+// ---- tab switching ----
+const tabs=document.querySelectorAll('.tab');
+tabs.forEach(t=>t.addEventListener('click',()=>{
+  tabs.forEach(x=>x.classList.remove('on'));t.classList.add('on');
+  document.querySelectorAll('main section').forEach(s=>s.classList.remove('on'));
+  document.getElementById(t.dataset.t).classList.add('on');
+  window.scrollTo({top:0});
+}));
+
+// ---- deterministic pseudo-QR patterns ----
+function qrSVG(seed){
+  let s=seed;const rnd=()=>{s=(s*9301+49297)%233280;return s/233280};
+  const n=21,cell=10;let r='';
+  const finder=(x,y)=>{r+='<rect x="'+x+'" y="'+y+'" width="70" height="70" fill="#0f172a"/>';r+='<rect x="'+(x+10)+'" y="'+(y+10)+'" width="50" height="50" fill="#fff"/>';r+='<rect x="'+(x+20)+'" y="'+(y+20)+'" width="30" height="30" fill="#0f172a"/>'};
+  for(let y=0;y<n;y++)for(let x=0;x<n;x++){
+    const inF=(x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12);if(inF)continue;
+    if(rnd()>0.55)r+='<rect x="'+(x*cell)+'" y="'+(y*cell)+'" width="10" height="10" fill="#0f172a"/>';
+  }
+  finder(0,0);finder(140,0);finder(0,140);
+  return '<svg viewBox="0 0 210 210">'+r+'</svg>';
+}
+document.querySelectorAll('[data-qr]').forEach((el,i)=>{el.innerHTML=qrSVG(1234+i*777);});
+</script>
+</body>
+</html>

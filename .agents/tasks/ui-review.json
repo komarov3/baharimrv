@@ -1,0 +1,14 @@
+{
+  "verdict": "CHANGES_REQUESTED",
+  "findings": [
+    "Wallet revenue streams use hardcoded data — DashboardDto lacks revenue fields (tourismContributions, carbonCreditSales, communityShare). Add these fields to the DTO and update DashboardContent to conditionally render WalletRevenueStream only when data exists.",
+    "Verification pipeline stage details lack explicit counts — wireframe C3 shows \"316 plot records · 14 monitors\" but current implementation shows generic \"Plot records · monitors\". Backend should provide PipelineStageDto with plotRecordCount and monitorCount fields.",
+    "Retirement allocation is hardcoded — \"community 60 · project 25 · platform 15 🔒\" should derive from RetirementResultDto.allocation or RevenueRuleDto.allocations field structure.",
+    "GPS badge distance from GPS capture action — badge moved to Plot section header (two cards up from GPS location card), creating spatial gap between state indicator and the button that updates it. Consider duplicating the badge or restoring it to GPS card.",
+    "Evidence count format aggregates indicators — wireframe C2 may intend separate badges for \"Geo-tagged photos · 3\" and \"Voice · 1\" rather than one combined StatusChip. Clarify wireframe intent or split into separate indicators.",
+    "Metric label typography not fully compact — CompactMetricCard uses labelMedium for labels where wireframe C1 suggests smaller sizing. Test labelSmall or reduce font scale.",
+    "NDVI status badge lacks legend integration — HomeScreen adds NDVI StatusChip above map but wireframe C1 may intend a legend overlay on the map surface itself. Clarify whether current placement matches intent.",
+    "Profile screen lacks actual avatar image support — ProfileHeader shows a placeholder icon but no mechanism to upload or display user photos. Consider adding avatar upload if this is a future requirement."
+  ],
+  "reviewDoc": "/Users/Komarov/Documents/BahariMRV/.agents/tasks/ui-review.md"
+}
