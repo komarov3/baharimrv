@@ -16,6 +16,8 @@ const primaryNavigation = [
 
 const taskNavigation = [
   { to: '/app/projects', label: 'Projects', icon: FolderOpen },
+  { to: '/app/planting', label: 'Planting activity', icon: Leaf },
+  { to: '/app/satellite', label: 'Satellite monitoring', icon: MonitorSmartphone },
   { to: '/app/verification', label: 'Verification pipeline', icon: ShieldCheck },
   { to: '/app/proofs', label: 'Proof center', icon: FileCheck2 },
 ];
@@ -23,6 +25,8 @@ const taskNavigation = [
 const pageNames: Record<string, string> = {
   '/app/dashboard': 'Project overview',
   '/app/monitor': 'MRV field capture',
+  '/app/planting': 'Planting activity',
+  '/app/satellite': 'Satellite monitoring',
   '/app/verification': 'Independent verification',
   '/app/credits': 'Registry-backed credits',
   '/app/wallet': 'Financial evidence',

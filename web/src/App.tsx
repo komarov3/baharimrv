@@ -20,10 +20,12 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LinkAccountPage } from './pages/LinkAccountPage';
 import { LoginPage } from './pages/LoginPage';
 import { MonitorPage } from './pages/MonitorPage';
+import { PlantingActivityPage } from './pages/PlantingActivityPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProofsPage } from './pages/ProofsPage';
 import { PublicProofPage } from './pages/PublicProofPage';
+import { SatelliteMonitoringPage } from './pages/SatelliteMonitoringPage';
 import { VerificationPage } from './pages/VerificationPage';
 import { WalletPage } from './pages/WalletPage';
 
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="monitor" element={<MonitorPage />} />
         <Route path="verification" element={<VerificationPage />} />
         <Route path="credits" element={<CreditsPage />} />
+        <Route path="planting" element={<PlantingActivityPage />} />
+        <Route path="satellite" element={<SatelliteMonitoringPage />} />
         <Route path="wallet" element={<WalletPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="projects" element={<ProjectsPage />} />

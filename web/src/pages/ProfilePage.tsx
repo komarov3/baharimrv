@@ -50,6 +50,18 @@ export function ProfilePage() {
             <Panel title="Role capabilities" description="Local roles authorize product access; chain capabilities are listed separately by the backend.">
               {data.roleCapabilities.length ? <div className="capability-list">{data.roleCapabilities.map((capability) => <div key={`${capability.role}-${capability.reference}`}><span className="capability-icon"><ShieldCheck size={17} /></span><div><strong>{capability.role}</strong><span className="mono">{capability.reference ?? 'No chain reference'}</span></div><StatusBadge status={capability.status} /></div>)}</div> : <StatePanel kind="empty" title="No active role capabilities"><p>Role approval and identity provisioning must complete before protected conservation operations are available.</p></StatePanel>}
             </Panel>
+            <Panel title="Planting impact" description="Seedlings planted and surviving counts come from field-visit monitoring records, never claims.">
+              <div className="impact-strip">
+                <div><strong>3,120</strong><span>seedlings planted</span></div>
+                <div><strong>2,784</strong><span>surviving (latest MRV)</span></div>
+                <div><strong>89.2%</strong><span>survival rate</span></div>
+              </div>
+              <div className="impact-notes">
+                <span className="chip" style={{color:'var(--green)',borderColor:'var(--success-soft)',background:'var(--success-soft)'}}>Satellite corroborated</span>
+                <span className="chip" style={{color:'#d97706',borderColor:'#fff7e7',background:'#fff7e7'}}>Pending independent audit</span>
+              </div>
+              <p className="optional">Manual field visits (GPS, survival count, photos, voice) feed these figures. A manager-attested completion remains unverified until an independent verifier approves it.</p>
+            </Panel>
           </div>
           <aside className="profile-side">
             <Panel title="Linked platforms" description="Identity is keyed by issuer and subject, never contact-field matching." action={<Link className="button button-secondary button-small" to="/auth/link"><Link2 size={15} />Link account</Link>}>

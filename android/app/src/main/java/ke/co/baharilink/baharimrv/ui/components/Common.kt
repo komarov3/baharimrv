@@ -65,7 +65,7 @@ fun StatusChip(text: String, modifier: Modifier = Modifier, tone: ChipTone = Chi
         ChipTone.POSITIVE -> Triple(Color(0xFFE7F8F1), Color(0xFFB7E8D4), Color(0xFF059669))
         ChipTone.WARNING -> Triple(Color(0xFFFDF3E3), Color(0xFFF2DDB3), Color(0xFFD97706))
         ChipTone.ERROR -> Triple(colors.errorContainer, colors.error, colors.onErrorContainer)
-        ChipTone.NEUTRAL -> Triple(Color(0xFFE5EBF2), Color(0xFFE5EBF2), Color(0xFF5B6B80))
+        ChipTone.NEUTRAL -> Triple(Color(0xFFFFFFFF), Color(0xFFD8E0EA), Color(0xFF5B6B80))
     }
     Surface(
         modifier = modifier,

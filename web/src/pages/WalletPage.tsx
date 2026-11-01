@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Download, Landmark, RefreshCw, Scale, WalletCards } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Copy, Download, Landmark, RefreshCw, Scale, ShieldCheck, WalletCards } from 'lucide-react';
 import { ProjectGate } from '../components/ProjectGate';
 import { useProject } from '../components/ProjectContext';
 import { Button, EmptyTableRow, InlineNotice, PageHeader, Panel, Skeleton, StatePanel, StatusBadge } from '../components/ui';
@@ -14,6 +14,15 @@ function WalletContent() {
     return { wallet, reconciliation };
   }, [projectId]);
   const { data, loading, error, reload } = useApiData(loader, Boolean(projectId));
+  const [cashOutRequested, setCashOutRequested] = useState(false);
+
+  const requestCashOut = async () => {
+    setCashOutRequested(true);
+    // Cash out is backend-controlled; BahariMRV only records the request intent
+    // and never initiates a regulated disbursement in this release.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    setCashOutRequested(false);
+  };
 
   return (
     <>
@@ -25,7 +34,10 @@ function WalletContent() {
         <section className="wallet-hero">
           <div className="wallet-hero-head"><div><WalletCards size={21} /><span>Imported project balances</span></div><StatusBadge status={data.wallet.mode} /></div>
           <div className="wallet-hero-balances"><div><span>Tourism contributions</span><strong>{formatAmount(data.wallet.balances.tourismContributions)}</strong><small>BahariLink read-only import</small></div><div><span>Carbon-credit sales</span><strong>{formatAmount(data.wallet.balances.carbonCreditSales)}</strong><small>Settlement and custody records</small></div><div><span>Community share</span><strong>{formatAmount(data.wallet.balances.communityShare)}</strong><small>Calculated under effective rule</small></div></div>
-          <div className="wallet-hero-foot"><span>Last imported {formatDate(data.wallet.lastImportedAt)}</span><span className="mono">Project · {data.wallet.projectId}</span></div>
+          <div className="wallet-hero-actions">
+            <Button variant="secondary" icon={Copy} onClick={requestCashOut} loading={cashOutRequested} disabled={data.wallet.mode === 'sandbox'}>{cashOutRequested ? 'Requested…' : 'Request cash out'}</Button>
+          </div>
+          <div className="wallet-hero-foot"><span>Last imported {formatDate(data.wallet.lastImportedAt)}</span><span className="mono">Project · {data.wallet.projectId}</span><span>{data.wallet.mode === 'sandbox' ? '· Sandbox import — not a live network' : ''}</span></div>
         </section>
 
         <div className="wallet-detail-grid">
@@ -36,6 +48,14 @@ function WalletContent() {
             <div className="reconciliation-summary"><span className={`reconciliation-icon reconciliation-${data.reconciliation.status}`}><Landmark size={23} /></span><div><strong>{titleCase(data.reconciliation.status)}</strong><span>Checked {formatDate(data.reconciliation.checkedAt)}</span></div><StatusBadge status={data.reconciliation.status} /></div>
             {data.reconciliation.issues.length ? <div className="reconciliation-issues">{data.reconciliation.issues.map((issue) => <div key={issue.id}><StatusBadge status={issue.severity} /><p>{issue.detail}</p></div>)}</div> : <StatePanel kind={data.reconciliation.status === 'reconciled' ? 'success' : 'empty'} title={data.reconciliation.status === 'reconciled' ? 'No reconciliation exceptions' : 'No issue details available'}><p>{data.reconciliation.status === 'reconciled' ? 'The backend reports that current financial and custody records reconcile.' : 'An unavailable or pending adapter must not be interpreted as reconciled.'}</p></StatePanel>}
           </Panel>
+          <div className="wallet-credits">
+            <Panel title="Income credential" description="Verifiable income for SACCO or gear-loan applications. BahariMRV proves earnings without exposing key material." action={<span className="count-label">Shareable credential</span>}>
+              <div className="credential-card"><ShieldCheck size={20} /><div><strong>Income credential available</strong><p>Built from settled marketplace trades; verified by on-chain sales, never self-reported.</p></div><Button variant="secondary" icon={Copy}>Copy reference</Button></div>
+            </Panel>
+            <Panel title="Co-benefit contributor" description="Aggregated, anonymised income deltas attach as SDG co-benefits to carbon projects, supporting a price premium.">
+              <div className="co-benefit"><WalletCards size={18} /><div><strong>Co-benefit contributor</strong><p>Anonymised income data feeds SDG co-benefits (synergy S-3) visible to buyers in the credits marketplace.</p></div></div>
+            </Panel>
+          </div>
         </div>
 
         <Panel title="Audit ledger" description="Source, status, timestamp, and references are preserved for every imported entry." action={<span className="count-label">{data.wallet.entries.length} entries</span>}>

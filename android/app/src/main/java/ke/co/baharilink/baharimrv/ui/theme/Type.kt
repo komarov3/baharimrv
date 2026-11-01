@@ -41,11 +41,11 @@ val BahariTypography = Typography(
         lineHeight = 18.sp,
         letterSpacing = 0.sp,
     ),
-    headlineSmall = TextStyle(  // 13sp card title (Mikoko Park title)
+    headlineSmall = TextStyle(  // 12.5sp card title (Mikoko Park title)
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
+        fontSize = 12.5.sp,
+        lineHeight = 16.sp,
         letterSpacing = 0.sp,
     ),
     
