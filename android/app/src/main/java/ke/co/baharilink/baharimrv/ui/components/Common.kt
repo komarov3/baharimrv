@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.io.IOException
 import java.math.BigDecimal
 import java.time.OffsetDateTime
@@ -60,16 +61,22 @@ sealed interface LoadState<out T> {
 @Composable
 fun StatusChip(text: String, modifier: Modifier = Modifier, tone: ChipTone = ChipTone.NEUTRAL) {
     val colors = MaterialTheme.colorScheme
-    val (container, content) = when (tone) {
-        ChipTone.POSITIVE -> colors.primaryContainer to colors.onPrimaryContainer
-        ChipTone.WARNING -> colors.tertiaryContainer to colors.onTertiaryContainer
-        ChipTone.ERROR -> colors.errorContainer to colors.onErrorContainer
-        ChipTone.NEUTRAL -> colors.surfaceVariant to colors.onSurfaceVariant
+    val (container, border, content) = when (tone) {
+        ChipTone.POSITIVE -> Triple(Color(0xFFE7F8F1), Color(0xFFB7E8D4), Color(0xFF059669))
+        ChipTone.WARNING -> Triple(Color(0xFFFDF3E3), Color(0xFFF2DDB3), Color(0xFFD97706))
+        ChipTone.ERROR -> Triple(colors.errorContainer, colors.error, colors.onErrorContainer)
+        ChipTone.NEUTRAL -> Triple(Color(0xFFE5EBF2), Color(0xFFE5EBF2), Color(0xFF5B6B80))
     }
-    Surface(modifier = modifier, color = container, contentColor = content, shape = CircleShape) {
+    Surface(
+        modifier = modifier,
+        color = container,
+        contentColor = content,
+        shape = CircleShape,
+        border = BorderStroke(1.dp, border)
+    ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
         )
@@ -137,11 +144,12 @@ fun LedgerCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(7.dp), content = content)
     }
 }
 

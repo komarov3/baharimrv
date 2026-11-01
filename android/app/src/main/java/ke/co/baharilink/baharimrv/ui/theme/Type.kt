@@ -11,12 +11,12 @@ import androidx.compose.ui.unit.sp
 // Wireframe-aligned typography matching exact specifications
 val BahariTypography = Typography(
     // Display - for hero headers and big numbers
-    displayLarge = TextStyle(  // Hero H1 - 34sp
+    displayLarge = TextStyle(  // Price value - 19sp (big number in wireframe)
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        lineHeight = 40.sp,
-        letterSpacing = (-0.5).sp,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 19.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.3).sp,
     ),
     displayMedium = TextStyle(  // Section H2 - 24sp
         fontFamily = FontFamily.Default,
@@ -41,7 +41,7 @@ val BahariTypography = Typography(
         lineHeight = 18.sp,
         letterSpacing = 0.sp,
     ),
-    headlineSmall = TextStyle(  // 13sp section title
+    headlineSmall = TextStyle(  // 13sp card title (Mikoko Park title)
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 13.sp,
@@ -50,10 +50,10 @@ val BahariTypography = Typography(
     ),
     
     // Titles
-    titleLarge = TextStyle(  // 12.5sp card title
+    titleLarge = TextStyle(  // 13sp card title
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
-        fontSize = 12.5.sp,
+        fontSize = 13.sp,
         lineHeight = 17.sp,
         letterSpacing = 0.sp,
     ),
@@ -64,11 +64,11 @@ val BahariTypography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.sp,
     ),
-    titleSmall = TextStyle(  // 11sp small labels
+    titleSmall = TextStyle(  // 13sp (wireframe card title)
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
-        fontSize = 11.sp,
-        lineHeight = 15.sp,
+        fontSize = 13.sp,
+        lineHeight = 17.sp,
         letterSpacing = 0.sp,
     ),
     
@@ -87,11 +87,11 @@ val BahariTypography = Typography(
         lineHeight = 16.sp,
         letterSpacing = 0.sp,
     ),
-    bodySmall = TextStyle(  // 11sp notes
+    bodySmall = TextStyle(  // 10sp notes (wireframe subtitle)
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
-        fontSize = 11.sp,
-        lineHeight = 15.5.sp,
+        fontSize = 10.sp,
+        lineHeight = 14.sp,
         letterSpacing = 0.sp,
     ),
     
@@ -110,7 +110,7 @@ val BahariTypography = Typography(
         lineHeight = 14.sp,
         letterSpacing = 0.sp,
     ),
-    labelSmall = TextStyle(  // 9.5sp micro labels (ttl-xs)
+    labelSmall = TextStyle(  // 9.5sp micro labels (ttl-xs, price label)
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.ExtraBold,
         fontSize = 9.5.sp,

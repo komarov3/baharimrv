@@ -1,5 +1,6 @@
 package ke.co.baharilink.baharimrv.ui.credits
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,6 +47,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.ListingDto
@@ -76,7 +79,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
     var showPurchaseSheet by remember { mutableStateOf(false) }
     var showRetirementSheet by remember { mutableStateOf(false) }
 
-    LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(contentPadding = PaddingValues(13.dp, 12.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             ContextHeader(
                 title = "Blue carbon market",
@@ -134,7 +137,14 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
             OutlinedButton(
                 onClick = { showRetirementSheet = true },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text("Retire credits from a batch") }
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFF059669)
+                )
+            ) {
+                Text("Retire credits from a batch", style = MaterialTheme.typography.labelLarge)
+            }
         }
 
         item {
@@ -296,12 +306,12 @@ private fun NavyKeyValue(label: String, value: String) {
 private fun ListingCard(listing: ListingDto, selected: Boolean, onSelect: () -> Unit) {
     LedgerCard(
         modifier = Modifier.clickable(onClick = onSelect),
-        contentPadding = 12.dp,
+        contentPadding = 10.dp,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 listing.projectName,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -337,29 +347,44 @@ private fun ListingCard(listing: ListingDto, selected: Boolean, onSelect: () -> 
         ) {
             Column {
                 Text(
-                    "price / tCO₂e",
+                    "PRICE / TCO₂E",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     formatPrice(listing.pricePerTonne) + " 📦",
                     style = MaterialTheme.typography.displayLarge,
-                    color = Color(0xFF079B76),
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color(0xFF059669),
                 )
             }
-            Button(onClick = onSelect, modifier = Modifier.height(48.dp)) { Text("Buy credits") }
+            Button(
+                onClick = onSelect,
+                modifier = Modifier.height(48.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+            ) {
+                Text("Buy credits", style = MaterialTheme.typography.labelLarge)
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                "${listing.vintage} · batch ${listing.batchId}",
+                "${listing.vintage} · batch",
                 style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
             )
+            Surface(
+                color = Color(0xFFF1F5F9),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+            ) {
+                Text(
+                    listing.batchId,
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.5.sp),
+                    fontFamily = FontFamily.Monospace,
+                    color = Color(0xFF5B6B80),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             StatusChip(chainNetworkLabel(listing.mode), tone = stateTone(listing.mode))
         }
         if (selected) Text("Selected listing", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
