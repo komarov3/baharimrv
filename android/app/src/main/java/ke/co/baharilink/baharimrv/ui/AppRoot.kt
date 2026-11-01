@@ -10,16 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -36,9 +31,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.annotation.DrawableRes
+import ke.co.baharilink.baharimrv.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -81,13 +80,13 @@ private object Routes {
     fun verification(activityId: String = "") = "verification?activityId=${Uri.encode(activityId)}"
 }
 
-private data class Destination(val route: String, val label: String, val icon: ImageVector)
+private data class Destination(val route: String, val label: String, @DrawableRes val iconRes: Int)
 private val destinations = listOf(
-    Destination(Routes.HOME, "Home", Icons.Default.Home),
-    Destination(Routes.MONITOR, "Monitor", Icons.Default.Add),
-    Destination(Routes.CREDITS, "Credits", Icons.Default.ShoppingCart),
-    Destination(Routes.WALLET, "Wallet", Icons.Default.AccountBalanceWallet),
-    Destination(Routes.PROFILE, "Profile", Icons.Default.Person),
+    Destination(Routes.HOME, "Home", R.drawable.ic_home),
+    Destination(Routes.MONITOR, "Monitor", R.drawable.ic_chart),
+    Destination(Routes.CREDITS, "Credits", R.drawable.ic_co2),
+    Destination(Routes.WALLET, "Wallet", R.drawable.ic_wallet),
+    Destination(Routes.PROFILE, "Profile", R.drawable.ic_user),
 )
 
 @Composable
@@ -214,19 +213,43 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel) {
 private fun AppNavigationBar(navController: NavController, currentRoute: String?) {
     Column {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp)
-        NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+            modifier = Modifier.height(54.dp)
+        ) {
             destinations.forEach { destination ->
+                val isSelected = currentRoute == destination.route
+                val iconColor = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    Color(0xFF9AA8BA)
+                }
+                
                 NavigationBarItem(
-                    selected = currentRoute == destination.route,
+                    selected = isSelected,
                     onClick = { navigateTo(navController, destination.route) },
-                    icon = { Icon(destination.icon, contentDescription = destination.label) },
-                    label = { Text(destination.label) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(id = destination.iconRes),
+                            contentDescription = destination.label,
+                            tint = iconColor
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = destination.label,
+                            fontSize = 8.5.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                            color = iconColor
+                        )
+                    },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = Color.Transparent,
+                        unselectedIconColor = Color(0xFF9AA8BA),
+                        unselectedTextColor = Color(0xFF9AA8BA),
                     ),
                 )
             }
@@ -243,15 +266,21 @@ private fun AppNavigationRail(navController: NavController, currentRoute: String
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         destinations.forEach { destination ->
+            val isSelected = currentRoute == destination.route
             NavigationRailItem(
-                selected = currentRoute == destination.route,
+                selected = isSelected,
                 onClick = { navigateTo(navController, destination.route) },
-                icon = { Icon(destination.icon, contentDescription = destination.label) },
+                icon = {
+                    Icon(
+                        painter = painterResource(id = destination.iconRes),
+                        contentDescription = destination.label
+                    )
+                },
                 label = { Text(destination.label) },
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                    indicatorColor = Color.Transparent,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
