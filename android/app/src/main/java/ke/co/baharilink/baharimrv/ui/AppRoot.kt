@@ -83,7 +83,7 @@ private object Routes {
 private data class Destination(val route: String, val label: String, @DrawableRes val iconRes: Int)
 private val destinations = listOf(
     Destination(Routes.HOME, "Home", R.drawable.ic_home),
-    Destination(Routes.MONITOR, "Monitor", R.drawable.ic_chart),
+    Destination(Routes.MONITOR, "Monitor", R.drawable.ic_sat),
     Destination(Routes.CREDITS, "Credits", R.drawable.ic_co2),
     Destination(Routes.WALLET, "Wallet", R.drawable.ic_wallet),
     Destination(Routes.PROFILE, "Profile", R.drawable.ic_user),
