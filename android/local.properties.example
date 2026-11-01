@@ -1,5 +1,36 @@
-# Copy to local.properties and supply environment-specific values. Never commit real tokens or client secrets.
-BAHARIMRV_API_BASE_URL=
-JAHAZI_ISSUER_URL=
-JAHAZI_CLIENT_ID=
-JAHAZI_REDIRECT_URI=
+# BahariMRV Android Configuration Example
+# Copy to local.properties and supply environment-specific values
+# Never commit local.properties with real credentials to git
+
+# ============================================================================
+# BACKEND API
+# ============================================================================
+
+# BahariMRV backend API base URL
+# Production: https://api.baharimrv.example.com
+# Development: http://localhost:8080 or http://10.0.2.2:8080 (Android emulator)
+BAHARIMRV_API_BASE_URL=https://api.baharimrv.example.com
+
+# ============================================================================
+# JAHAZI SSO INTEGRATION
+# ============================================================================
+
+# Jahazi OAuth2/OIDC issuer URL (MUST be HTTPS in production)
+JAHAZI_ISSUER_URL=https://auth.jahazi.ke
+
+# OAuth2 client ID registered with Jahazi
+JAHAZI_CLIENT_ID=baharimrv_android_client
+
+# OAuth2 redirect URI (MUST match registration, custom scheme recommended)
+# Format: baharimrv://auth/callback or https://app.baharimrv.ke/auth/callback
+# Custom scheme is safer for native apps (no Universal Links collision)
+JAHAZI_REDIRECT_URI=baharimrv://auth/callback
+
+# ============================================================================
+# GOOGLE MAPS
+# ============================================================================
+
+# Google Maps API key for Android
+# Obtain from: https://console.cloud.google.com/google/maps-apis
+# Enable: Maps SDK for Android, Places API
+GOOGLE_MAPS_API_KEY=

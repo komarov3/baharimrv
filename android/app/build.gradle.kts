@@ -49,6 +49,7 @@ android {
         manifestPlaceholders["ssoScheme"] = redirectPart(URI::getScheme, "https")
         manifestPlaceholders["ssoHost"] = redirectPart(URI::getHost, "callback.invalid")
         manifestPlaceholders["ssoPath"] = redirectPart(URI::getPath, "/auth/callback")
+        manifestPlaceholders["googleMapsApiKey"] = config("GOOGLE_MAPS_API_KEY")
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")

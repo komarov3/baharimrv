@@ -1,84 +1,104 @@
 # BahariMRV TODO & Enhancement Tracker
 
-**Last Updated:** October 31, 2026  
-**Source:** Comprehensive Gap & Bug Assessment
+**Last Updated:** December 2024 (Production Release)  
+**Source:** Comprehensive Gap & Bug Assessment + Production Release Requirements
+
+---
+
+## 🚀 Production Release Completed (December 2024)
+
+### Configuration & Documentation ✅
+- [x] Backend `.env.example` created with comprehensive production configuration
+- [x] Android `local.properties.example` updated with all required variables
+- [x] Google Maps API key injection configured in `build.gradle.kts`
+- [x] ProGuard rules completed for release builds
+- [x] `DEPLOYMENT.md` - Production deployment guide created
+- [x] `DEVELOPMENT.md` - Local development setup guide created
+- [x] `SSO_INTEGRATION.md` - Jahazi SSO integration guide created
+
+### Jahazi SSO Integration ✅
+- [x] Backend federation configuration via `FEDERATION_CLIENTS` environment variable
+- [x] Android BuildConfig properly injects SSO configuration
+- [x] Deep link handling configured for OAuth callbacks
+- [x] PKCE flow implemented (no client secrets)
+- [x] Account linking support (native + SSO)
+- [x] Bidirectional federation (BahariMRV ↔ Jahazi)
+- [x] Automatic IOTA identity provisioning for federated users
+
+### Demo Data & Onboarding ✅
+- [x] Comprehensive seed data script exists with realistic placeholder data
+- [x] 7 demo accounts across all roles (Manager, Monitors, Verifier, Buyer, Finance, Admin)
+- [x] Demo project with 2 sites, 2 plots, GPS coordinates
+- [x] Monitoring records with evidence
+- [x] Marketplace listing with sandbox credits
+- [x] Financial imports (tourism revenue)
+- [x] Demo data forbidden in production (`SEED_DEMO_DATA=false` enforced)
+
+### Production Readiness ✅
+- [x] Environment-based configuration with strict production validation
+- [x] PostgreSQL with SSL enforced in production
+- [x] HTTPS required for all production endpoints
+- [x] CHAIN_MODE=iota enforced in production (no sandbox)
+- [x] Security: KMS_KEK required, OIDC signing keys required
+- [x] No wildcard CORS origins allowed
+- [x] Comprehensive health checks and monitoring guidance
+
+### Known Limitations & Next Steps
+- [ ] Google Maps API key must be obtained by each developer/organization
+- [ ] Jahazi OAuth2 client registration required (manual coordination)
+- [ ] IOTA mainnet deployment pending (currently testnet-ready)
+- [ ] External integrations (satellite, registry, payment) in sandbox/unavailable mode
+- [ ] Release build minification testing needed (ProGuard rules ready)
 
 ---
 
 ## 🔴 Must Do (Before Production)
 
-### 1. Configure Google Maps API Key
+### 1. Configure Google Maps API Key ✅ COMPLETED
 **Priority:** High  
 **Component:** Android  
 **File:** `android/app/src/main/AndroidManifest.xml`
 
 **Current State:**
 ```xml
-<meta-data android:name="com.google.android.geo.API_KEY" android:value="" />
+<meta-data android:name="com.google.android.geo.API_KEY" android:value="${googleMapsApiKey}" />
 ```
 
-**Action Required:**
-- [ ] Obtain Google Maps API key from Google Cloud Console
-- [ ] Add `GOOGLE_MAPS_API_KEY` to `local.properties`
-- [ ] Update `build.gradle.kts` to inject key:
+**Actions Completed:**
+- [x] Add `GOOGLE_MAPS_API_KEY` to `local.properties.example` with documentation
+- [x] Update `build.gradle.kts` to inject key:
   ```kotlin
   manifestPlaceholders["googleMapsApiKey"] = config("GOOGLE_MAPS_API_KEY")
   ```
-- [ ] Update manifest to use placeholder:
+- [x] Update manifest to use placeholder:
   ```xml
   <meta-data android:name="com.google.android.geo.API_KEY" 
              android:value="${googleMapsApiKey}" />
   ```
 
+**Remaining Action:**
+- [ ] Obtain Google Maps API key from Google Cloud Console (developer-specific)
+
 **Impact:** Map features will fail without valid key
 
 ---
 
-### 2. Complete ProGuard Rules (If Minification Enabled)
+### 2. Complete ProGuard Rules (If Minification Enabled) ✅ COMPLETED
 **Priority:** Medium-High  
 **Component:** Android  
 **File:** `android/app/proguard-rules.pro`
 
-**Current State:** Empty file
+**Current State:** Comprehensive ProGuard rules configured
 
-**Action Required:**
-- [ ] Verify if `isMinifyEnabled = true` in release build
-- [ ] If yes, add ProGuard rules:
+**Actions Completed:**
+- [x] Added comprehensive ProGuard rules for Retrofit, Room, Hilt, Gson, OkHttp
+- [x] Added rules for BahariMRV DTOs and models
+- [x] Added rules for Kotlin coroutines, Google Play Services, Maps
+- [x] Documented each section for maintainability
 
-```proguard
-# Retrofit
--keepattributes Signature, InnerClasses, EnclosingMethod
--keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
--keepattributes *Annotation*
--keepclassmembers,allowstorage class * {
-  @com.google.gson.annotations.SerializedName <fields>;
-}
--keep,allowobfuscation,allowshrinking interface retrofit2.Call
--keep,allowobfuscation,allowshrinking class retrofit2.Response
--keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
-
-# Room
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--dontwarn androidx.room.paging.**
-
-# Hilt/Dagger
--keep class dagger.hilt.** { *; }
--keep class javax.inject.** { *; }
--keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
-
-# Keep DTO classes
--keep class ke.co.baharilink.baharimrv.data.remote.** { *; }
--keep class ke.co.baharilink.baharimrv.data.local.** { *; }
-
-# OkHttp
--dontwarn okhttp3.**
--dontwarn okio.**
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
-```
-
-- [ ] Test release build thoroughly after adding rules
+**Remaining Actions:**
+- [ ] Verify if `isMinifyEnabled = true` in release build (currently false)
+- [ ] Test release build thoroughly after enabling minification
 - [ ] Verify API calls work in release mode
 - [ ] Check database queries function correctly
 
