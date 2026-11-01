@@ -356,6 +356,8 @@ ngrok http 8080
 
 You'll get a URL like: `https://abc123.ngrok.io`
 
+**Note:** The Android app is configured to use HTTP/1.1 for ngrok compatibility (some ngrok versions have HTTP/2 framing issues). This is set in `AppModule.kt` with `.protocols(listOf(Protocol.HTTP_1_1))`.
+
 3. Update backend `.env`:
 
 ```bash

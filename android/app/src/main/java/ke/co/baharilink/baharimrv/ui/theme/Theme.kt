@@ -7,8 +7,99 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+
+// Extended colors beyond Material3 standard palette
+@Immutable
+data class ExtendedColorScheme(
+    val cyan: Color,
+    val onCyan: Color,
+    val cyanContainer: Color,
+    val onCyanContainer: Color,
+    val violet: Color,
+    val onViolet: Color,
+    val violetContainer: Color,
+    val onVioletContainer: Color,
+    val slate: Color,
+    val onSlate: Color,
+    val navy: Color,
+    val navyLight: Color,
+    val navyCard: Color,
+    val offlineYellow: Color,
+    val paper: Color,
+    val wire: Color,
+    val skeleton: Color,
+    val skeletonDark: Color,
+)
+
+val LightExtendedColors = ExtendedColorScheme(
+    cyan = Color(0xFF0E7490),
+    onCyan = Color.White,
+    cyanContainer = Color(0xFFCFFAFE),
+    onCyanContainer = Color(0xFF0C4A5E),
+    violet = Color(0xFF7C3AED),
+    onViolet = Color.White,
+    violetContainer = Color(0xFFEDE9FE),
+    onVioletContainer = Color(0xFF4C1D95),
+    slate = Color(0xFF475569),
+    onSlate = Color.White,
+    navy = Color(0xFF0B1C2C),
+    navyLight = Color(0xFF1F2B3C),
+    navyCard = Color(0xFF12263B),
+    offlineYellow = Color(0xFFFFD166),
+    paper = Color(0xFFF7FAFC),
+    wire = Color(0xFFB9C6D6),
+    skeleton = Color(0xFFDFE7F0),
+    skeletonDark = Color(0xFFC7D2E0),
+)
+
+val DarkExtendedColors = ExtendedColorScheme(
+    cyan = Color(0xFF22D3EE),
+    onCyan = Color(0xFF083344),
+    cyanContainer = Color(0xFF155E75),
+    onCyanContainer = Color(0xFFCFFAFE),
+    violet = Color(0xFFA78BFA),
+    onViolet = Color(0xFF3B0764),
+    violetContainer = Color(0xFF5B21B6),
+    onVioletContainer = Color(0xFFEDE9FE),
+    slate = Color(0xFF94A3B8),
+    onSlate = Color(0xFF1E293B),
+    navy = Color(0xFF0F172A),
+    navyLight = Color(0xFF1E293B),
+    navyCard = Color(0xFF1E293B),
+    offlineYellow = Color(0xFFFFD166),
+    paper = Color(0xFF1E293B),
+    wire = Color(0xFF475569),
+    skeleton = Color(0xFF334155),
+    skeletonDark = Color(0xFF1E293B),
+)
+
+val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
+
+// Gradient definitions matching wireframe
+object BahariGradients {
+    val hero = Brush.linearGradient(
+        0.0f to Color(0xFF082F3F),
+        0.55f to Color(0xFF0E7490),
+        1.0f to Color(0xFF155E75)
+    )
+    val blueIdCard = Brush.linearGradient(
+        0.0f to Color(0xFF12263B),
+        1.0f to Color(0xFF0E7490)
+    )
+    val walletCard = Brush.linearGradient(
+        0.0f to Color(0xFF12263B),
+        1.0f to Color(0xFF1D4ED8)
+    )
+    val splash = Brush.linearGradient(
+        0.0f to Color(0xFF0E7490),
+        1.0f to Color(0xFF082F3F)
+    )
+}
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF059669),
@@ -23,7 +114,7 @@ private val LightColors = lightColorScheme(
     onTertiary = Color.White,
     tertiaryContainer = Color(0xFFFDF3E3),
     onTertiaryContainer = Color(0xFF7C2D12),
-    background = Color(0xFFFDFEFE),
+    background = Color(0xFFE9EEF4),
     onBackground = Color(0xFF152238),
     surface = Color.White,
     onSurface = Color(0xFF152238),
@@ -31,7 +122,7 @@ private val LightColors = lightColorScheme(
     onSurfaceVariant = Color(0xFF5B6B80),
     outline = Color(0xFFD8E0EA),
     outlineVariant = Color(0xFFE8EEF3),
-    error = Color(0xFFBA1A1A),
+    error = Color(0xFFDC2626),
     onError = Color.White,
     errorContainer = Color(0xFFFFDAD6),
     onErrorContainer = Color(0xFF410002),
@@ -88,14 +179,27 @@ private val DarkColors = darkColorScheme(
 
 @Composable
 fun BahariMrvTheme(content: @Composable () -> Unit) {
+    val extendedColors = if (isSystemInDarkTheme()) DarkExtendedColors else LightExtendedColors
+    
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
         typography = BahariTypography,
         shapes = Shapes(
+            extraSmall = RoundedCornerShape(6.dp),
             small = RoundedCornerShape(8.dp),
-            medium = RoundedCornerShape(12.dp),
-            large = RoundedCornerShape(18.dp),
+            medium = RoundedCornerShape(10.dp),
+            large = RoundedCornerShape(12.dp),
+            extraLarge = RoundedCornerShape(14.dp),
         ),
-        content = content,
-    )
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalExtendedColors provides extendedColors,
+            content = content
+        )
+    }
 }
+
+// Extension property to access extended colors
+val MaterialTheme.extendedColors: ExtendedColorScheme
+    @Composable
+    get() = LocalExtendedColors.current

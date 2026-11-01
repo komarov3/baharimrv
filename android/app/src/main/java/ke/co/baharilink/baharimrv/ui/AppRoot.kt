@@ -241,7 +241,6 @@ private fun AppNavigationRail(navController: NavController, currentRoute: String
     NavigationRail(
         modifier = Modifier.fillMaxHeight(),
         containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
     ) {
         destinations.forEach { destination ->
             NavigationRailItem(
@@ -250,11 +249,11 @@ private fun AppNavigationRail(navController: NavController, currentRoute: String
                 icon = { Icon(destination.icon, contentDescription = destination.label) },
                 label = { Text(destination.label) },
                 colors = NavigationRailItemDefaults.colors(
-                    activeIconColor = MaterialTheme.colorScheme.primary,
-                    activeTextColor = MaterialTheme.colorScheme.primary,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    inactiveIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    inactiveTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             )
         }

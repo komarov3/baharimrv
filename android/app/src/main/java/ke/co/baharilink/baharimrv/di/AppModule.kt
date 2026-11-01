@@ -15,6 +15,7 @@ import ke.co.baharilink.baharimrv.data.local.BahariMrvDatabase
 import ke.co.baharilink.baharimrv.data.local.SecureSessionStore
 import ke.co.baharilink.baharimrv.data.remote.BahariMrvApi
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -39,6 +40,7 @@ object AppModule {
     @Provides
     @Singleton
     fun okHttp(secureSessionStore: SecureSessionStore): OkHttpClient = OkHttpClient.Builder()
+        .protocols(listOf(Protocol.HTTP_1_1))  // Fix ngrok HTTP/2 compatibility issue
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(45, TimeUnit.SECONDS)
