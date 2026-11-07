@@ -44,6 +44,19 @@ type Adapter interface {
 	Anchor(ctx context.Context, request AnchorRequest) (AnchorRecord, error)
 	ReadAnchor(ctx context.Context, objectID string) (AnchorRecord, error)
 	ResolveIdentity(ctx context.Context, didDocumentRef string) (bool, error)
+	// Cap issuance (conservation_chain roles + bahari_identity linking)
+	IssueManagerCap(ctx context.Context, req IssueCapRequest) (CapResult, error)
+	IssueMonitorCap(ctx context.Context, req IssueMonitorCapRequest) (CapResult, error)
+	IssueVerifierCap(ctx context.Context, req IssueCapRequest) (CapResult, error)
+	LinkRoleObject(ctx context.Context, docObjectID string, roleObjectID string) error
+	// Extended conservation_chain operations
+	CreateLedger(ctx context.Context, req LedgerRequest) (LedgerResult, error)
+	LinkJahazi(ctx context.Context, req LinkJahaziRequest) (LedgerResult, error)
+	IssueContributionCap(ctx context.Context, req IssueContributionCapRequest) (LedgerResult, error)
+	AnchorRestorationClaim(ctx context.Context, req RestorationClaimRequest) (AnchorRecord, error)
+	CreatePlantingRecord(ctx context.Context, req PlantingRecordRequest) (AnchorRecord, error)
+	AppendPlantingEntry(ctx context.Context, req PlantingEntryRequest) (LedgerResult, error)
+	RecordFulfillment(ctx context.Context, req FulfillmentRequest) (AnchorRecord, error)
 }
 
 // ExplorerBase derives the public explorer root for the adapter's network. Sandbox

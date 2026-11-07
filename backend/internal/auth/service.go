@@ -81,6 +81,9 @@ func (s *Service) Register(ctx context.Context, email, password, displayName, ph
 	if err != nil {
 		return result, err
 	}
+	// Issue role capability on-chain (non-blocking: runs in background goroutine,
+	// registration succeeds even if cap issuance is temporarily unavailable).
+	go s.identity.IssueCapForUser(context.Background(), user.ID, role, provision)
 	user.Status = models.IdentityActive
 	result.User = user
 	token, expires, sessionErr := s.NewSession(user.ID)

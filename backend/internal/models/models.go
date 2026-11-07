@@ -88,6 +88,10 @@ type IdentityProvision struct {
 	UpdatedAt         time.Time  `json:"updatedAt"`
 	ActivatedAt       *time.Time `json:"activatedAt,omitempty"`
 	LastProvisionedAt *time.Time `json:"lastProvisionedAt,omitempty"`
+	// RoleCapObjectID stores the on-chain object ID of the role capability
+	// issued after identity provisioning (ManagerCap, MonitorCap, VerifierCap).
+	// Empty for DID-only roles (buyer, finance, admin).
+	RoleCapObjectID   string     `gorm:"column:role_cap_object_id" json:"roleCapObjectId,omitempty"`
 }
 
 type KeyReference struct {
@@ -205,6 +209,9 @@ type ConservationProject struct {
 	ConservationType  string    `gorm:"column:conservation_type;not null;default:'mangrove'" json:"conservationType"`
 	CommunityShareBPS int       `gorm:"column:community_share_bps;not null" json:"communityShareBasisPoints"`
 	SandboxDemo       bool      `gorm:"not null;default:false" json:"sandboxDemo"`
+	JahaziEnabled     bool      `gorm:"column:jahazi_enabled;not null;default:false" json:"jahaziEnabled"`
+	JahaziProjectID   string    `gorm:"column:jahazi_project_id;index" json:"jahaziProjectId,omitempty"`
+	LedgerObjectID    string    `gorm:"column:ledger_object_id" json:"ledgerObjectId,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 }
@@ -242,6 +249,10 @@ type ConservationActivity struct {
 	MethodologyVersion   string         `gorm:"not null" json:"methodologyVersion"`
 	Measurements         datatypes.JSON `gorm:"type:jsonb" json:"measurements"`
 	CurrentEventID       string         `gorm:"type:uuid" json:"currentEventId,omitempty"`
+	JahaziFunded         bool           `gorm:"column:jahazi_funded;not null;default:false" json:"jahaziFunded"`
+	RestorationRequestID string         `gorm:"column:restoration_request_id;type:uuid;index" json:"restorationRequestId,omitempty"`
+	MrvLinkGenerated     bool           `gorm:"column:mrv_link_generated;not null;default:false" json:"mrvLinkGenerated"`
+	MrvLinkPushedAt      *time.Time     `gorm:"column:mrv_link_pushed_at" json:"mrvLinkPushedAt,omitempty"`
 	CreatedAt            time.Time      `json:"createdAt"`
 	UpdatedAt            time.Time      `json:"updatedAt"`
 }
@@ -644,5 +655,57 @@ type PublicProofVerificationLog struct {
 	Overall     string    `gorm:"not null" json:"overall"`
 	FailedChecks string   `gorm:"type:text" json:"failedChecks,omitempty"`
 	IPHash      string    `json:"ipHash,omitempty"`
+}
+
+// ── Jahazi cross-platform integration ─────────────────────────────────────────
+
+// RestorationClaimStatus constants for the RestorationRequest lifecycle.
+const (
+	RestorationClaimOpen             = "open"
+	RestorationClaimMatched           = "matched"
+	RestorationClaimFulfilled          = "fulfilled"
+	RestorationClaimPartiallyFulfilled = "partially_fulfilled"
+	RestorationClaimExpired            = "expired"
+	RestorationClaimCancelled          = "cancelled"
+)
+
+// RestorationRequest is an explicit claim from Jahazi that tourist-funded
+// restoration is expected for a project. The PM's planting activity is matched
+// against open requests — only matched activities generate MRV links and
+// trigger the certificate loop. Normal project activities never touch Jahazi.
+type RestorationRequest struct {
+	ID                string         `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID         string         `gorm:"type:uuid;index;not null" json:"projectId"`
+	JahaziClaimID     string         `gorm:"uniqueIndex;not null" json:"jahaziClaimId"`
+	JahaziProjectID   string         `gorm:"not null" json:"jahaziProjectId"`
+	PeriodStart       time.Time      `json:"periodStart"`
+	PeriodEnd         time.Time      `json:"periodEnd"`
+	TotalCostUsd      string         `gorm:"type:numeric(30,2);not null" json:"totalCostUsd"`
+	TotalUnits        int            `gorm:"not null" json:"totalUnits"`
+	Species           string         `gorm:"not null" json:"species"`
+	ContributorCount  int            `gorm:"not null" json:"contributorCount"`
+	ContributorJSON   datatypes.JSON `gorm:"column:contributor_breakdown;type:jsonb;not null" json:"contributorBreakdown"`
+	Nonce             string         `gorm:"uniqueIndex;not null" json:"-"`
+	Signature         string         `gorm:"not null" json:"-"`
+	Status            string         `gorm:"not null;index" json:"status"`
+	MatchedActivityID string         `gorm:"type:uuid;index" json:"matchedActivityId,omitempty"`
+	FulfilledUnits    int            `gorm:"default:0" json:"fulfilledUnits"`
+	ExpiresAt         time.Time      `gorm:"index" json:"expiresAt"`
+	ChainAnchorObjectID string       `gorm:"column:chain_anchor_object_id" json:"chainAnchorObjectId,omitempty"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+}
+
+// JahaziContribution mirrors a tourist contribution from Jahazi into the
+// BahariMRV wallet ledger, recorded as a FinancialImport for auditability.
+type JahaziContribution struct {
+	JahaziContributionID string `json:"jahaziContributionId"`
+	JahaziProjectID      string `json:"jahaziProjectId"`
+	TouristDID           string `json:"touristId"`
+	AmountUsd            string `json:"amountUsd"`
+	SeedlingsEquivalent  int    `json:"seedlingsEquivalent"`
+	ContributedAt        string `json:"contributedAt"`
+	Nonce                string `json:"nonce"`
+	Signature            string `json:"signature"`
 }
 

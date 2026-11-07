@@ -170,3 +170,63 @@ func (s *Service) Rotate(ctx context.Context, userID string) (models.IdentityPro
 	}
 	return s.EnsureProvision(ctx, userID)
 }
+
+// IssueCapForUser issues the appropriate role capability on conservation_chain
+// for the given user role, then links it to their IdentityDocument.
+// Non-fatal: if chain is unavailable or cap issuance fails, logs and returns
+// without error so registration completes. Cap can be retried on next login.
+//
+// Cap mapping (spec §2.3):
+//   project_manager  → ManagerCap (empty project_id until assigned)
+//   independent_verifier → VerifierCap (scope="global")
+//   field_monitor    → deferred to plot assignment, not issued at registration
+//   carbon_buyer / finance_operator / platform_administrator → DID only, no cap
+func (s *Service) IssueCapForUser(ctx context.Context, userID string, role string, provision models.IdentityProvision) {
+	if provision.DID == "" || provision.DIDDocumentRef == "" {
+		return // identity not yet active
+	}
+	// Executor wallet address acts as recipient for testnet custodial model.
+	// In production with self-sovereign wallets, replace with the user's IOTA address.
+	recipient := provision.Address
+	if recipient == "" {
+		return
+	}
+
+	var capRes chain.CapResult
+	var err error
+
+	switch role {
+	case models.RoleManager:
+		capRes, err = s.chain.IssueManagerCap(ctx, chain.IssueCapRequest{
+			Recipient: recipient,
+			DID:       provision.DID,
+			Scope:     "", // empty project_id at registration; updated on project assignment
+		})
+	case models.RoleVerifier:
+		capRes, err = s.chain.IssueVerifierCap(ctx, chain.IssueCapRequest{
+			Recipient: recipient,
+			DID:       provision.DID,
+			Scope:     "global",
+		})
+	default:
+		// monitor: deferred to plot assignment
+		// buyer, finance, admin: DID only
+		return
+	}
+
+	if err != nil {
+		_ = fmt.Errorf("IssueCapForUser(%s, %s): %v", userID, role, err)
+		return
+	}
+
+	// Link the cap object to the IdentityDocument in bahari_identity.
+	if linkErr := s.chain.LinkRoleObject(ctx, provision.DIDDocumentRef, capRes.CapObjectID); linkErr != nil {
+		_ = fmt.Errorf("IssueCapForUser LinkRoleObject(%s): %v", userID, linkErr)
+		// Cap still issued — just not linked on-chain. Non-fatal.
+	}
+
+	// Persist cap object ID.
+	_ = s.db.Model(&models.IdentityProvision{}).
+		Where("id = ?", provision.ID).
+		Update("role_cap_object_id", capRes.CapObjectID)
+}

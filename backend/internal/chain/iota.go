@@ -216,3 +216,384 @@ func fieldBool(fields map[string]any, key string) bool {
 	value, _ := fields[key].(bool)
 	return value
 }
+
+// ── Extended conservation_chain operations ────────────────────────────────────
+
+// LedgerRequest carries the data for creating a ProjectImpactLedger.
+type LedgerRequest struct {
+	ProjectDID    string
+	MRVProjectID  string
+}
+
+// LedgerResult is the shared object and transaction for a created ledger.
+type LedgerResult struct {
+	ObjectID      string `json:"objectId"`
+	TransactionRef string `json:"transaction_reference"`
+}
+
+// CreateLedger creates and shares a ProjectImpactLedger for a conservation project.
+func (i *IOTA) CreateLedger(ctx context.Context, req LedgerRequest) (LedgerResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return LedgerResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":       "create_ledger",
+		"package_id":      i.packageID,
+		"project_did":     req.ProjectDID,
+		"mrv_project_id":  req.MRVProjectID,
+	}
+	var res LedgerResult
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return LedgerResult{}, err
+	}
+	return res, nil
+}
+
+// LinkJahaziRequest carries data for linking a Jahazi project to the ledger.
+type LinkJahaziRequest struct {
+	LedgerObjectID   string
+	JahaziProjectDID string
+}
+
+// LinkJahazi sets the Jahazi project DID on an existing ProjectImpactLedger.
+func (i *IOTA) LinkJahazi(ctx context.Context, req LinkJahaziRequest) (LedgerResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return LedgerResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":          "link_jahazi",
+		"package_id":         i.packageID,
+		"ledger_object_id":   req.LedgerObjectID,
+		"jahazi_project_did": req.JahaziProjectDID,
+	}
+	var res LedgerResult
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return LedgerResult{}, err
+	}
+	return res, nil
+}
+
+// IssueContributionCapRequest carries data for issuing a ContributionCap to Jahazi.
+type IssueContributionCapRequest struct {
+	Recipient          string
+	LedgerObjectID     string
+	JahaziPlatformDID  string
+}
+
+// IssueContributionCap issues a ContributionCap to the Jahazi executor address.
+func (i *IOTA) IssueContributionCap(ctx context.Context, req IssueContributionCapRequest) (LedgerResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return LedgerResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":            "issue_contribution_cap",
+		"package_id":           i.packageID,
+		"recipient":            req.Recipient,
+		"ledger_object_id":     req.LedgerObjectID,
+		"jahazi_platform_did":  req.JahaziPlatformDID,
+	}
+	var res LedgerResult
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return LedgerResult{}, err
+	}
+	return res, nil
+}
+
+// RestorationClaimRequest carries the Jahazi claim data for on-chain anchoring.
+type RestorationClaimRequest struct {
+	JahaziClaimID          string
+	JahaziProjectDID       string
+	MRVProjectDID          string
+	PeriodStartMs          int64
+	PeriodEndMs            int64
+	TotalCostCents         int64
+	TotalUnits             int64
+	Species                string
+	ContributorCount       int64
+	ContributorMerkleRoot  string
+	LocationHash           string
+	JahaziPlatformDID      string
+	Nonce                  string
+}
+
+// AnchorRestorationClaim freezes a RestorationClaimAnchor on-chain.
+func (i *IOTA) AnchorRestorationClaim(ctx context.Context, req RestorationClaimRequest) (AnchorRecord, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return AnchorRecord{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":                "anchor_restoration_claim",
+		"package_id":               i.packageID,
+		"jahazi_claim_id":          req.JahaziClaimID,
+		"jahazi_project_did":       req.JahaziProjectDID,
+		"mrv_project_did":          req.MRVProjectDID,
+		"period_start_ms":          req.PeriodStartMs,
+		"period_end_ms":            req.PeriodEndMs,
+		"total_cost_cents":         req.TotalCostCents,
+		"total_units":              req.TotalUnits,
+		"species":                  req.Species,
+		"contributor_count":        req.ContributorCount,
+		"contributor_merkle_root":  req.ContributorMerkleRoot,
+		"location_hash":            req.LocationHash,
+		"jahazi_platform_did":      req.JahaziPlatformDID,
+		"nonce":                    req.Nonce,
+	}
+	var res AnchorRecord
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return AnchorRecord{}, err
+	}
+	res.Network = "testnet"
+	return res, nil
+}
+
+// PlantingRecordRequest carries field data for creating a PlantingRecord on-chain.
+type PlantingRecordRequest struct {
+	ProjectDID               string
+	LedgerObjectID           string
+	ProvenanceAnchorID       string
+	ClaimAnchorID            string // empty if not Jahazi-funded
+	Species                  string
+	SeedlingsPlanted         int64
+	SeedlingsAlive           int64
+	SurvivalPctHundredths    int64
+	AreaHaMillionths         int64
+	MethodologyVersion       string
+	ReportingPeriodStartMs   int64
+	ReportingPeriodEndMs     int64
+	EvidenceRoot             string
+	SatelliteCorrobHash      string
+	PhotoHash                string
+	LocationHash             string
+	VerifierDID              string
+	VerifierAttestationHash  string
+	IsVerified               bool
+	PreviousRecordID         string // empty for first record
+	MRVActivityID            string
+}
+
+// CreatePlantingRecord freezes a PlantingRecord on-chain after provenance is confirmed.
+func (i *IOTA) CreatePlantingRecord(ctx context.Context, req PlantingRecordRequest) (AnchorRecord, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return AnchorRecord{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":                   "planting_record",
+		"package_id":                  i.packageID,
+		"project_did":                 req.ProjectDID,
+		"ledger_object_id":            req.LedgerObjectID,
+		"provenance_anchor_id":        req.ProvenanceAnchorID,
+		"claim_anchor_id":             req.ClaimAnchorID,
+		"species":                     req.Species,
+		"seedlings_planted":           req.SeedlingsPlanted,
+		"seedlings_alive":             req.SeedlingsAlive,
+		"survival_pct_hundredths":     req.SurvivalPctHundredths,
+		"area_ha_millionths":          req.AreaHaMillionths,
+		"methodology_version":         req.MethodologyVersion,
+		"period_start_ms":             req.ReportingPeriodStartMs,
+		"period_end_ms":               req.ReportingPeriodEndMs,
+		"evidence_root":               req.EvidenceRoot,
+		"satellite_corrob_hash":       req.SatelliteCorrobHash,
+		"photo_hash":                  req.PhotoHash,
+		"location_hash":               req.LocationHash,
+		"verifier_did":                req.VerifierDID,
+		"verifier_attestation_hash":   req.VerifierAttestationHash,
+		"is_verified":                 req.IsVerified,
+		"previous_record_id":          req.PreviousRecordID,
+		"mrv_activity_id":             req.MRVActivityID,
+	}
+	var res AnchorRecord
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return AnchorRecord{}, err
+	}
+	res.Network = "testnet"
+	return res, nil
+}
+
+// PlantingEntryRequest carries data for appending a PlantingLedgerEntry.
+type PlantingEntryRequest struct {
+	LedgerObjectID     string
+	PlantingRecordID   string
+	ProvenanceAnchorID string
+	SeedlingsAdded     int64
+	AliveAdded         int64
+	Co2eMilligramsAdded int64
+}
+
+// AppendPlantingEntry adds a PlantingLedgerEntry to the ProjectImpactLedger.
+func (i *IOTA) AppendPlantingEntry(ctx context.Context, req PlantingEntryRequest) (LedgerResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return LedgerResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":             "planting_entry",
+		"package_id":            i.packageID,
+		"ledger_object_id":      req.LedgerObjectID,
+		"planting_record_id":    req.PlantingRecordID,
+		"provenance_anchor_id":  req.ProvenanceAnchorID,
+		"seedlings_added":       req.SeedlingsAdded,
+		"alive_added":           req.AliveAdded,
+		"co2e_mg_added":         req.Co2eMilligramsAdded,
+	}
+	var res LedgerResult
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return LedgerResult{}, err
+	}
+	return res, nil
+}
+
+// FulfillmentRequest carries data for creating a RestorationFulfillmentRecord.
+type FulfillmentRequest struct {
+	ClaimAnchorID           string
+	PlantingRecordID        string
+	ProvenanceAnchorID      string
+	ActualUnitsPlanted      int64
+	ClaimedUnits            int64
+	MRVProjectDID           string
+	CertificatesIssuedCount int64
+}
+
+// RecordFulfillment creates a RestorationFulfillmentRecord linking claim to planting.
+func (i *IOTA) RecordFulfillment(ctx context.Context, req FulfillmentRequest) (AnchorRecord, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return AnchorRecord{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":                   "claim_fulfillment",
+		"package_id":                  i.packageID,
+		"claim_anchor_id":             req.ClaimAnchorID,
+		"planting_record_id":          req.PlantingRecordID,
+		"provenance_anchor_id":        req.ProvenanceAnchorID,
+		"actual_units":                req.ActualUnitsPlanted,
+		"claimed_units":               req.ClaimedUnits,
+		"mrv_project_did":             req.MRVProjectDID,
+		"certificates_issued_count":   req.CertificatesIssuedCount,
+	}
+	var res AnchorRecord
+	if err := i.execute(ctx, payload, &res); err != nil {
+		return AnchorRecord{}, err
+	}
+	res.Network = "testnet"
+	return res, nil
+}
+
+// ── Cap issuance types ────────────────────────────────────────────────────────
+
+// CapResult is returned after a role capability object is issued on-chain.
+type CapResult struct {
+	CapObjectID    string
+	TransactionRef string
+	Network        string
+}
+
+// IssueCapRequest carries params for manager/verifier cap issuance.
+type IssueCapRequest struct {
+	Recipient string // IOTA address receiving the cap
+	DID       string // DID of the user receiving the cap
+	// Scope: project_id for manager, scope string for verifier
+	Scope string
+}
+
+// IssueMonitorCapRequest carries params for monitor cap issuance.
+type IssueMonitorCapRequest struct {
+	Recipient string
+	DID       string
+	ProjectID string
+	PlotID    string
+}
+
+// ── Cap issuance methods ──────────────────────────────────────────────────────
+
+// IssueManagerCap calls the executor to issue a ManagerCap on conservation_chain.
+func (i *IOTA) IssueManagerCap(ctx context.Context, req IssueCapRequest) (CapResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return CapResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":   "issue_manager_cap",
+		"package_id":  i.packageID,
+		"recipient":   req.Recipient,
+		"manager_did": req.DID,
+		"project_id":  req.Scope,
+		"network":     "testnet",
+	}
+	var response struct {
+		ObjectID       string `json:"objectId"`
+		TransactionRef string `json:"transaction_reference"`
+	}
+	if err := i.execute(ctx, payload, &response); err != nil {
+		return CapResult{}, fmt.Errorf("issue_manager_cap: %w", err)
+	}
+	if response.ObjectID == "" {
+		return CapResult{}, fmt.Errorf("issue_manager_cap: executor returned empty object ID")
+	}
+	return CapResult{CapObjectID: response.ObjectID, TransactionRef: response.TransactionRef, Network: "testnet"}, nil
+}
+
+// IssueMonitorCap calls the executor to issue a MonitorCap on conservation_chain.
+func (i *IOTA) IssueMonitorCap(ctx context.Context, req IssueMonitorCapRequest) (CapResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return CapResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":   "issue_monitor_cap",
+		"package_id":  i.packageID,
+		"recipient":   req.Recipient,
+		"monitor_did": req.DID,
+		"project_id":  req.ProjectID,
+		"plot_id":     req.PlotID,
+		"network":     "testnet",
+	}
+	var response struct {
+		ObjectID       string `json:"objectId"`
+		TransactionRef string `json:"transaction_reference"`
+	}
+	if err := i.execute(ctx, payload, &response); err != nil {
+		return CapResult{}, fmt.Errorf("issue_monitor_cap: %w", err)
+	}
+	if response.ObjectID == "" {
+		return CapResult{}, fmt.Errorf("issue_monitor_cap: executor returned empty object ID")
+	}
+	return CapResult{CapObjectID: response.ObjectID, TransactionRef: response.TransactionRef, Network: "testnet"}, nil
+}
+
+// IssueVerifierCap calls the executor to issue a VerifierCap on conservation_chain.
+func (i *IOTA) IssueVerifierCap(ctx context.Context, req IssueCapRequest) (CapResult, error) {
+	if i.executorURL == "" || i.packageID == "" {
+		return CapResult{}, fmt.Errorf("%w: executor or package not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":    "issue_verifier_cap",
+		"package_id":   i.packageID,
+		"recipient":    req.Recipient,
+		"verifier_did": req.DID,
+		"scope":        req.Scope,
+		"network":      "testnet",
+	}
+	var response struct {
+		ObjectID       string `json:"objectId"`
+		TransactionRef string `json:"transaction_reference"`
+	}
+	if err := i.execute(ctx, payload, &response); err != nil {
+		return CapResult{}, fmt.Errorf("issue_verifier_cap: %w", err)
+	}
+	if response.ObjectID == "" {
+		return CapResult{}, fmt.Errorf("issue_verifier_cap: executor returned empty object ID")
+	}
+	return CapResult{CapObjectID: response.ObjectID, TransactionRef: response.TransactionRef, Network: "testnet"}, nil
+}
+
+// LinkRoleObject calls the executor to link a role cap to an IdentityDocument
+// in bahari_identity.
+func (i *IOTA) LinkRoleObject(ctx context.Context, docObjectID string, roleObjectID string) error {
+	if i.executorURL == "" {
+		return fmt.Errorf("%w: executor not configured", ErrUnavailable)
+	}
+	payload := map[string]any{
+		"operation":      "link_role_object",
+		"doc_object_id":  docObjectID,
+		"role_object_id": roleObjectID,
+		"network":        "testnet",
+	}
+	var response map[string]any
+	return i.execute(ctx, payload, &response)
+}

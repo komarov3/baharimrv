@@ -1,0 +1,21 @@
+[package]
+name = "conservation_chain"
+edition = "2024"
+
+# LOCAL DEV: points to iota v1.19.1 extracted from the git cache.
+# Run scripts/setup-deps.sh to populate this path.
+# DEPLOYMENT: replace with git pin before running 'iota client publish':
+#   Iota = { git = "https://github.com/iotaledger/iota.git",
+#            subdir = "crates/iota-framework/packages/iota-framework",
+#            rev = "v1.19.1" }
+[dependencies]
+Iota = { local = "/Users/Komarov/.move/https___github_com_iotaledger_iota_git_testnet/crates/iota-framework/packages/iota-framework" }
+# Shared identity layer — deployed at v0.1.1 on IOTA Rebased Testnet.
+# Package: 0x931ed065a3b38921008d7be033d84605b58db10dfb9bb687ed4d3f8fbda8acf9
+bahari_identity = { local = "/Users/Komarov/Documents/bahari_identity" }
+
+[addresses]
+conservation_chain = "0x0"
+bahari_identity = "0x931ed065a3b38921008d7be033d84605b58db10dfb9bb687ed4d3f8fbda8acf9"
+
+[dev-addresses]
