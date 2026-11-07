@@ -218,7 +218,7 @@ async function submitTx(keypair: Ed25519Keypair, tx: Transaction): Promise<Execu
 
 async function provisionIdentity(
   keypair: Ed25519Keypair, pkg: string,
-  params: { idempotency_key: string; public_key: string; network: string }
+  params: { idempotency_key: string; public_key: string; network: string; platform?: string }
 ): Promise<ExecuteResult> {
   // Identity operations target bahari_identity package, not conservation_chain
   const identityPkg = IDENTITY_PKG || pkg;
@@ -229,7 +229,8 @@ async function provisionIdentity(
   const didBytes      = textToBytes(did);
   // public_key is stored as a hex-encoded String in the contract — pass as text, not raw bytes
   const pubKeyBytes   = textToBytes(params.public_key);
-  const platformBytes = textToBytes('baharimrv');
+  // Platform defaults to "baharimrv"; callers (e.g. Jahazi) can override
+  const platformBytes = textToBytes(params.platform ?? 'baharimrv');
 
   const tx = new Transaction();
   tx.moveCall({

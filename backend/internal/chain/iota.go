@@ -18,15 +18,17 @@ import (
 type IOTA struct {
 	rpcURL      string
 	executorURL string
+	apiKey      string
 	packageID   string
 	httpClient  *http.Client
 }
 
-func NewIOTA(rpcURL, executorURL, packageID string) *IOTA {
+func NewIOTA(rpcURL, executorURL, packageID, apiKey string) *IOTA {
 	return &IOTA{
 		rpcURL:      strings.TrimRight(rpcURL, "/"),
 		executorURL: strings.TrimRight(executorURL, "/"),
 		packageID:   packageID,
+		apiKey:      apiKey,
 		httpClient:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
@@ -144,6 +146,9 @@ func (i *IOTA) execute(ctx context.Context, payload any, output any) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	if i.apiKey != "" {
+		request.Header.Set("x-api-key", i.apiKey)
+	}
 	response, err := i.httpClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("execute testnet transaction: %w", err)

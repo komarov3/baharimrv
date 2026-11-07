@@ -23,12 +23,17 @@ type Config struct {
 	IOTANetwork         string
 	IOTARPCURL          string
 	IOTAExecutorURL     string
+	IOTAExecutorAPIKey  string
 	IOTAPackageID       string
 	SatelliteMode       string
 	RegistryMode        string
 	PaymentMode         string
 	EvidenceRoot        string
 	IOTAExplorerURL     string
+	// Gas station: monitors sponsor wallet and auto-faucets when low
+	IOTASponsorAddress  string
+	IOTAGasThreshold    uint64
+	GasExecutorURL      string
 	OIDCIssuer          string
 	OIDCSigningKeyPEM   string
 	OIDCSigningKeyID    string
@@ -38,6 +43,11 @@ type Config struct {
 	MaxRequestBytes     int64
 	SeedDemoData        bool
 	DemoSeedPassword    string
+
+	// Jahazi cross-platform integration
+	JahaziEnabled       bool
+	JahaziWebhookURL    string
+	JahaziWebhookSecret string
 }
 
 func Load() (Config, error) {
@@ -108,12 +118,16 @@ func Load() (Config, error) {
 		IOTANetwork:         value("IOTA_NETWORK", "testnet"),
 		IOTARPCURL:          value("IOTA_RPC_URL", "https://api.testnet.iota.cafe"),
 		IOTAExecutorURL:     os.Getenv("IOTA_EXECUTOR_URL"),
+		IOTAExecutorAPIKey:  os.Getenv("IOTA_EXECUTOR_API_KEY"),
 		IOTAPackageID:       os.Getenv("IOTA_PACKAGE_ID"),
 		SatelliteMode:       value("SATELLITE_MODE", "sandbox"),
 		RegistryMode:        value("REGISTRY_MODE", "sandbox"),
 		PaymentMode:         value("PAYMENT_MODE", "sandbox"),
 		EvidenceRoot:        value("EVIDENCE_ROOT", "data/evidence"),
 		IOTAExplorerURL:     os.Getenv("IOTA_EXPLORER_URL"),
+		IOTASponsorAddress:  os.Getenv("IOTA_SPONSOR_ADDRESS"),
+		IOTAGasThreshold:    uint64Value("IOTA_GAS_THRESHOLD", 100000000),
+		GasExecutorURL:      os.Getenv("GAS_EXECUTOR_URL"),
 		OIDCIssuer:          value("OIDC_ISSUER", strings.TrimRight(publicURL, "/")),
 		OIDCSigningKeyPEM:   os.Getenv("OIDC_SIGNING_PRIVATE_KEY"),
 		OIDCSigningKeyID:    value("OIDC_SIGNING_KID", "baharimrv-local-development"),
@@ -123,6 +137,9 @@ func Load() (Config, error) {
 		MaxRequestBytes:     int64(integer("MAX_REQUEST_BYTES", 2*1024*1024)),
 		SeedDemoData:        boolean("SEED_DEMO_DATA", false),
 		DemoSeedPassword:    os.Getenv("DEMO_SEED_PASSWORD"),
+		JahaziEnabled:       boolean("JAHAZI_ENABLED", false),
+		JahaziWebhookURL:    value("JAHAZI_WEBHOOK_URL", ""),
+		JahaziWebhookSecret: os.Getenv("JAHAZI_WEBHOOK_SECRET"),
 	}, nil
 }
 
@@ -177,4 +194,16 @@ func federationClients(current string) map[string]string {
 		}
 	}
 	return clients
+}
+
+func uint64Value(key string, fallback uint64) uint64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseUint(v, 10, 64)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

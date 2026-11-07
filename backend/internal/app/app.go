@@ -15,8 +15,10 @@ import (
 	"github.com/baharilink/baharimrv/internal/database"
 	"github.com/baharilink/baharimrv/internal/evidence"
 	"github.com/baharilink/baharimrv/internal/identity"
+	"github.com/baharilink/baharimrv/internal/jahazi"
 	"github.com/baharilink/baharimrv/internal/market"
 	"github.com/baharilink/baharimrv/internal/mrv"
+	"github.com/baharilink/baharimrv/internal/notifications"
 	"github.com/baharilink/baharimrv/internal/proof"
 	"github.com/baharilink/baharimrv/internal/provenance"
 	"github.com/baharilink/baharimrv/internal/satellite"
@@ -57,6 +59,14 @@ func Build(cfg config.Config) (*App, error) {
 	}
 
 	identities := identity.NewService(db, adapter, custody)
+
+	// Gas station: monitors sponsor wallet balance and auto-faucets when low.
+	// Disabled in sandbox mode (no sponsor address configured).
+	if cfg.ChainMode == "iota" && cfg.IOTASponsorAddress != "" {
+		gs := chain.NewGasStation(cfg.IOTARPCURL, cfg.GasExecutorURL)
+		go gs.PeriodicCheck(cfg.IOTASponsorAddress)
+	}
+
 	anchors := provenance.NewService(db, adapter, cfg.IOTAExplorerURL)
 	imagery := satellite.NewService(db, cfg.SatelliteMode)
 	projects := mrv.NewService(db, identities, anchors, imagery, store)
@@ -72,6 +82,11 @@ func Build(cfg config.Config) (*App, error) {
 	verifications := verification.NewService(db, identities, anchors, projects, stepUp)
 	marketplace := market.NewService(db, projects, anchors, stepUp, cfg.RegistryMode, cfg.PaymentMode)
 	proofs := proof.NewService(db, projects, identities, anchors, imagery, store, cfg.RegistryMode, cfg.PublicBaseURL)
+	jahaziService := jahazi.NewService(db, cfg.JahaziWebhookURL, cfg.JahaziWebhookSecret, cfg.IOTAExplorerURL)
+	jahaziChain   := jahazi.NewChainOps(db, adapter)
+	notifier      := notifications.NewService(db)
+	jahaziService.SetNotifier(notifier)
+	projects.SetRestorationMatcher(jahazi.NewMatcherAdapter(jahaziService))
 
 	if cfg.SeedDemoData {
 		if err := seed.Run(db, identities, projects, oidcService, cfg.DemoSeedPassword, time.Now().UTC()); err != nil {
@@ -91,6 +106,8 @@ func Build(cfg config.Config) (*App, error) {
 			Satellite:     imagery,
 			Verification: verification.NewHandler(verifications), VerificationService: verifications,
 			Market: marketplace, Proof: proofs, Evidence: store,
+			Jahazi: jahaziService,
+		JahaziChain: jahaziChain,
 		}),
 		DB: db, Evidence: store,
 	}, nil
@@ -108,5 +125,5 @@ func ChainAdapter(cfg config.Config) (chain.Adapter, error) {
 	if cfg.IOTANetwork != "testnet" {
 		return nil, errors.New("this release anchors on IOTA Rebased testnet only")
 	}
-	return chain.NewIOTA(cfg.IOTARPCURL, cfg.IOTAExecutorURL, cfg.IOTAPackageID), nil
+	return chain.NewIOTA(cfg.IOTARPCURL, cfg.IOTAExecutorURL, cfg.IOTAPackageID, cfg.IOTAExecutorAPIKey), nil
 }
