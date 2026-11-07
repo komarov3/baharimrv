@@ -58,7 +58,7 @@ func Build(cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	identities := identity.NewService(db, adapter, custody)
+	identities := identity.NewServiceWithHub(db, adapter, custody, cfg.BahariLinkHubURL, cfg.BahariLinkAPIKey)
 
 	// Gas station: monitors sponsor wallet balance and auto-faucets when low.
 	// Disabled in sandbox mode (no sponsor address configured).

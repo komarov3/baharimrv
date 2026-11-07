@@ -1,6 +1,7 @@
 package mrv
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -913,6 +914,20 @@ func (s *Service) UpdatePlot(projectID, plotID, userID, assignedMonitorID string
 	plot.UpdatedAt = s.now().UTC()
 	if err := s.db.Save(&plot).Error; err != nil {
 		return models.Plot{}, err
+	}
+	// Issue MonitorCap for the newly assigned monitor (non-blocking, idempotent).
+	if assignedMonitorID != "" {
+		capturedProjectID := projectID
+		capturedPlotID := plotID
+		capturedMonitorID := assignedMonitorID
+		go func() {
+			ctx := context.Background()
+			provision, err := s.identities.EnsureProvision(ctx, capturedMonitorID)
+			if err != nil || provision.RoleCapObjectID != "" {
+				return
+			}
+			s.identities.IssueMonitorCapForUser(ctx, capturedMonitorID, "monitor", provision, capturedProjectID, capturedPlotID)
+		}()
 	}
 	return plot, nil
 }

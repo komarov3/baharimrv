@@ -48,6 +48,10 @@ type Config struct {
 	JahaziEnabled       bool
 	JahaziWebhookURL    string
 	JahaziWebhookSecret string
+
+	// BahariLink hub for cross-platform identity caching.
+	BahariLinkHubURL string
+	BahariLinkAPIKey string
 }
 
 func Load() (Config, error) {
@@ -140,6 +144,8 @@ func Load() (Config, error) {
 		JahaziEnabled:       boolean("JAHAZI_ENABLED", false),
 		JahaziWebhookURL:    value("JAHAZI_WEBHOOK_URL", ""),
 		JahaziWebhookSecret: os.Getenv("JAHAZI_WEBHOOK_SECRET"),
+		BahariLinkHubURL:    os.Getenv("BAHARILINK_HUB_URL"),
+		BahariLinkAPIKey:    os.Getenv("BAHARILINK_API_KEY"),
 	}, nil
 }
 

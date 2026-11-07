@@ -107,6 +107,18 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 	if err != nil || provision.State != models.IdentityActive || user.Status != models.IdentityActive {
 		return Result{User: user, Identity: provision}, identity.ErrProvisioning
 	}
+	// Cross-platform role healing: if the user has no cap yet, check the hub
+	// for a role established on another platform (non-blocking).
+	if provision.RoleCapObjectID == "" {
+		go func() {
+			bgCtx := context.Background()
+			crossRole := s.identity.ResolveRoleFromHub(bgCtx, user.ID, provision.DID)
+			if crossRole != "" && crossRole != user.Role {
+				s.db.Model(&models.User{}).Where("id = ?", user.ID).Update("role", crossRole)
+				go s.identity.IssueCapForUser(bgCtx, user.ID, crossRole, provision)
+			}
+		}()
+	}
 	token, expires, err := s.NewSession(user.ID)
 	if err != nil {
 		return Result{}, err
