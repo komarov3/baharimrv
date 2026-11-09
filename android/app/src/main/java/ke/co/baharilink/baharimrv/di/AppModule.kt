@@ -40,7 +40,7 @@ object AppModule {
     @Provides
     @Singleton
     fun okHttp(secureSessionStore: SecureSessionStore): OkHttpClient = OkHttpClient.Builder()
-        .protocols(listOf(Protocol.HTTP_1_1))  // Fix ngrok HTTP/2 compatibility issue
+        .protocols(listOf(Protocol.HTTP_1_1))  // HTTP/1.1 for Fly.io compatibility
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(45, TimeUnit.SECONDS)

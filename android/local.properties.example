@@ -7,9 +7,9 @@
 # ============================================================================
 
 # BahariMRV backend API base URL
-# Production: https://api.baharimrv.example.com
+# Production: https://baharimrv-api.fly.dev (Fly.io deployment)
 # Development: http://localhost:8080 or http://10.0.2.2:8080 (Android emulator)
-BAHARIMRV_API_BASE_URL=https://api.baharimrv.example.com
+BAHARIMRV_API_BASE_URL=https://baharimrv-api.fly.dev
 
 # ============================================================================
 # JAHAZI SSO INTEGRATION
