@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -197,6 +198,18 @@ func (s *Service) Complete(ctx context.Context, activityID, userID string) (mode
 	if err := s.assignVerifier(activity); err != nil {
 		return activity, event, err
 	}
+
+	// Jahazi restoration matching: if a RestorationMatcher is configured and this
+	// is a planting activity, check for open RestorationRequests. When matched,
+	// the activity is tagged jahazi_funded and a RestorationRequest moves to
+	// matched/fulfilled. Normal activities (no open claim) are unaffected.
+	if s.matcher != nil {
+		summary := Summarise(records, activity)
+		if matchErr := s.matcher.MatchActivity(activity, summary); matchErr != nil {
+			slog.Warn("restoration matching failed", "activityId", activity.ID, "error", matchErr)
+		}
+	}
+
 	return activity, event, nil
 }
 

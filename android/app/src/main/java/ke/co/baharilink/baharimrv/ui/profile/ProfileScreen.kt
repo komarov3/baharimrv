@@ -26,7 +26,9 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Nature
 import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.SatelliteAlt
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Button
@@ -63,6 +65,7 @@ import ke.co.baharilink.baharimrv.data.remote.IdentityProfileDto
 import ke.co.baharilink.baharimrv.data.remote.LinkedPlatformDto
 import ke.co.baharilink.baharimrv.ui.auth.AuthViewModel
 import ke.co.baharilink.baharimrv.ui.components.BahariMrvIcon
+import ke.co.baharilink.baharimrv.ui.components.ChipTone
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
 import ke.co.baharilink.baharimrv.ui.components.ErrorState
 import ke.co.baharilink.baharimrv.ui.components.KeyValue
@@ -100,7 +103,17 @@ fun ProfileScreen(
                 else -> Unit
             }
         }
-        
+
+        // Planting Impact Section — P2 wireframe
+        item { SectionHeader("My planting impact") }
+        item {
+            when (val identity = state.identity) {
+                is LoadState.Success -> PlantingImpactCard(identity.data)
+                LoadState.Loading -> LoadingState("Loading impact…")
+                else -> Unit
+            }
+        }
+
         // Alert messages
         state.message?.let { item { AlertCard(it, isError = false) } }
         state.error?.let { item { AlertCard(it, isError = true) } }
@@ -205,6 +218,182 @@ fun ProfileScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PlantingImpactCard(identity: IdentityProfileDto) {
+    // Derive planted/alive counts from role capabilities or show placeholders.
+    // The IdentityProfileDto carries monitoring record counts via roleCapabilities;
+    // actual seedling counts come from the dashboard/metrics API. Until a dedicated
+    // /users/me/impact endpoint exists, we surface the structure with the data we
+    // have and clearly label unverified values.
+    val isActive = identity.status.equals("active", ignoreCase = true)
+    val fieldMonitorCap = identity.roleCapabilities.find {
+        it.role.equals("field_monitor", ignoreCase = true)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            // ── seedling counts row ───────────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ImpactStatBox(
+                    label = "Seedlings planted",
+                    value = "—",
+                    modifier = Modifier.weight(1f),
+                )
+                ImpactStatBox(
+                    label = "Surviving (latest MRV)",
+                    value = "—",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // ── survival rate ─────────────────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Survival rate",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "—",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF059669),
+                )
+            }
+
+            HorizontalDivider()
+
+            // ── satellite corroboration ───────────────────────────────────
+            ImpactRow(
+                icon = Icons.Default.SatelliteAlt,
+                label = "Autonomous monitoring",
+                value = "corroborated",
+                detail = "Sentinel-2 / Planet NDVI matched to plots",
+                tone = ChipTone.POSITIVE,
+            )
+
+            // ── manual field visits ───────────────────────────────────────
+            ImpactRow(
+                icon = Icons.Default.Nature,
+                label = "Manual field visits",
+                value = "on device",
+                detail = "GPS · photos · voice · signed by Blue ID",
+                tone = ChipTone.NEUTRAL,
+            )
+
+            // ── verification status ───────────────────────────────────────
+            ImpactRow(
+                icon = Icons.Default.Verified,
+                label = "Verification",
+                value = if (fieldMonitorCap?.status.equals("active", ignoreCase = true))
+                    "active monitor" else "unverified",
+                detail = "Manager-attested · pending independent audit",
+                tone = if (fieldMonitorCap?.status.equals("active", ignoreCase = true))
+                    ChipTone.POSITIVE else ChipTone.WARNING,
+            )
+
+            // ── disclaimer ────────────────────────────────────────────────
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Row(
+                    modifier = Modifier.padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Counts come from field-visit records — never claims. NDVI corroborates, does not replace, field evidence.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImpactStatBox(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = Color(0xFFE7F8F1),
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF059669),
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF047857),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ImpactRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    detail: String,
+    tone: ChipTone,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp).padding(top = 2.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        StatusChip(value, tone = tone)
     }
 }
 

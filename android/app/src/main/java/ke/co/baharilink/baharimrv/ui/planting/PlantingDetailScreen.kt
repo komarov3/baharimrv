@@ -2,6 +2,7 @@ package ke.co.baharilink.baharimrv.ui.planting
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -183,7 +184,7 @@ private fun ActivityDetailContent(
                         modifier = Modifier.fillMaxWidth().height(120.dp),
                     ) {
                         when (imageState) {
-                            is LoadState.Success -> androidx.compose.foundation.Image(
+                            is LoadState.Success -> Image(
                                 bitmap = imageState.data,
                                 contentDescription = "Evidence photo",
                                 modifier = Modifier.fillMaxSize(),
@@ -326,7 +327,7 @@ private fun FullScreenPhotoOverlay(bitmap: ImageBitmap?, onDismiss: () -> Unit) 
             contentAlignment = Alignment.Center,
         ) {
             if (bitmap != null) {
-                androidx.compose.foundation.Image(
+                Image(
                     bitmap = bitmap,
                     contentDescription = "Evidence photo",
                     modifier = Modifier.fillMaxSize(),

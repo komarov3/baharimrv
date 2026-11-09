@@ -32,9 +32,9 @@ function DashboardContent() {
           </Panel>
         </div>
 
-        {data.wallet && <section className="wallet-strip" aria-labelledby="dashboard-wallet-title">
+        {data.wallet && <section className="wallet-strip mw-card mw-card.hl" aria-labelledby="dashboard-wallet-title">
           <div className="wallet-strip-heading"><span><WalletCards size={19} />Project wallet</span><StatusBadge status={data.wallet.mode} /></div>
-          <div className="wallet-balances"><div><span>Tourism contributions</span><strong>{formatAmount(data.wallet.balances.tourismContributions)}</strong></div><div><span>Carbon-credit sales</span><strong>{formatAmount(data.wallet.balances.carbonCreditSales)}</strong></div><div><span>Community share</span><strong>{formatAmount(data.wallet.balances.communityShare)}</strong></div></div>
+          <div className="wallet-balances"><div className="mw-inp"><span className="mut">Tourism contributions</span><strong className="mw-big">{formatAmount(data.wallet.balances.tourismContributions)}</strong></div><div className="mw-inp"><span className="mut">Carbon-credit sales</span><strong className="mw-big green">{formatAmount(data.wallet.balances.carbonCreditSales)}</strong></div><div className="mw-inp"><span className="mut">Community share</span><strong className="mw-big">{formatAmount(data.wallet.balances.communityShare)}</strong></div></div>
           <div className="wallet-strip-foot"><span>{data.wallet.revenueRule ? `${data.wallet.revenueRule.label} · ${data.wallet.revenueRule.communityPercent}% community` : 'Revenue rule not supplied'} · Read-only imports</span><Link to="/app/wallet">Open ledger <ArrowRight size={14} /></Link></div>
         </section>}
 

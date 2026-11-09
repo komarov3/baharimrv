@@ -23,12 +23,12 @@ import { MonitorPage } from './pages/MonitorPage';
 import { PlantingActivityPage } from './pages/PlantingActivityPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { ModuleEntryPage } from './pages/ModuleEntryPage';
 import { ProofsPage } from './pages/ProofsPage';
 import { PublicProofPage } from './pages/PublicProofPage';
 import { SatelliteMonitoringPage } from './pages/SatelliteMonitoringPage';
 import { VerificationPage } from './pages/VerificationPage';
 import { WalletPage } from './pages/WalletPage';
-
 function RequireAuth({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
@@ -51,6 +51,7 @@ export default function App() {
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="module-entry" element={<ModuleEntryPage />} />
         <Route path="monitor" element={<MonitorPage />} />
         <Route path="verification" element={<VerificationPage />} />
         <Route path="credits" element={<CreditsPage />} />

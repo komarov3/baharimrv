@@ -33,7 +33,7 @@ function WalletContent() {
       {!loading && data && <>
         <section className="wallet-hero">
           <div className="wallet-hero-head"><div><WalletCards size={21} /><span>Imported project balances</span></div><StatusBadge status={data.wallet.mode} /></div>
-          <div className="wallet-hero-balances"><div><span>Tourism contributions</span><strong>{formatAmount(data.wallet.balances.tourismContributions)}</strong><small>BahariLink read-only import</small></div><div><span>Carbon-credit sales</span><strong>{formatAmount(data.wallet.balances.carbonCreditSales)}</strong><small>Settlement and custody records</small></div><div><span>Community share</span><strong>{formatAmount(data.wallet.balances.communityShare)}</strong><small>Calculated under effective rule</small></div></div>
+          <div className="wallet-hero-balances"><div className="mw-inp"><span className="mut">Tourism contributions</span><span className="mw-big">{formatAmount(data.wallet.balances.tourismContributions)}</span><small>BahariLink read-only import</small></div><div className="mw-inp"><span className="mut">Carbon-credit sales</span><span className="mw-big green">{formatAmount(data.wallet.balances.carbonCreditSales)}</span><small>Settlement and custody records</small></div><div className="mw-inp"><span className="mut">Community share</span><span className="mw-big">{formatAmount(data.wallet.balances.communityShare)}</span><small>Calculated under effective rule</small></div></div>
           <div className="wallet-hero-actions">
             <Button variant="secondary" icon={Copy} onClick={requestCashOut} loading={cashOutRequested} disabled={data.wallet.mode === 'sandbox'}>{cashOutRequested ? 'Requested…' : 'Request cash out'}</Button>
           </div>
@@ -50,10 +50,10 @@ function WalletContent() {
           </Panel>
           <div className="wallet-credits">
             <Panel title="Income credential" description="Verifiable income for SACCO or gear-loan applications. BahariMRV proves earnings without exposing key material." action={<span className="count-label">Shareable credential</span>}>
-              <div className="credential-card"><ShieldCheck size={20} /><div><strong>Income credential available</strong><p>Built from settled marketplace trades; verified by on-chain sales, never self-reported.</p></div><Button variant="secondary" icon={Copy}>Copy reference</Button></div>
+              <div className="credential-card mw-card"><ShieldCheck size={20} /><div><strong>Income credential available</strong><p>Built from settled marketplace trades; verified by on-chain sales, never self-reported.</p></div><Button variant="secondary" icon={Copy}>Copy reference</Button></div>
             </Panel>
             <Panel title="Co-benefit contributor" description="Aggregated, anonymised income deltas attach as SDG co-benefits to carbon projects, supporting a price premium.">
-              <div className="co-benefit"><WalletCards size={18} /><div><strong>Co-benefit contributor</strong><p>Anonymised income data feeds SDG co-benefits (synergy S-3) visible to buyers in the credits marketplace.</p></div></div>
+              <div className="co-benefit mw-card"><WalletCards size={18} /><div><strong>Co-benefit contributor</strong><p>Anonymised income data feeds SDG co-benefits (synergy S-3) visible to buyers in the credits marketplace.</p></div></div>
             </Panel>
           </div>
         </div>

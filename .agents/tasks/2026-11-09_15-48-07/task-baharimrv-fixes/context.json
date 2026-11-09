@@ -1,0 +1,31 @@
+{
+  "project_type": "Go backend + Kotlin/Jetpack Compose Android app",
+  "language": "Go (backend), Kotlin (Android)",
+  "build_system": "Go modules (go.mod, module: github.com/baharilink/baharimrv); Android Gradle with KSP + Hilt (android/gradlew)",
+  "test_framework": "Go: standard testing + testify (backend/internal/app/flow_test.go); Android: JUnit (no Compose tests required)",
+  "build_command": "Backend: cd /Users/Komarov/Documents/BahariMRV/backend && go build ./... | Android: cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:assembleDebug",
+  "test_command": "Backend: cd /Users/Komarov/Documents/BahariMRV/backend && go test ./internal/app/... | Android compile: cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:compileDebugKotlin",
+  "verification_instructions": "1. cd /Users/Komarov/Documents/BahariMRV/backend && go build ./... (must produce zero errors). 2. cd /Users/Komarov/Documents/BahariMRV/backend && go test ./internal/app/... (must pass; currently passing at ~17s). 3. cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:compileDebugKotlin (must show BUILD SUCCESSFUL). 4. cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:assembleDebug (must show BUILD SUCCESSFUL).",
+  "snapshot_or_generated_files": "None relevant to this task.",
+  "environment_constraints": "Go 1.25. Android compileSdk 35, minSdk 26. Never add new dependencies — stack is locked. The backend's test DB is in-memory SQLite via t.TempDir(). Do not start or restart the backend server.",
+  "contribution_requirements": "Commit locally on the working branch; never push. Each FEAT must leave the repo building and tests passing before its commit.",
+  "key_patterns": "Backend: receiver is `r *router` (NOT `s`), all handlers in api/handlers.go use r.db, r.projects, r.anchors etc. identity/service.go does NOT currently import log/slog (must add). auth/service.go Register currently fires a goroutine on line ~74. Android: DTOs use data classes with default values. ViewModels use LoadState<T>? = null as initial state (see WalletViewModel). Common.kt has: LoadState, KeyValue, NavyLedgerCard, BahariCard, BahariDashedBox, ContextHeader, EmptyState, ErrorState, LoadingState, chainNetworkLabel, readableMessage (extension on Throwable). BahariComponents.kt has BahariCard, BahariDashedBox, BahariButton.",
+  "relevant_files": [
+    "backend/internal/identity/service.go",
+    "backend/internal/auth/service.go",
+    "backend/internal/auth/handlers.go",
+    "backend/internal/seed/seed.go",
+    "backend/internal/api/handlers.go",
+    "backend/internal/api/router.go",
+    "backend/internal/app/flow_test.go",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/data/remote/Api.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/data/repository/ProjectRepository.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/planting/PlantingListScreen.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/planting/PlantingListViewModel.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/AppRoot.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/components/Common.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/components/BahariComponents.kt",
+    "android/app/src/main/java/ke/co/baharilink/baharimrv/ui/wallet/WalletViewModel.kt"
+  ],
+  "directory_structure": "BahariMRV/ — root. backend/ — Go server (cmd/server/main.go entry, internal/* packages). android/ — Kotlin app (app/src/main/java/ke/co/baharilink/baharimrv/). .agents/pipeline/2026-11-09_15-48-07/ — design and plan artifacts. .agents/tasks/2026-11-09_15-48-07/ — FEAT artifacts for this task."
+}

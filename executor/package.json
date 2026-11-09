@@ -1,0 +1,27 @@
+{
+  "name": "baharimrv-executor",
+  "version": "0.1.0",
+  "description": "IOTA Testnet transaction executor for conservation_chain Move package",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iota/iota-sdk": "^0.5.0",
+    "dotenv": "^18.0.9",
+    "express": "^4.18.3"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

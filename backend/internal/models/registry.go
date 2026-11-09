@@ -12,5 +12,6 @@ func All() []any {
 		&SatellitePass{}, &FinancialImport{}, &ProjectDocument{}, &StepUpToken{},
 		&SystemConfig{}, &Alert{}, &Incident{}, &AdminNote{}, &ExportJob{}, &SavedView{},
 		&VerificationOverride{}, &PublicProofVerificationLog{},
+		&RestorationRequest{},
 	}
 }

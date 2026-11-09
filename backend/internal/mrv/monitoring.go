@@ -37,6 +37,13 @@ var (
 	ErrConflict      = errors.New("a different version of this record already exists on the server")
 )
 
+// RestorationMatcher is the interface the Jahazi service implements for
+// matching completed planting activities against open RestorationRequests.
+// It is injected after construction to avoid a circular dependency.
+type RestorationMatcher interface {
+	MatchActivity(activity models.ConservationActivity, measurements map[string]any) error
+}
+
 type Service struct {
 	db         *gorm.DB
 	identities *identity.Service
@@ -44,10 +51,17 @@ type Service struct {
 	satellite  *satellite.Service
 	evidence   *evidence.Store
 	now        func() time.Time
+	matcher    RestorationMatcher
 }
 
 func NewService(db *gorm.DB, identities *identity.Service, anchors *provenance.Service, imagery *satellite.Service, store *evidence.Store) *Service {
 	return &Service{db: db, identities: identities, provenance: anchors, satellite: imagery, evidence: store, now: time.Now}
+}
+
+// SetRestorationMatcher injects the Jahazi matching engine after construction.
+// When nil (default), activity completion skips Jahazi matching entirely.
+func (s *Service) SetRestorationMatcher(m RestorationMatcher) {
+	s.matcher = m
 }
 
 // EvidenceManifestItem is one declared media file in a captured record.

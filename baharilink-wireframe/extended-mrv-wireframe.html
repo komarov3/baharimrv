@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mikoko — BahariLink Conservation Module · Wallet, Profile, Planting, Satellite &amp; Field Visit</title>
+<style>
+:root{
+  --green:#059669; --dgreen:#047857; --tint:#D1FAE5; --pale:#F0FDF4;
+  --mut:#64748B; --accent:#34D399; --ink:#0f172a; --line:#d8e0ea;
+  --panel:#ffffff; --wire:#b9c6d6; --sk:#dfe7f0; --skd:#c7d2e0;
+  --amber:#d97706; --slate:#475569; --violet:#7c3aed; --blue:#2563eb;
+  --cyan:#0e7490; --navy:#12263b;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",Inter,-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;background:var(--pale);color:var(--ink);font-size:14px;line-height:1.5}
+svg.ic{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.ic.s{width:14px;height:14px}
+svg.ic.l{width:22px;height:22px}
+.wrap{max-width:1340px;margin:0 auto;padding:0 30px}
+
+/* ---------- hero ---------- */
+.hero{background:linear-gradient(135deg,#03281c 0%,var(--dgreen) 55%,var(--green) 100%);color:#eafaf3;padding:46px 0 38px}
+.hero .kicker{letter-spacing:.22em;text-transform:uppercase;font-size:11px;color:var(--accent);font-weight:700}
+.hero h1{margin:8px 0 6px;font-size:36px;letter-spacing:-.5px;color:#fff}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero p.sub{margin:0;max-width:880px;color:#c8ecdd;font-size:15px}
+.hero .meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.hero .pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#e6f9f1;border-radius:999px;padding:6px 13px;font-size:12px;display:flex;gap:7px;align-items:center}
+
+/* ---------- sections ---------- */
+.sec-head{display:flex;align-items:flex-start;gap:16px;margin:38px 0 6px;flex-wrap:wrap}
+.sec-head h2{margin:0;font-size:24px;letter-spacing:-.4px}
+.sec-head .num{font-size:12px;font-weight:800;color:#fff;background:var(--green);border-radius:8px;padding:5px 10px;letter-spacing:.08em}
+.lede{color:var(--mut);max-width:920px;margin:6px 0 24px}
+.lede b{color:var(--ink)}
+
+/* ---------- wireframe board ---------- */
+.board{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.unit{width:304px;flex:none}
+.ph{width:296px;height:608px;background:#0a1420;border-radius:44px;padding:11px;box-shadow:0 18px 40px rgba(15,35,60,.28),inset 0 0 0 2px #24344b;margin:0 auto}
+.pscr{background:#fff;border-radius:34px;height:100%;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:110px;height:22px;background:#0a1420;border-radius:0 0 14px 14px;z-index:5}
+.pstat{height:30px;display:flex;justify-content:space-between;align-items:center;padding:4px 18px 0;font-size:11px;font-weight:600;color:#33415c;background:#fff;flex:none}
+.pstat .sic{display:flex;gap:4px;align-items:center;color:#33415c}
+.papp{padding:10px 14px 9px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex:none;background:#fff}
+.papp .brandline{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
+.papp .ttl{font-weight:700;font-size:13.5px}
+.papp .sub{font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.papp .grow{flex:1}
+.pbody{flex:1;padding:12px 13px;overflow:hidden;display:flex;flex-direction:column;gap:9px;font-size:11px;color:var(--ink);background:#fdfefe}
+.pnav{height:54px;border-top:1px solid var(--line);display:flex;flex:none;background:#fff}
+.nv{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:8.5px;color:#9aa8ba;font-weight:600}
+.nv.on{color:var(--green)}
+.cap{padding:12px 4px 0}
+.cap h4{margin:0 0 2px;font-size:13px;display:flex;align-items:center;gap:8px}
+.cap .sid{font-size:10px;font-weight:800;color:#fff;background:var(--slate);border-radius:6px;padding:2px 7px;letter-spacing:.05em}
+.cap p{margin:4px 0 0;font-size:11.5px;color:var(--mut)}
+.notes{margin:8px 0 0;padding:0;list-style:none;font-size:11px;color:var(--mut)}
+.notes li{display:flex;gap:7px;margin-top:5px;line-height:1.45}
+.an{width:16px;height:16px;border-radius:50%;background:#f59e0b;color:#231a04;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.arr{align-self:center;color:#8fa1b5;flex:none;display:flex;align-items:center;justify-content:center;width:22px}
+
+/* ---------- in-screen components ---------- */
+.sk{height:8px;border-radius:5px;background:var(--sk)}
+.sk.d{background:var(--skd)}
+.card{border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:#fff;display:flex;flex-direction:column;gap:7px}
+.card.hl{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.dash{border:1.5px dashed var(--wire);border-radius:12px;background:repeating-linear-gradient(45deg,#f7fafc,#f7fafc 9px,#edf3f8 9px,#edf3f8 18px);display:flex;align-items:center;justify-content:center;color:#8ca0b6;gap:8px;font-size:10px;font-weight:600}
+.row{display:flex;align-items:center;gap:8px}
+.row.between{justify-content:space-between}
+.grow{flex:1}
+.icn{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;background:#e8eef6;color:var(--slate)}
+.icn.green{background:var(--tint);color:var(--green)}
+.icn.amber{background:#fef3c7;color:var(--amber)}
+.icn.violet{background:#ede9fe;color:var(--violet)}
+.icn.cyan{background:#cffafe;color:var(--cyan)}
+.icn.blue{background:#dbeafe;color:var(--blue)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px;padding:9px 10px;font-size:11px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink);text-align:center}
+.btn.g{background:var(--green);border-color:var(--green);color:#fff}
+.btn.a{background:var(--amber);border-color:var(--amber);color:#fff}
+.btn.v{background:var(--violet);border-color:var(--violet);color:#fff}
+.btn.ghost{color:var(--mut)}
+.btn.sm{padding:6px 8px;font-size:10px;border-radius:8px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;font-size:9.5px;font-weight:600;color:var(--mut);background:#fff}
+.chip.green{background:#e7f8f1;border-color:#b7e8d4;color:var(--green)}
+.chip.amber{background:#fdf3e3;border-color:#f2ddb3;color:var(--amber)}
+.inp{border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--mut);display:flex;align-items:center;gap:7px;background:#fff}
+.ttl-xs{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.big{font-size:19px;font-weight:800;letter-spacing:-.3px}
+.mut{color:var(--mut)}
+.xs{font-size:9.5px}
+.b{font-weight:700}
+.pill-off{display:inline-flex;align-items:center;gap:5px;background:#1f2b3c;color:#ffd166;border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700}
+.pill-sync{display:inline-flex;align-items:center;gap:5px;background:#e7f8f1;color:var(--green);border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700}
+.step{display:flex;gap:8px;align-items:flex-start}
+.st-ic{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
+.st-ok{background:var(--tint);color:var(--green)}
+.st-wip{background:#fef3c7;color:var(--amber)}
+.st-todo{background:#e5ebf2;color:#8ca0b6}
+.st-line{width:2px;background:var(--line);flex:1;margin-left:9px;min-height:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hash{font-family:Consolas,monospace;font-size:8.5px;color:var(--mut);background:#f1f5f9;border-radius:6px;padding:3px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.splitbar{display:flex;height:14px;border-radius:7px;overflow:hidden;font-size:8px;color:#fff;font-weight:700}
+.splitbar div{display:flex;align-items:center;justify-content:center}
+.sw{width:34px;height:20px;border-radius:999px;background:var(--green);position:relative;flex:none}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#fff}
+.toast{margin-top:auto;background:#12263b;color:#dff2fb;border-radius:12px;padding:9px 11px;font-size:10px;display:flex;gap:8px;align-items:center}
+
+/* ---------- icon library ---------- */
+</style>
+</head>
+<body>
+
+<!-- ======================= HERO ======================= -->
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">BahariLink · Module 4 · Mikoko Conservation</div>
+    <h1>Wallet, Profile, <em>Planting, Satellite &amp; Field Visit</em></h1>
+    <p class="sub">Extended screens for the Mikoko conservation module — project wallet &amp; financial evidence, account &amp; Blue ID identity, planting activity capture, autonomous satellite (NDVI) corroboration, and manual field-visit monitoring — all within the Home → Monitor → Credits → Wallet → Profile navigation.</p>
+    <div class="meta">
+      <div class="pill"><svg class="ic s"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="pill"><svg class="ic s"><use href="#i-user"/></svg>Profile</div>
+      <div class="pill"><svg class="ic s"><use href="#i-leaf"/></svg>Planting activity</div>
+      <div class="pill"><svg class="ic s"><use href="#i-sat"/></svg>Satellite monitoring</div>
+      <div class="pill"><svg class="ic s"><use href="#i-pin"/></svg>Field visit</div>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= BOARD INTRO ======================= -->
+<div class="wrap">
+  <div class="sec-head"><span class="num">03</span><h2>Extended Screens, Same Design System</h2></div>
+  <p class="lede">Every screen below reuses the exact Mikoko wireframe conventions: grey placeholders, dashed media boxes, amber annotation numbers, the five-tab phone nav, and the Mirasi green palette. Nothing here is fabricated — satellite is a sandbox label, wallet imports are read-only, and field capture stays offline-first.</p>
+</div>
+
+<div class="board">
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/><path d="M5 19C7.5 12 11.5 8 20 4"/></symbol>
+    <symbol id="i-sat" viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/><path d="M3.5 8.5 8 4M16 20l4.5-4.5M2 13l2.5 2.5M19.5 8.5 22 6"/><path d="M14 18c2 2 5 2 7 0M6 10C4 8 4 5 6 3"/></symbol>
+    <symbol id="i-co2" viewBox="0 0 24 24"><path d="M7 17a4 4 0 1 1 .6-7.97A5 5 0 0 1 17.3 8.7 3.5 3.5 0 0 1 17 17z"/><path d="M9 20h6"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13" r="1.3"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 1 1 13 0C18.5 15.4 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5 10 18 19.5 6.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 19a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-cam" viewBox="0 0 24 24"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="14" r="3.5"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+    <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14.6 4.5M4 12a8 8 0 0 1 14.6-4.5"/><path d="M18.5 3v4.5H14M5.5 21v-4.5H10"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 .4l3-3a4 4 0 0 0-5.6-5.6l-1.7 1.7M14 10a4 4 0 0 0-6-.4l-3 3a4 4 0 0 0 5.6 5.6l1.7-1.7"/></symbol>
+    <symbol id="i-sig" viewBox="0 0 24 24"><path d="M5 18v-3M10 18v-6M15 18V8M20 18V4" stroke-width="2.4"/></symbol>
+    <symbol id="i-bat" viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="8" rx="2"/><path d="M21 11v2"/><rect x="5.5" y="10.5" width="8" height="3" rx="1" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-arr" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M12 10v10M4 14h16M12 10S9 9.5 8 7.5C7.2 5.8 9 4 10.5 5c1.4.9 1.5 5 1.5 5zm0 0s3-.5 4-2.5C16.8 5.8 15 4 13.5 5c-1.4.9-1.5 5-1.5 5z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 2.8V11c0 4.8-3 8.2-7 10-4-1.8-7-5.2-7-10V5.8z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.5-5 6.5-5s5.7 1.5 6.5 5"/><path d="M16 5a3 3 0 1 1 0 6M18 15c2 .7 3.2 2.2 3.5 5"/></symbol>
+    <symbol id="i-boat" viewBox="0 0 24 24"><path d="M4 16h16l-2 4H6z"/><path d="M12 3v13M12 5c3 1 5 3 6 6h-6M12 8c-2 .8-3.5 2.5-4 5h4"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M3 12h18"/></symbol>
+    <symbol id="i-tree" viewBox="0 0 24 24"><path d="M12 3 7 10h3l-4 6h6v5h2v-5h6l-4-6h3z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.8 6.3 .7-4.7 4.3 1.3 6.2-5.6-3.2L6.4 20l1.3-6.2L3 9.5l6.3-.7z"/></symbol>
+    <symbol id="i-credit" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="4" x2="9" y2="20"/><line x1="15" y1="4" x2="15" y2="20"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-trending-up" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-4.24 5-7.59-1.43-1.64-3.37-2.55-5.65-3.37z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ======================= W1 PROJECT WALLET ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>17:40</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="16.5" cy="13" r="1.3"/></svg></div>
+        <div style="min-width:0"><div class="ttl">Project wallet</div><div class="sub">Gazi Bay · read-only imports</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="card" style="background:linear-gradient(135deg,#047857,#03281c);color:#eafaf3;border-radius:14px">
+        <div class="row between"><span class="xs mut" style="color:#a7e8cd">Available balance</span><span class="big" style="color:#fff">KSh 12,480</span></div>
+        <div class="row" style="margin-top:6px;gap:8px">
+          <div class="btn sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#eafaf3;font-size:10px">Cash out</div>
+          <div class="btn sm" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#eafaf3;font-size:10px">History</div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="inp"><span class="mut">Tourism</span><span class="b">KSh 4,200</span></div>
+        <div class="inp"><span class="mut">Carbon sales</span><span class="b green">KSh 6,180</span></div>
+      </div>
+      <div class="inp"><span class="mut">Community share (60%)</span><span class="b green">KSh 3,708</span></div>
+      <div class="ttl-xs" style="margin-top:10px">Last import · 22 Mar · read-only</div>
+      <div class="card">
+        <div class="row between"><span class="ttl-xs">Revenue rule</span><span class="chip green">60/25/15</span></div>
+        <div class="row xs mut" style="border-top:1px solid var(--line);padding-top:6px">Community · project · platform</div>
+      </div>
+      <div class="card">
+        <div class="row between"><span class="ttl-xs">Reconciliation</span><span class="chip green">✓ reconciled</span></div>
+        <div class="row xs mut">Checked 22 Mar · no mismatches</div>
+      </div>
+      <div class="ttl-xs" style="margin-top:10px">Audit ledger</div>
+      <div class="card" style="gap:4px">
+        <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex:none"></div><span class="grow xs">Tourism contribution · BK-4410</span><span class="xs green">+KSh 800</span></div>
+        <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex:none"></div><span class="grow xs">Carbon-credit sale · CC-9921</span><span class="xs green">+KSh 1,545</span></div>
+        <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:none"></div><span class="grow xs">Community allocation · rule-based</span><span class="xs">+KSh 464</span></div>
+      </div>
+      <div class="toast"><span class="xs mut">Financial evidence exports via proof workflows · no disbursements initiated</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv on"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">W1</span>Project Wallet · Financial Evidence</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Read-only BahariLink import — tourism contributions and carbon-credit sales in one auditable wallet.</li>
+      <li><em class="an">2</em>Community share (60%) is contract-enforced; no universal split is assumed.</li>
+      <li><em class="an">3</em>Reconciliation mismatches stay visible until resolved — never silently fixed.</li>
+      <li><em class="an">4</em>Cash out is backend-controlled; BahariMRV displays imports only, initiates no regulated disbursement.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+<!-- ======================= P1 PROFILE ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>09:15</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg></div>
+        <div style="min-width:0"><div class="ttl">Profile</div><div class="sub">Blue ID · identity &amp; platforms</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="card" style="align-items:flex-start;gap:8px">
+        <div style="width:44px;height:44px;border-radius:14px;background:var(--tint);display:flex;align-items:center;justify-content:center;color:var(--green);font-weight:800;flex:none">A</div>
+        <div class="grow"><div class="b">Asha Ndegwa</div><div class="xs mut">asha@bahari.coop · field monitor</div></div>
+        <span class="chip green">active</span>
+      </div>
+      <div class="inp"><span class="mut">DID identifier</span><span class="xs mut">did:iota:testnet:…7f3a</span></div>
+      <div class="inp"><span class="mut">Ledger network</span><span class="xs mut">IOTA testnet · sandbox</span></div>
+      <div class="inp"><span class="mut">Key custody</span><span class="xs mut">KMS-backed · social recovery</span></div>
+      <div class="ttl-xs" style="margin-top:10px">Role capabilities</div>
+      <div class="card" style="gap:4px">
+        <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex:none"></div><span class="grow xs">field_monitor</span><span class="xs green">cap-8821 · active</span></div>
+        <div class="row"><div style="width:8px;height:8px;border-radius:50%;background:#94a3b8;flex:none"></div><span class="grow xs">project_manager</span><span class="xs mut">pending · awaiting approval</span></div>
+      </div>
+      <div class="ttl-xs" style="margin-top:10px">Linked platforms</div>
+      <div class="card">
+        <div class="row between"><span class="xs mut">Jahazi</span><span class="chip green">linked</span></div>
+        <div class="row xs mut" style="border-top:1px solid var(--line);padding-top:6px">Issuer/subject bound · 21 Mar</div>
+      </div>
+      <div class="ttl-xs" style="margin-top:10px">Wallet &amp; security</div>
+      <div class="card" style="gap:4px">
+        <div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-wallet"/></svg><span class="grow xs">Managed wallet</span><span class="xs green">active</span></div>
+        <div class="row"><svg class="ic s" style="color:var(--slate)"><use href="#i-shield"/></svg><span class="grow xs">No plaintext key fallback</span></div>
+      </div>
+      <div class="toast"><span class="xs mut">Identity keyed by issuer &amp; subject · unlinking is backend-controlled</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv on"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">P1</span>Profile · Identity &amp; Blue ID</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Every registered user receives an IOTA testnet identity; local roles stay authoritative.</li>
+      <li><em class="an">2</em>Identity is keyed by issuer and subject — never contact-field matching.</li>
+      <li><em class="an">3</em>Managed key custody with no plaintext fallback; key material and recovery secrets are never returned.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+<!-- ======================= P2 PLANTING IMPACT ON PROFILE ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>09:18</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/></svg></div>
+        <div style="min-width:0"><div class="ttl">My planting impact</div><div class="sub">Field visits + satellite</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="grid2">
+        <div class="card"><span class="xs mut">Seedlings planted</span><span class="big green">3,120</span></div>
+        <div class="card"><span class="xs mut">Surviving (latest MRV)</span><span class="big green">2,784</span></div>
+      </div>
+      <div class="inp"><span class="mut">Survival rate</span><span class="b">89.2%</span></div>
+      <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+        <div class="row between"><span class="ttl-xs">Autonomous monitoring</span><span class="chip green">corroborated</span></div>
+        <div class="row xs mut">Sentinel-2 / Planet NDVI matched to plots</div>
+      </div>
+      <div class="card">
+        <div class="row between"><span class="ttl-xs">Manual field visits</span><span class="xs mut">14 records</span></div>
+        <div class="row xs mut">GPS · photos · voice · signed by Blue ID</div>
+      </div>
+      <div class="card" style="border-color:#f2ddb3;background:#fdf3e3">
+        <div class="row between"><span class="ttl-xs">Verification</span><span class="chip amber">unverified</span></div>
+        <div class="row xs mut">Manager-attested · pending independent audit</div>
+      </div>
+      <div class="toast"><span class="xs mut">Counts come from field-visit records — never claims. NDVI corroborates, does not replace, field evidence.</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv on"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">P2</span>Planting Impact on Profile</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Planted and surviving counts roll up from manual field-visit monitoring records.</li>
+      <li><em class="an">2</em>NDVI corroboration is shown alongside — field evidence always precedes satellite claims.</li>
+      <li><em class="an">3</em>A manager-attested completion remains unverified until an independent verifier approves it.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+<!-- ======================= PL1 PLANTING ACTIVITY ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>10:05</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/></svg></div>
+        <div style="min-width:0"><div class="ttl">New planting activity</div><div class="sub">Plot P-14 · Gazi Bay</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="inp"><span class="mut">Plot</span><span class="xs mut">P-14 · 2.4 ha · R. mucronata</span></div>
+      <div class="inp"><span class="mut">Activity type</span><span class="xs mut">Planting · mangrove</span></div>
+      <div class="inp"><span class="mut">Species</span><span class="xs mut">Rhizophora mucronata</span></div>
+      <div class="row" style="gap:8px"><div class="inp grow"><span class="mut">Seedlings planted</span><span class="b green">280</span></div><div class="inp"><span class="mut">Methodology</span><span class="xs mut">MRV v1.2</span></div></div>
+      <div class="inp"><span class="mut">Reporting period</span><span class="xs mut">Jan – Mar 2026</span></div>
+      <div class="btn g">Create planting activity</div>
+      <div class="toast"><span class="xs mut">Activity becomes the baseline for survival monitoring during field visits.</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv on"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">PL1</span>Planting Activity · Create</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Bound to one plot and one methodology version — the reference for all survival monitoring.</li>
+      <li><em class="an">2</em>Seedling count is the planted baseline; alive count is measured later in field visits.</li>
+      <li><em class="an">3</em>Manager-attested completion is separate from verification and satellite corroboration.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+<!-- ======================= PL2 PLANTING LIST ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>10:08</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M5 19C5 10 10 5 20 4c-1 10-6 15-15 15z"/></svg></div>
+        <div style="min-width:0"><div class="ttl">Planting activities</div><div class="sub">Open · due · complete</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="card" style="gap:4px">
+        <div class="row between"><span class="grow xs"><strong>Gazi Bay · P-14</strong><br><span class="xs mut">Planting · 280 seedlings · R. mucronata</span></span><span class="chip green">open</span></div>
+      </div>
+      <div class="card" style="gap:4px">
+        <div class="row between"><span class="grow xs"><strong>Vanga · P-22</strong><br><span class="xs mut">Planting · 410 seedlings · A. marina</span></span><span class="chip amber">due 05 Apr</span></div>
+      </div>
+      <div class="card" style="gap:4px">
+        <div class="row between"><span class="grow xs"><strong>Gazi Bay · P-09</strong><br><span class="xs mut">Planting · 190 seedlings · R. mucronata</span></span><span class="chip green">complete</span></div>
+      </div>
+      <div class="ttl-xs" style="margin-top:10px">Next step: field visit</div>
+      <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+        <div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-pin"/></svg><span class="grow xs">Record survival · alive / planted · photos · voice</span></div>
+      </div>
+      <div class="card" style="border-color:#b7e8d4;background:#f2fbf7">
+        <div class="row"><svg class="ic s" style="color:var(--green)"><use href="#i-sat"/></svg><span class="grow xs">Satellite NDVI check · pending tile match</span></div>
+      </div>
+      <div class="toast"><span class="xs mut">Each activity shows its planted baseline — the denominator for survival rate.</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv on"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">PL2</span>Planting Activities · List</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>The next step after planting is a manual field visit to count surviving seedlings.</li>
+      <li><em class="an">2</em>Satellite corroboration appears as pending until a provider-neutral tile match returns.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+<!-- ======================= S1 SATELLITE MONITORING ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>14:20</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp">
+      <div class="brandline">
+        <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;color:#fff;flex:none"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="9" y="9" width="6" height="6" rx="1" transform="rotate(45 12 12)"/></svg></div>
+        <div style="min-width:0"><div class="ttl">Satellite status</div><div class="sub">NDVI · provider-neutral sandbox</div></div>
+      </div>
+      <svg class="ic" style="color:#94a3b8"><use href="#i-bell"/></svg>
+    </div>
+    <div class="pbody">
+      <div class="card">
+        <div class="row between"><span class="xs mut">Provider mode</span><span class="chip">sandbox</span></div>
+        <div class="row xs mut" style="border-top:1px solid var(--line);padding-top:6px">Not a public satellite feed · provider to be selected</div>
+      </div>
+      <div class="inp"><span class="mut">NDVI status</span><span class="xs green">Available · 22 Mar</span></div>
+      <div class="inp"><span class="mut">Tile match</span><span class="xs mut">12 of 14 plots · Sentinel-2</span></div>
+      <div class="inp"><span class="mut">NDVI change</span><span class="b green">+12% YoY</span></div>
+      <div class="ttl-xs" style="margin-top:10px">Plot NDVI detail</div>
+      <div class="card" style="gap:4px">
+        <div class="row"><span class="xs mut">Plot P-14</span><span class="xs">0.62</span><span class="chip green">✓ matched</span></div>
+        <div class="row"><span class="xs mut">Plot P-22</span><span class="xs">0.48</span><span class="chip amber">pending</span></div>
+        <div class="row"><span class="xs mut">Plot P-09</span><span class="xs">0.55</span><span class="chip green">✓ matched</span></div>
+      </div>
+      <div class="toast"><span class="xs mut">Satellite corroborates field records — never replaces GPS, survival counts, or independent verification.</span></div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv on"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">S1</span>Satellite Monitoring · Autonomous NDVI</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Provider-neutral sandbox until a satellite provider is selected — no fabricated NDVI or impact states.</li>
+      <li><em class="an">2</em>A matched NDVI tile is corroborating evidence, one stage in the field → satellite → audit → registry pipeline.</li>
+      <li><em class="an">3</em>Credits mint only after registry issuance — on-chain supply always equals registry supply.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+<!-- ======================= FV1 FIELD VISIT ======================= -->
+<div class="unit">
+  <div class="ph"><div class="pscr"><div class="notch"></div>
+    <div class="pstat"><span>9:05</span><span class="sic"><svg class="ic s"><use href="#i-sig"/></svg><svg class="ic s"><use href="#i-bat"/></svg></span></div>
+    <div class="papp"><svg class="ic" style="color:#94a3b8;transform:rotate(180deg)"><use href="#i-arr"/></svg><div class="grow"><div class="ttl">Field monitoring</div><div class="sub">Plot P-14 · MRV capture</div></div><span class="pill-off">6 queued <em class="an">1</em></span></div>
+    <div class="pbody">
+      <div class="row" style="gap:7px;flex-wrap:wrap"><span class="chip green"><svg class="ic s"><use href="#i-pin"/></svg>GPS locked ±3 m</span><span class="chip">Plot P-14</span></div>
+      <div class="ttl-xs">Survival count</div>
+      <div class="row" style="gap:8px"><div class="inp grow"><span class="mut">alive</span><span class="b green">212</span></div><div class="inp grow"><span class="mut">planted</span><span class="b">280</span></div></div>
+      <div class="grid2">
+        <div class="inp"><span class="mut">Avg height</span><span class="b">1.4 m</span></div>
+        <div class="inp"><span class="mut">Species</span><span class="b">R. mucronata</span></div>
+      </div>
+      <div class="dash" style="height:70px;flex-direction:column;gap:3px"><svg class="ic l"><use href="#i-cam"/></svg><span>geo-tagged photos · 3 taken <em class="an">2</em></span></div>
+      <div class="btn" style="border-style:dashed"><svg class="ic s"><use href="#i-mic"/></svg>Voice observation</div>
+      <div class="toast" style="background:#e7f8f1;color:#065f46"><svg class="ic s"><use href="#i-check"/></svg><span>Queued. Hash anchors to CreditMRV on sync. <em class="an">3</em></span></div>
+      <div class="btn g">Save monitoring record</div>
+    </div>
+    <div class="pnav">
+      <div class="nv"><svg class="ic"><use href="#i-home"/></svg>Home</div>
+      <div class="nv on"><svg class="ic"><use href="#i-sat"/></svg>Monitor</div>
+      <div class="nv"><svg class="ic"><use href="#i-co2"/></svg>Credits</div>
+      <div class="nv"><svg class="ic"><use href="#i-wallet"/></svg>Wallet</div>
+      <div class="nv"><svg class="ic"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div></div>
+  <div class="cap"><h4><span class="sid">FV1</span>Field Visit · Manual Monitoring Capture</h4>
+    <ul class="notes">
+      <li><em class="an">1</em>Offline-first in the creek — records queue on device; status is never inferred from connectivity.</li>
+      <li><em class="an">2</em>Photos to IPFS with on-chain hashes — tamper-proof audit evidence.</li>
+      <li><em class="an">3</em>Each record is a signed attestation by the monitor's Blue ID: accountability plus paid micro-work.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="arr"><svg class="ic"><use href="#i-arr"/></svg></div>
+
+</div> <!-- close .board -->
+
+<!-- ======================= FOOTER ======================= -->
+<footer>
+  <div class="wrap">
+    <span><b>Mikoko</b> · BahariLink Module 4 — extended wireframe · Mirasi Provisions</span>
+    <span>Palette: #059669 / #047857 / #D1FAE5 / #34D399 · Grey = placeholder · dashed = media · amber number = annotation</span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -15,6 +15,7 @@ const primaryNavigation = [
 ];
 
 const taskNavigation = [
+  { to: '/app/module-entry', label: 'Module entry', icon: ShieldCheck },
   { to: '/app/projects', label: 'Projects', icon: FolderOpen },
   { to: '/app/planting', label: 'Planting activity', icon: Leaf },
   { to: '/app/satellite', label: 'Satellite monitoring', icon: MonitorSmartphone },

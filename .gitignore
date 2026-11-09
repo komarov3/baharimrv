@@ -8,9 +8,16 @@ build/
 .DS_Store
 coverage/
 backend/baharimrv
+backend/tmp-mrv-server
 backend/data/
+backend/baharimrv-local.db-shm
+backend/baharimrv-local.db-wal
 android/.gradle/
 android/local.properties
 android/**/build/
+android/app/google-services.json
+backend/config/firebase-adminsdk.json
 *.keystore
 *.jks
+.agents/pipeline/
+chain.zip

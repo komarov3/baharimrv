@@ -4,14 +4,17 @@
   "private": true,
   "workspaces": [
     "web",
-    "admin-dashboard"
+    "admin-dashboard",
+    "executor"
   ],
   "scripts": {
-    "dev:api": "cd backend && go run ./cmd/api",
+    "dev:api": "cd backend && go run ./cmd/server",
+    "dev:executor": "npm run dev --workspace baharimrv-executor",
     "dev:web": "npm run dev --workspace baharimrv-web",
     "dev:admin": "npm run dev --workspace baharimrv-admin-dashboard",
     "build:web": "npm run build --workspace baharimrv-web",
     "build:admin": "npm run build --workspace baharimrv-admin-dashboard",
+    "build:executor": "npm run build --workspace baharimrv-executor",
     "test": "npm run test:api && npm run test:web",
     "test:api": "cd backend && go test ./...",
     "test:web": "npm run test --workspace baharimrv-web",

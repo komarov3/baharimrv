@@ -1,0 +1,7 @@
+{
+  "task_id": "task-baharimrv-fixes",
+  "task_description": "Fix role-cap provisioning at signup (synchronous + slog logging), add Gazi Bay Hamisi demo seed, add backend activity-detail endpoint, add Android planting activity detail screen with photo and on-chain link.",
+  "status": "pending",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null
+}

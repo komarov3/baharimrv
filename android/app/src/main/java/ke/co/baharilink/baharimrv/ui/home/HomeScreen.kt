@@ -78,6 +78,8 @@ fun HomeScreen(
     onFieldVisit: () -> Unit,
     onVerification: () -> Unit,
     onProjects: () -> Unit,
+    onPlanting: (String) -> Unit,
+    onSatellite: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -109,6 +111,8 @@ fun HomeScreen(
                     onFieldVisit = onFieldVisit,
                     onVerification = onVerification,
                     onProjects = onProjects,
+                    onPlanting = onPlanting,
+                    onSatellite = onSatellite,
                 )
             }
         }
@@ -218,6 +222,8 @@ private fun DashboardContent(
     onFieldVisit: () -> Unit,
     onVerification: () -> Unit,
     onProjects: () -> Unit,
+    onPlanting: (String) -> Unit,
+    onSatellite: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         dashboard.ndvi?.let {
@@ -252,6 +258,8 @@ private fun DashboardContent(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onFieldVisit, modifier = Modifier.weight(1f).height(48.dp)) { Text("+  Field visit") }
             OutlinedButton(onClick = onVerification, modifier = Modifier.weight(1f).height(48.dp)) { Text("Reports") }
+            OutlinedButton(onClick = { onPlanting(dashboard.project.id) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Planting") }
+            OutlinedButton(onClick = { onSatellite(dashboard.project.id) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Satellite") }
         }
 
         ExpandableSection("More metrics, methodology & project tools") {
