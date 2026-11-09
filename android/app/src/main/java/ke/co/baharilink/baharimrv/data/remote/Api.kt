@@ -751,6 +751,7 @@ data class EvidenceViewDto(
     val kind: String,
     val sha256: String,
     val mediaType: String,
+    val url: String? = null,
 )
 
 data class ProvViewDto(
@@ -881,6 +882,10 @@ interface BahariMrvApi {
 
     @GET("api/v1/activities/{id}/detail")
     suspend fun activityDetail(@Path("id") activityId: String): ActivityDetailDto
+
+    @Streaming
+    @GET("api/v1/monitoring-records/evidence/{id}")
+    suspend fun evidenceMedia(@Path("id") evidenceId: String): ResponseBody
 
     @POST("api/v1/activities/{id}/complete")
     suspend fun complete(@Path("id") activityId: String): CompleteResponse

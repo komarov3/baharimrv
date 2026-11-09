@@ -239,6 +239,9 @@ type evidenceView struct {
 	Kind      string `json:"kind"`
 	SHA256    string `json:"sha256"`
 	MediaType string `json:"mediaType"`
+	// url is the relative API path a client fetches to stream this evidence
+	// object's bytes; access is gated by the activity the record belongs to.
+	URL string `json:"url"`
 }
 
 type provView struct {
@@ -306,6 +309,7 @@ func (r *router) activityDetail(c *gin.Context) {
 		for _, e := range evidenceObjects {
 			rv.Evidence = append(rv.Evidence, evidenceView{
 				ID: e.ID, Kind: e.Kind, SHA256: e.SHA256, MediaType: e.MediaType,
+				URL: "api/v1/monitoring-records/evidence/" + e.ID,
 			})
 		}
 		view.Record = rv
@@ -326,6 +330,45 @@ func (r *router) activityDetail(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, view)
+}
+
+// evidenceMedia streams one stored evidence object's bytes to a caller who can
+// already access the activity the evidence belongs to. The monitoring record is
+// the bridge from an evidence object to its activity for the access check, so a
+// leaked evidence id can never read media from a project the user does not own.
+func (r *router) evidenceMedia(c *gin.Context) {
+	userID := c.GetString("user_id")
+	evidenceID := c.Param("id")
+
+	var evidenceObject models.EvidenceObject
+	if err := r.db.Where("id = ?", evidenceID).First(&evidenceObject).Error; err != nil {
+		fail(c, mrv.ErrNotFound)
+		return
+	}
+
+	var record models.MonitoringRecord
+	if err := r.db.Where("id = ?", evidenceObject.MonitoringRecordID).First(&record).Error; err != nil {
+		fail(c, mrv.ErrNotFound)
+		return
+	}
+
+	if err := r.projects.AssertActivityAccess(userID, record.ActivityID); err != nil {
+		fail(c, err)
+		return
+	}
+
+	body, size, err := r.evidence.Open(evidenceObject.StorageURI)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	defer body.Close()
+
+	mediaType := evidenceObject.MediaType
+	if mediaType == "" {
+		mediaType = "application/octet-stream"
+	}
+	c.DataFromReader(http.StatusOK, size, mediaType, body, nil)
 }
 
 func (r *router) completeActivity(c *gin.Context) {

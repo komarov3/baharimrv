@@ -157,6 +157,7 @@ func New(deps Dependencies) http.Handler {
 
 		session.GET("/activities/:id/provenance", r.activityProvenance)
 		session.GET("/activities/:id/detail", r.activityDetail)
+		session.GET("/monitoring-records/evidence/:id", r.evidenceMedia)
 		session.POST("/activities/:id/complete", bodyLimit, r.completeActivity)
 		session.POST("/activities/:id/anchor/retry", bodyLimit, r.retryAnchor)
 		session.POST("/activities/:id/dispute", bodyLimit, r.disputeActivity)

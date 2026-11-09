@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -33,6 +34,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -66,8 +69,19 @@ fun PlantingDetailScreen(
     // Trigger load exactly once on entry
     LaunchedEffect(activityId) { viewModel.load(activityId) }
 
+    // Once the detail resolves with at least one evidence object, fetch and decode
+    // its bytes so the thumbnail and full-screen overlay render the real photo.
+    LaunchedEffect(state.detail) {
+        val detail = state.detail
+        if (detail is LoadState.Success) {
+            val evidenceId = detail.data.record?.evidence?.firstOrNull()?.id
+            if (!evidenceId.isNullOrBlank()) viewModel.loadImage(evidenceId)
+        }
+    }
+
     // Full-screen photo overlay — pure navigation state, NOT in ViewModel
     var showFullScreenPhoto by remember { mutableStateOf(false) }
+    val photoBitmap = (state.image as? LoadState.Success)?.data
 
     Scaffold(
         topBar = {
@@ -95,11 +109,12 @@ fun PlantingDetailScreen(
                 )
                 is LoadState.Success -> ActivityDetailContent(
                     dto = detail.data,
+                    imageState = state.image,
                     onPhotoClick = { showFullScreenPhoto = true },
                 )
             }
             if (showFullScreenPhoto) {
-                FullScreenPhotoOverlay(onDismiss = { showFullScreenPhoto = false })
+                FullScreenPhotoOverlay(bitmap = photoBitmap, onDismiss = { showFullScreenPhoto = false })
             }
         }
     }
@@ -108,6 +123,7 @@ fun PlantingDetailScreen(
 @Composable
 private fun ActivityDetailContent(
     dto: ActivityDetailDto,
+    imageState: LoadState<ImageBitmap>?,
     onPhotoClick: () -> Unit,
 ) {
     LazyColumn(
@@ -152,7 +168,7 @@ private fun ActivityDetailContent(
             }
         }
 
-        // 3. Evidence thumbnail card
+        // 3. Evidence photo card
         item {
             val evidence = dto.record?.evidence.orEmpty()
             if (evidence.isNotEmpty()) {
@@ -166,25 +182,25 @@ private fun ActivityDetailContent(
                     BahariDashedBox(
                         modifier = Modifier.fillMaxWidth().height(120.dp),
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                Icons.Default.Image,
-                                contentDescription = null,
-                                modifier = Modifier.size(36.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        when (imageState) {
+                            is LoadState.Success -> androidx.compose.foundation.Image(
+                                bitmap = imageState.data,
+                                contentDescription = "Evidence photo",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
                             )
-                            Text(
-                                text = first.sha256.take(8),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            is LoadState.Loading -> Box(
+                                Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                            }
+                            is LoadState.Error -> EvidencePlaceholder(sha256 = first.sha256)
+                            null -> EvidencePlaceholder(sha256 = first.sha256)
                         }
                     }
                     Text(
-                        "Tap the placeholder to view the evidence photo.",
+                        "Tap the photo to view it full screen.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -277,7 +293,27 @@ private fun statusColor(status: String): Color = when (status.lowercase()) {
 }
 
 @Composable
-private fun FullScreenPhotoOverlay(onDismiss: () -> Unit) {
+private fun EvidencePlaceholder(sha256: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            Icons.Default.Image,
+            contentDescription = null,
+            modifier = Modifier.size(36.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = sha256.take(8),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun FullScreenPhotoOverlay(bitmap: ImageBitmap?, onDismiss: () -> Unit) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -289,12 +325,21 @@ private fun FullScreenPhotoOverlay(onDismiss: () -> Unit) {
                 .clickable { onDismiss() },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.Default.Image,
-                contentDescription = "Close",
-                modifier = Modifier.size(64.dp),
-                tint = Color.White,
-            )
+            if (bitmap != null) {
+                androidx.compose.foundation.Image(
+                    bitmap = bitmap,
+                    contentDescription = "Evidence photo",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Icon(
+                    Icons.Default.Image,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(64.dp),
+                    tint = Color.White,
+                )
+            }
         }
     }
 }

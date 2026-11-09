@@ -82,6 +82,7 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun identity() = api.identity()
     suspend fun retryIdentity() = api.retryIdentity()
     suspend fun activityDetail(activityId: String) = api.activityDetail(activityId)
+    suspend fun evidenceMedia(evidenceId: String) = api.evidenceMedia(evidenceId)
     suspend fun links() = api.links()
 
     /**
