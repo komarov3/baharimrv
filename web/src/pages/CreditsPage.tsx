@@ -104,8 +104,8 @@ export function CreditsPage() {
       {!loading && error && <StatePanel kind="error" title="Marketplace inventory unavailable" onRetry={reload}><p>{error}</p><p>No inventory or price has been substituted for registry-backed data.</p></StatePanel>}
       {!loading && data && <>
         {!listings.length ? <StatePanel kind="empty" title="No registry-backed inventory available"><p>Verified achievements do not automatically create credits. Inventory appears only after external registry issuance and custody reconciliation.</p></StatePanel> : <div className="market-layout">
-          <Panel className="market-inventory" title="Available inventory" description="Availability reconciles registry serials with internal custody, not chain supply alone.">
-            <div className="listing-grid">{listings.map((listing) => <button key={listing.id} className={`listing-card ${selected?.id === listing.id ? 'is-selected' : ''}`} onClick={() => { setSelectedId(listing.id); setPurchase(null); }} aria-pressed={selected?.id === listing.id}>
+          <Panel className="market-inventory mw-card" title="Available inventory" description="Availability reconciles registry serials with internal custody, not chain supply alone.">
+            <div className="listing-grid">{listings.map((listing) => <button key={listing.id} className={`listing-card mw-card ${selected?.id === listing.id ? 'is-selected' : ''}`} onClick={() => { setSelectedId(listing.id); setPurchase(null); }} aria-pressed={selected?.id === listing.id}>
               <div className="listing-top"><StatusBadge status={listing.mode} /><StatusBadge status={listing.registry.status} label={listing.registry.status === 'reconciled' ? 'Registry reconciled' : listing.registry.status} /></div>
               <div className="listing-project"><span className="listing-leaf"><Leaf size={19} /></span><div><strong>{listing.projectName}</strong><span>{listing.vintage} vintage · {listing.registry.name}</span></div></div>
               <div className="listing-supply"><strong>{listing.availableTonnes}</strong><span>tCO₂e available</span></div>
@@ -113,15 +113,15 @@ export function CreditsPage() {
               <div className="listing-price"><span>{listing.productType === 'registry_issued' ? 'Issued credit price' : 'Forward product · not issued credit'}</span><strong>{formatAmount(listing.pricePerTonne)}<small> / tCO₂e</small></strong></div>
             </button>)}</div>
           </Panel>
-          <Panel className="purchase-panel" title="Purchase issued credits" description="The enabled payment and custody adapter determines the returned status.">
+          <Panel className="purchase-panel mw-card" title="Purchase issued credits" description="The enabled payment and custody adapter determines the returned status.">
             {selected ? <form onSubmit={buy} className="purchase-form">
               <div className="purchase-selection"><span>Selected batch</span><strong>{selected.projectName}</strong><small className="mono">{selected.batchId}</small></div>
-              <div className="field"><label htmlFor="purchase-quantity">Quantity</label><div className="input-unit"><input id="purchase-quantity" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} required /><span>tCO₂e</span></div></div>
+              <div className="field"><label className="mw-ttl-xs" htmlFor="purchase-quantity">Quantity</label><div className="input-unit"><input id="purchase-quantity" inputMode="decimal" className="mw-inp" value={quantity} onChange={(event) => setQuantity(event.target.value)} required /><span>tCO₂e</span></div></div>
               <div className="purchase-total"><span>Calculated total <small>Decimal arithmetic</small></span><strong>{total ? formatAmount(total) : 'Enter a valid quantity'}</strong></div>
-              {selected.registry.reference && <div className="registry-reference"><ShieldCheck size={16} /><span>Registry reference</span><strong className="mono">{selected.registry.reference}</strong></div>}
-              <div className="field"><label htmlFor="purchase-password">Confirm your password</label><p className="field-help">Mints a single-use ticket for this purchase only.</p><input id="purchase-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
+              {selected.registry.reference && <div className="registry-reference mw-row"><ShieldCheck size={16} /><span className="grow">Registry reference</span><strong className="mono">{selected.registry.reference}</strong></div>}
+              <div className="field"><label className="mw-ttl-xs" htmlFor="purchase-password">Confirm your password</label><p className="field-help">Mints a single-use ticket for this purchase only.</p><input id="purchase-password" type="password" autoComplete="current-password" className="mw-inp" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>
               <FormError message={purchaseError} />
-              <Button icon={ShoppingCart} loading={purchaseLoading} disabled={!canPurchase(selected)}>{selected.mode === 'sandbox' ? 'Submit sandbox purchase' : 'Purchase registry credits'}</Button>
+              <Button icon={ShoppingCart} loading={purchaseLoading} disabled={!canPurchase(selected)} className="mw-btn mw-btn--g">{selected.mode === 'sandbox' ? 'Submit sandbox purchase' : 'Purchase registry credits'}</Button>
               {!canPurchase(selected) && <p className="field-help">Purchase is blocked until this is reconciled, registry-issued inventory with an enabled adapter.</p>}
               <p className="secure-caption"><LockKeyhole size={13} />Idempotent request · no card details collected here</p>
             </form> : <StatePanel kind="empty" title="Select a listing"><p>Choose an inventory item to review its price and settlement state.</p></StatePanel>}

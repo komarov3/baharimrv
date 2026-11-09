@@ -80,20 +80,20 @@ export function PlantingActivityPage() {
             <Panel title="New planting activity" description="Bound to one plot and one methodology version.">
               <form onSubmit={handleSubmit} className="planting-form">
                 <div className="form-grid-2">
-                  <div className="form-field"><label>Plot</label><input required className="input" defaultValue="" onChange={(e) => update('plotId', e.target.value)} placeholder="e.g. P-14" /></div>
-                  <div className="form-field"><label>Activity type</label><input required className="input" defaultValue="planting" onChange={(e) => update('activityType', e.target.value)} /></div>
-                  <div className="form-field"><label>Species</label><input required className="input" onChange={(e) => update('species', e.target.value)} placeholder="e.g. Rhizophora mucronata" /></div>
-                  <div className="form-field"><label>Seedlings planted</label><input required type="number" className="input" min="0" onChange={(e) => update('seedlingsPlanted', e.target.value)} placeholder="e.g. 280" /></div>
-                  <div className="form-field"><label>Methodology version</label><select required className="input" defaultValue="" onChange={(e) => update('methodologyVersion', e.target.value)}>
+                  <div className="form-field"><label className="mw-ttl-xs">Plot</label><input required className="mw-inp" defaultValue="" onChange={(e) => update('plotId', e.target.value)} placeholder="e.g. P-14" /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Activity type</label><input required className="mw-inp" defaultValue="planting" onChange={(e) => update('activityType', e.target.value)} /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Species</label><input required className="mw-inp" onChange={(e) => update('species', e.target.value)} placeholder="e.g. Rhizophora mucronata" /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Seedlings planted</label><input required type="number" className="mw-inp" min="0" onChange={(e) => update('seedlingsPlanted', e.target.value)} placeholder="e.g. 280" /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Methodology version</label><select required className="mw-inp" defaultValue="" onChange={(e) => update('methodologyVersion', e.target.value)}>
                     <option value="">Select methodology</option>
                     {(data?.items ?? []).map((methodology) => <option key={methodology.id} value={methodology.version}>{methodology.name} v{methodology.version}</option>)}
                   </select></div>
-                  <div className="form-field"><label>Reporting period start</label><input required type="date" className="input" onChange={(e) => update('reportingPeriodStart', e.target.value)} /></div>
-                  <div className="form-field"><label>Reporting period end</label><input required type="date" className="input" onChange={(e) => update('reportingPeriodEnd', e.target.value)} /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Reporting period start</label><input required type="date" className="mw-inp" onChange={(e) => update('reportingPeriodStart', e.target.value)} /></div>
+                  <div className="form-field"><label className="mw-ttl-xs">Reporting period end</label><input required type="date" className="mw-inp" onChange={(e) => update('reportingPeriodEnd', e.target.value)} /></div>
                 </div>
                 {error && <p className="form-error" role="alert">{error}</p>}
                 <div className="button-row" style={{marginTop: 16}}>
-                  <Button type="submit" icon={Leaf} loading={creating} disabled={creating}>{creating ? 'Creating…' : 'Create planting activity'}</Button>
+                  <Button type="submit" icon={Leaf} loading={creating} disabled={creating} className="mw-btn mw-btn--g">{creating ? 'Creating…' : 'Create planting activity'}</Button>
                 </div>
               </form>
             </Panel>
@@ -105,7 +105,7 @@ export function PlantingActivityPage() {
                 {false && <EmptyTableRow colSpan={6}>No planting activities yet. Create one to begin tracking survival.</EmptyTableRow>}
               </tbody></table></div>
               <div className="planting-next">
-                <span className="chip green">Next: field visit</span><span className="optional">Record survival (alive / planted) during a manual field visit.</span>
+                <span className="mw-chip green">Next: field visit</span><span className="optional">Record survival (alive / planted) during a manual field visit.</span>
               </div>
             </Panel>
           </div>

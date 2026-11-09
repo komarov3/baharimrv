@@ -141,25 +141,25 @@ export function VerificationPage() {
 
         <div className="verification-layout">
           <div className="verification-main">
-            <Panel title="Evidence documents" description="Restricted documents open only through authorized, expiring URLs.">
-              {data.documents.length ? <div className="document-list">{data.documents.map((document) => <article key={document.id} className="document-row"><div className="document-icon">{document.status === 'missing' ? <FileWarning size={19} /> : <ShieldCheck size={19} />}</div><div><strong>{document.name}</strong><span>{document.kind.replaceAll('_', ' ')} {document.version ? `· v${document.version}` : ''} · {formatDate(document.updatedAt)}</span></div><StatusBadge status={document.status} />{document.downloadUrl && <a className="icon-button" href={document.downloadUrl} target="_blank" rel="noreferrer" aria-label={`Open ${document.name}`}><ArrowDownToLine size={17} /></a>}</article>)}</div> : <StatePanel kind="empty" title="No documents returned"><p>Required project design, monitoring, and co-benefit documents have not been attached to this activity.</p></StatePanel>}
+            <Panel title="Evidence documents" description="Restricted documents open only through authorized, expiring URLs." className="mw-card">
+              {data.documents.length ? <div className="document-list">{data.documents.map((document) => <article key={document.id} className="document-row mw-card"><div className="document-icon">{document.status === 'missing' ? <FileWarning size={19} /> : <ShieldCheck size={19} />}</div><div><strong>{document.name}</strong><span>{document.kind.replaceAll('_', ' ')} {document.version ? `· v${document.version}` : ''} · {formatDate(document.updatedAt)}</span></div><StatusBadge status={document.status} />{document.downloadUrl && <a className="icon-button" href={document.downloadUrl} target="_blank" rel="noreferrer" aria-label={`Open ${document.name}`}><ArrowDownToLine size={17} /></a>}</article>)}</div> : <StatePanel kind="empty" title="No documents returned"><p>Required project design, monitoring, and co-benefit documents have not been attached to this activity.</p></StatePanel>}
             </Panel>
             <Panel title="Achievement & custody timeline" description="Early evidence, manager completion, and independent verification retain their distinct meanings."><ProvenanceTimeline events={data.events} /></Panel>
           </div>
           <aside className="decision-column">
-            <Panel title="Record verifier decision" description="Your verifier role, assignment, and methodology version are checked by the backend.">
+            <Panel title="Record verifier decision" description="Your verifier role, assignment, and methodology version are checked by the backend." className="mw-card">
               <form className="decision-form" onSubmit={submitDecision}>
-                <div className="field"><label htmlFor="decision">Decision</label><select id="decision" value={decision} onChange={(event) => setDecision(event.target.value as typeof decision)}><option value="request_corrections">Request corrections</option><option value="approve">Approve independently</option><option value="reject">Reject achievement</option></select></div>
-                <div className="field"><label htmlFor="decision-methodology">Methodology version</label><input id="decision-methodology" value={methodologyVersion} onChange={(event) => setMethodologyVersion(event.target.value)} required /></div>
-                <div className="field"><label htmlFor="decision-notes">Evidence-based notes</label><textarea id="decision-notes" rows={5} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Identify the evidence, exceptions, and reasoning for this decision" required /></div>
+                <div className="field"><label className="mw-ttl-xs" htmlFor="decision">Decision</label><select id="decision" value={decision} onChange={(event) => setDecision(event.target.value as typeof decision)} className="mw-inp"><option value="request_corrections">Request corrections</option><option value="approve">Approve independently</option><option value="reject">Reject achievement</option></select></div>
+                <div className="field"><label className="mw-ttl-xs" htmlFor="decision-methodology">Methodology version</label><input id="decision-methodology" value={methodologyVersion} onChange={(event) => setMethodologyVersion(event.target.value)} required className="mw-inp" /></div>
+                <div className="field"><label className="mw-ttl-xs" htmlFor="decision-notes">Evidence-based notes</label><textarea id="decision-notes" rows={5} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Identify the evidence, exceptions, and reasoning for this decision" required className="mw-inp" /></div>
                 <div className="field">
-                  <label htmlFor="decision-password">Confirm your password</label>
+                  <label className="mw-ttl-xs" htmlFor="decision-password">Confirm your password</label>
                   <p className="field-help">Mints a single-use ticket for this decision only. It is never stored in this app.</p>
-                  <input id="decision-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+                  <input id="decision-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required className="mw-inp" />
                 </div>
                 <FormError message={decisionError} />
                 {decisionNotice && <InlineNotice tone="success" title="Backend response recorded">{decisionNotice}</InlineNotice>}
-                <Button icon={Send} loading={decisionLoading} disabled={!data.activity.verificationRequestId}>Submit signed decision</Button>
+                <Button icon={Send} loading={decisionLoading} disabled={!data.activity.verificationRequestId} className="mw-btn mw-btn--g">Submit signed decision</Button>
                 {!data.activity.verificationRequestId && <p className="field-help">No active verification request was supplied; decisions are unavailable.</p>}
               </form>
             </Panel>

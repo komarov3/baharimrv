@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -227,14 +228,13 @@ func gaziProject(projects *mrv.Service, manager models.User, methodology models.
 }
 
 // runGaziBay seeds the Gazi Bay Hamisi demo project. It is called from Run()
-// after the Mikoko block. The idempotency guard checks the project row by name.
+// after the Mikoko block.
 //
-// NOTE: If the Mikoko block fails or is skipped (e.g. the manager already exists
-// but the project does not), the Gazi Bay block will also be skipped on re-runs
-// because Run() returns nil early when the Mikoko manager exists. A dev DB wipe
-// is required if Gazi Bay is missing from an otherwise complete Mikoko seed.
+// Idempotency is resumable: if the project row already exists the function
+// returns early; if the manager account already exists but the project does not
+// (a torn seed run), it reloads the manager and continues from project creation.
 func runGaziBay(ctx context.Context, db *gorm.DB, hash []byte, identities *identity.Service, projects *mrv.Service, now time.Time) error {
-	// Idempotency check on project name, not manager user.
+	// Idempotency: done if project row is present.
 	var existingGazi int64
 	if err := db.Model(&models.ConservationProject{}).
 		Where("name = ?", "Gazi Bay Mangrove Restoration (demo)").
@@ -245,9 +245,19 @@ func runGaziBay(ctx context.Context, db *gorm.DB, hash []byte, identities *ident
 		return nil // Gazi Bay seed already present
 	}
 
-	gaziManager, err := account(ctx, db, hash, demoEmail("hamisi.manager"), "Hamisi Mwangi", models.RoleManager, identities, now)
-	if err != nil {
-		return err
+	// Resume from the last completed step: if the manager account was created in a
+	// previous torn run, reload it rather than trying to insert a duplicate email.
+	var gaziManager models.User
+	if err := db.Where("email = ?", demoEmail("hamisi.manager")).First(&gaziManager).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("look up hamisi.manager account: %w", err)
+		}
+		// Account does not exist yet — create it.
+		created, createErr := account(ctx, db, hash, demoEmail("hamisi.manager"), "Hamisi Mwangi", models.RoleManager, identities, now)
+		if createErr != nil {
+			return createErr
+		}
+		gaziManager = created
 	}
 
 	// Reuse the MED-MANGROVE-DEMO methodology created by the Mikoko seed.

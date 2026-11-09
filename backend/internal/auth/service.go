@@ -121,14 +121,17 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 		return Result{User: user, Identity: provision}, identity.ErrProvisioning
 	}
 	// Cross-platform role healing: if the user has no cap yet, check the hub
-	// for a role established on another platform (non-blocking).
+	// for a role established on another platform (non-blocking). The outer
+	// goroutine keeps login fast; IssueCapForUser runs synchronously within it
+	// so the cap write does not race itself when the goroutine is already off
+	// the hot path.
 	if provision.RoleCapObjectID == "" {
 		go func() {
 			bgCtx := context.Background()
 			crossRole := s.identity.ResolveRoleFromHub(bgCtx, user.ID, provision.DID)
 			if crossRole != "" && crossRole != user.Role {
 				s.db.Model(&models.User{}).Where("id = ?", user.ID).Update("role", crossRole)
-				go s.identity.IssueCapForUser(bgCtx, user.ID, crossRole, provision)
+				s.identity.IssueCapForUser(bgCtx, user.ID, crossRole, provision)
 			}
 		}()
 	}
