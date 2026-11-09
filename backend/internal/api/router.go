@@ -11,6 +11,7 @@ import (
 	"github.com/baharilink/baharimrv/internal/evidence"
 	"github.com/baharilink/baharimrv/internal/httpx"
 	"github.com/baharilink/baharimrv/internal/identity"
+	"github.com/baharilink/baharimrv/internal/jahazi"
 	"github.com/baharilink/baharimrv/internal/market"
 	"github.com/baharilink/baharimrv/internal/mrv"
 	"github.com/baharilink/baharimrv/internal/proof"
@@ -47,6 +48,8 @@ type Dependencies struct {
 	Market              *market.Service
 	Proof               *proof.Service
 	Evidence            *evidence.Store
+	Jahazi              *jahazi.Service
+	JahaziChain         *jahazi.ChainOps
 }
 
 type router struct {
@@ -63,6 +66,8 @@ type router struct {
 	evidence     *evidence.Store
 	stepUp       *auth.StepUp
 	verification *verification.Service
+	jahazi       *jahazi.Service
+	jahaziChain  *jahazi.ChainOps
 }
 
 func New(deps Dependencies) http.Handler {
@@ -75,6 +80,8 @@ func New(deps Dependencies) http.Handler {
 		config: deps.Config, db: deps.DB, auth: deps.Auth, identities: deps.Identities, anchors: deps.Anchors,
 		satellite: deps.Satellite, links: deps.Federation, projects: deps.Projects, market: deps.Market, proof: deps.Proof,
 		evidence: deps.Evidence, stepUp: deps.StepUp, verification: deps.VerificationService,
+		jahazi:      deps.Jahazi,
+		jahaziChain: deps.JahaziChain,
 	}
 
 	authLimit := httpx.NewIPRateLimiter(deps.Config.AuthRatePerMinute).Middleware()
@@ -103,6 +110,12 @@ func New(deps Dependencies) http.Handler {
 	v1.GET("/public/proofs/:id", publicLimit, r.publicProof)
 	v1.POST("/public/proofs/:id/verify", publicLimit, bodyLimit, r.verifyProof)
 
+	// Jahazi cross-platform integration — HMAC-verified endpoints (no session).
+	// These receive RestorationClaims and contribution records from Jahazi.
+	v1.POST("/restoration-claims", publicLimit, bodyLimit, r.receiveRestorationClaim)
+	v1.GET("/restoration-claims/:claimId", publicLimit, r.getRestorationClaimStatus)
+	v1.POST("/projects/:id/contributions", publicLimit, bodyLimit, r.receiveJahaziContribution)
+
 	session := v1.Group("")
 	session.Use(auth.RequireLocal(deps.Auth), auditWrites(deps.DB, "api_write"))
 	{
@@ -121,7 +134,7 @@ func New(deps Dependencies) http.Handler {
 		session.POST("/users/me/identity/recover", bodyLimit, deps.AuthHandler.RecoverIdentity)
 		session.POST("/users/me/identity/rotate", bodyLimit, deps.AuthHandler.RotateIdentity)
 
-		session.GET("/projects", r.listProjects)
+		session.GET("/projects", r.listJahaziProjects)
 		session.GET("/projects/:id/activities", r.listActivities)
 		session.GET("/projects/:id/weather", r.projectWeather)
 		session.GET("/projects/:id/salinity", r.projectSalinity)
@@ -143,11 +156,21 @@ func New(deps Dependencies) http.Handler {
 		session.POST("/monitoring-records/:id/evidence", httpx.BodyLimit(MaxEvidenceUploadBytes), r.uploadEvidence)
 
 		session.GET("/activities/:id/provenance", r.activityProvenance)
+		session.GET("/activities/:id/detail", r.activityDetail)
 		session.POST("/activities/:id/complete", bodyLimit, r.completeActivity)
 		session.POST("/activities/:id/anchor/retry", bodyLimit, r.retryAnchor)
 		session.POST("/activities/:id/dispute", bodyLimit, r.disputeActivity)
 		session.POST("/activities/:id/submit-verification", bodyLimit, r.assignVerifier)
 		session.GET("/anchors/:id/status", r.anchorStatus)
+
+		// Jahazi integration — session-authenticated endpoints for PM/admin use.
+		session.GET("/activities/:id/attribution-data", r.attributionData)
+		session.POST("/activities/:id/mrv-link/generate", bodyLimit, r.generateMrvLink)
+
+		// Jahazi chain callbacks — called by Jahazi backend to trigger on-chain ops.
+		// These forward to the IOTA executor via the chain adapter.
+		session.POST("/chain/contribution-entry", bodyLimit, r.chainContributionEntry)
+		session.POST("/chain/issue-certificate", bodyLimit, r.chainIssueCertificate)
 
 		session.GET("/verification-requests", deps.Verification.Queue)
 		session.POST("/verification-requests/:id/decision", bodyLimit, deps.Verification.Decision)

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/baharilink/baharimrv/internal/proof"
 	"github.com/baharilink/baharimrv/internal/provenance"
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -206,6 +208,123 @@ func (r *router) activityProvenance(c *gin.Context) {
 		fail(c, err)
 		return
 	}
+	c.JSON(http.StatusOK, view)
+}
+
+type activityDetailView struct {
+	ID                 string                `json:"id"`
+	ProjectID          string                `json:"projectId"`
+	PlotID             string                `json:"plotId"`
+	ActivityType       string                `json:"activityType"`
+	Status             string                `json:"status"`
+	MethodologyVersion string                `json:"methodologyVersion,omitempty"`
+	PeriodStart        *time.Time            `json:"periodStart,omitempty"`
+	PeriodEnd          *time.Time            `json:"periodEnd,omitempty"`
+	Record             *monitoringRecordView `json:"record,omitempty"`
+	Provenance         *provView             `json:"provenance,omitempty"`
+}
+
+type monitoringRecordView struct {
+	AliveCount           int            `json:"aliveCount"`
+	PlantedCount         int            `json:"plantedCount"`
+	AverageHeightMetres  string         `json:"averageHeightMetres"`
+	Species              string         `json:"species"`
+	Observations         string         `json:"observations,omitempty"`
+	AttestationStatement string         `json:"attestationStatement,omitempty"`
+	Evidence             []evidenceView `json:"evidence"`
+}
+
+type evidenceView struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	SHA256    string `json:"sha256"`
+	MediaType string `json:"mediaType"`
+}
+
+type provView struct {
+	Status      string `json:"status"`
+	Network     string `json:"network,omitempty"`
+	ExplorerURL string `json:"explorerUrl,omitempty"`
+	ObjectID    string `json:"objectId,omitempty"`
+}
+
+// firstSpecies decodes a record's species JSON, which may be stored as a JSON
+// array of species names, a bare JSON string, or a non-JSON string.
+func firstSpecies(raw datatypes.JSON) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var arr []string
+	if err := json.Unmarshal(raw, &arr); err == nil && len(arr) > 0 {
+		return arr[0]
+	}
+	// Stored as a bare string (old records and seed records).
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return string(raw)
+}
+
+// activityDetail bundles the monitoring record fields, evidence and the latest
+// provenance event for a single activity in one round trip, so a mobile client
+// does not have to chase three endpoints to render its detail screen.
+func (r *router) activityDetail(c *gin.Context) {
+	userID := c.GetString("user_id")
+	activityID := c.Param("id")
+
+	if err := r.projects.AssertActivityAccess(userID, activityID); err != nil {
+		fail(c, err)
+		return
+	}
+
+	var activity models.ConservationActivity
+	if err := r.db.Where("id = ?", activityID).First(&activity).Error; err != nil {
+		fail(c, mrv.ErrNotFound)
+		return
+	}
+
+	view := activityDetailView{
+		ID: activity.ID, ProjectID: activity.ProjectID, PlotID: activity.PlotID,
+		ActivityType: activity.ActivityType, Status: activity.Status,
+		MethodologyVersion: activity.MethodologyVersion,
+		PeriodStart:        &activity.ReportingPeriodStart, PeriodEnd: &activity.ReportingPeriodEnd,
+	}
+
+	// Load monitoring records. If the lookup fails the record stays nil.
+	if records, err := r.projects.RecordsFor(activityID); err == nil && len(records) > 0 {
+		rec := records[0]
+		rv := &monitoringRecordView{
+			AliveCount:           rec.AliveCount,
+			PlantedCount:         rec.PlantedCount,
+			AverageHeightMetres:  rec.AverageHeightMetres,
+			Species:              firstSpecies(rec.Species),
+			AttestationStatement: rec.Attestation,
+		}
+		var evidenceObjects []models.EvidenceObject
+		r.db.Where("monitoring_record_id = ?", rec.ID).Find(&evidenceObjects)
+		for _, e := range evidenceObjects {
+			rv.Evidence = append(rv.Evidence, evidenceView{
+				ID: e.ID, Kind: e.Kind, SHA256: e.SHA256, MediaType: e.MediaType,
+			})
+		}
+		view.Record = rv
+	}
+
+	// Load latest provenance event. If the lookup fails provenance stays nil.
+	if events, err := r.anchors.Events(activityID); err == nil && len(events) > 0 {
+		latest := events[len(events)-1]
+		pv := &provView{
+			Status:  latest.Status,
+			Network: r.anchors.PublicNetwork(),
+		}
+		if latest.Status == provenance.StatusAnchored {
+			pv.ExplorerURL = r.anchors.ExplorerObject(latest)
+			pv.ObjectID = latest.ObjectID
+		}
+		view.Provenance = pv
+	}
+
 	c.JSON(http.StatusOK, view)
 }
 
@@ -441,9 +560,13 @@ func (r *router) linkedPlatforms(c *gin.Context) {
 func (r *router) projectSatellitePasses(c *gin.Context) {
 	mission := c.Query("mission")
 	from, _ := time.Parse(time.RFC3339, c.Query("from"))
-	if from.IsZero() { from = time.Now().UTC().Add(-24 * time.Hour) }
+	if from.IsZero() {
+		from = time.Now().UTC().Add(-24 * time.Hour)
+	}
 	to, _ := time.Parse(time.RFC3339, c.Query("to"))
-	if to.IsZero() { to = time.Now().UTC().Add(14 * 24 * time.Hour) }
+	if to.IsZero() {
+		to = time.Now().UTC().Add(14 * 24 * time.Hour)
+	}
 	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), c.Param("id")); err != nil {
 		fail(c, err)
 		return
@@ -473,7 +596,6 @@ func (r *router) projectSatelliteLatest(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"pass": pass})
 }
-
 
 func (r *router) projectWeather(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -529,7 +651,6 @@ func (r *router) updatePlot(c *gin.Context) {
 		"assignedMonitorId": plot.AssignedMonitorID,
 	})
 }
-
 
 func fail(c *gin.Context, err error) {
 	if err == nil {

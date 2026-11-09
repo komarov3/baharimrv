@@ -28,10 +28,11 @@ type Service struct {
 }
 
 type Result struct {
-	User         models.User              `json:"user"`
-	Identity     models.IdentityProvision `json:"identity"`
-	SessionToken string                   `json:"sessionToken,omitempty"`
-	ExpiresAt    *time.Time               `json:"expiresAt,omitempty"`
+	User              models.User              `json:"user"`
+	Identity          models.IdentityProvision `json:"identity"`
+	SessionToken      string                   `json:"sessionToken,omitempty"`
+	ExpiresAt         *time.Time               `json:"expiresAt,omitempty"`
+	CapIssuanceFailed bool                     `json:"capIssuanceFailed,omitempty"`
 }
 
 func NewService(db *gorm.DB, identities *identity.Service, sessionTTL time.Duration) *Service {
@@ -81,9 +82,21 @@ func (s *Service) Register(ctx context.Context, email, password, displayName, ph
 	if err != nil {
 		return result, err
 	}
-	// Issue role capability on-chain (non-blocking: runs in background goroutine,
-	// registration succeeds even if cap issuance is temporarily unavailable).
-	go s.identity.IssueCapForUser(context.Background(), user.ID, role, provision)
+	// Issue role capability on-chain synchronously. Returns false if cap issuance
+	// fails; registration records the identity but does not create a session.
+	capOK := s.identity.IssueCapForUser(ctx, user.ID, role, provision)
+
+	// Reload provision so result.Identity carries the freshly written role_cap_object_id.
+	if reloaded, reloadErr := s.identity.ForUser(user.ID); reloadErr == nil {
+		provision = reloaded
+	}
+	result.Identity = provision
+
+	if !capOK {
+		result.CapIssuanceFailed = true
+		return result, nil // no session token; client receives 202
+	}
+
 	user.Status = models.IdentityActive
 	result.User = user
 	token, expires, sessionErr := s.NewSession(user.ID)

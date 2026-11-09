@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -194,23 +195,25 @@ func (s *Service) Rotate(ctx context.Context, userID string) (models.IdentityPro
 
 // IssueCapForUser issues the appropriate role capability on conservation_chain
 // for the given user role, then links it to their IdentityDocument.
-// Non-fatal: if chain is unavailable or cap issuance fails, logs and returns
-// without error so registration completes. Cap can be retried on next login.
+// Returns true when the cap was issued (or when the role does not require one).
+// Returns false when IssueManagerCap or IssueVerifierCap returns an error.
+// Cap can be retried on next login.
 //
 // Cap mapping (spec §2.3):
-//   project_manager  → ManagerCap (empty project_id until assigned)
-//   independent_verifier → VerifierCap (scope="global")
-//   field_monitor    → deferred to plot assignment, not issued at registration
-//   carbon_buyer / finance_operator / platform_administrator → DID only, no cap
-func (s *Service) IssueCapForUser(ctx context.Context, userID string, role string, provision models.IdentityProvision) {
+//
+//	project_manager  → ManagerCap (empty project_id until assigned)
+//	independent_verifier → VerifierCap (scope="global")
+//	field_monitor    → deferred to plot assignment, not issued at registration
+//	carbon_buyer / finance_operator / platform_administrator → DID only, no cap
+func (s *Service) IssueCapForUser(ctx context.Context, userID string, role string, provision models.IdentityProvision) bool {
 	if provision.DID == "" || provision.DIDDocumentRef == "" {
-		return // identity not yet active
+		return false // identity not yet active
 	}
 	// Executor wallet address acts as recipient for testnet custodial model.
 	// In production with self-sovereign wallets, replace with the user's IOTA address.
 	recipient := provision.Address
 	if recipient == "" {
-		return
+		return false
 	}
 
 	var capRes chain.CapResult
@@ -232,28 +235,32 @@ func (s *Service) IssueCapForUser(ctx context.Context, userID string, role strin
 	default:
 		// monitor: deferred to plot assignment
 		// buyer, finance, admin: DID only
-		return
+		return true
 	}
 
 	if err != nil {
-		_ = fmt.Errorf("IssueCapForUser(%s, %s): %v", userID, role, err)
-		return
+		slog.Warn("IssueCapForUser chain error", "userID", userID, "role", role, "error", err)
+		return false
 	}
 
 	// Link the cap object to the IdentityDocument in bahari_identity.
 	if linkErr := s.chain.LinkRoleObject(ctx, provision.DIDDocumentRef, capRes.CapObjectID); linkErr != nil {
-		_ = fmt.Errorf("IssueCapForUser LinkRoleObject(%s): %v", userID, linkErr)
+		slog.Warn("IssueCapForUser LinkRoleObject", "userID", userID, "error", linkErr)
 		// Cap still issued — just not linked on-chain. Non-fatal.
 	}
 
 	// Persist cap object ID.
-	_ = s.db.Model(&models.IdentityProvision{}).
+	if err := s.db.Model(&models.IdentityProvision{}).
 		Where("id = ?", provision.ID).
-		Update("role_cap_object_id", capRes.CapObjectID)
+		Update("role_cap_object_id", capRes.CapObjectID).Error; err != nil {
+		slog.Warn("failed to persist role_cap_object_id",
+			"userID", userID, "capObjectID", capRes.CapObjectID, "error", err)
+	}
 
 	// Sync to hub after successful issuance (fire-and-forget).
 	provision.RoleCapObjectID = capRes.CapObjectID
 	go s.SyncToHub(ctx, userID, role, provision)
+	return true
 }
 
 // IssueMonitorCapForUser issues a MonitorCap on conservation_chain and links it
@@ -277,13 +284,16 @@ func (s *Service) IssueMonitorCapForUser(ctx context.Context, userID string, rol
 		PlotID:    plotID,
 	})
 	if err != nil {
-		_ = fmt.Errorf("IssueMonitorCapForUser(%s): %v", userID, err)
+		slog.Warn("IssueMonitorCapForUser chain error", "userID", userID, "error", err)
 		return
 	}
 	if linkErr := s.chain.LinkRoleObject(ctx, provision.DIDDocumentRef, capRes.CapObjectID); linkErr != nil {
-		_ = fmt.Errorf("IssueMonitorCapForUser LinkRoleObject(%s): %v", userID, linkErr)
+		slog.Warn("IssueMonitorCapForUser LinkRoleObject", "userID", userID, "error", linkErr)
 	}
-	_ = s.db.Model(&models.IdentityProvision{}).Where("id = ?", provision.ID).Update("role_cap_object_id", capRes.CapObjectID)
+	if err := s.db.Model(&models.IdentityProvision{}).Where("id = ?", provision.ID).Update("role_cap_object_id", capRes.CapObjectID).Error; err != nil {
+		slog.Warn("failed to persist monitor role_cap_object_id",
+			"userID", userID, "capObjectID", capRes.CapObjectID, "error", err)
+	}
 	provision.RoleCapObjectID = capRes.CapObjectID
 	s.SyncToHub(ctx, userID, "monitor", provision)
 }

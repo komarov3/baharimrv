@@ -45,6 +45,14 @@ func (h *Handler) Register(c *gin.Context) {
 		httpx.Error(c, http.StatusBadRequest, "registration_failed", "Registration could not be completed with the supplied details.")
 		return
 	}
+	if result.CapIssuanceFailed {
+		c.JSON(http.StatusAccepted, gin.H{
+			"user": result.User, "identity": result.Identity,
+			"capIssuanceFailed": true,
+			"message":           "Account created but role capability could not be issued on-chain. Login will retry cap issuance.",
+		})
+		return
+	}
 	c.JSON(http.StatusCreated, result)
 }
 

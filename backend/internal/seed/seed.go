@@ -20,6 +20,7 @@ import (
 	"github.com/baharilink/baharimrv/internal/models"
 	"github.com/baharilink/baharimrv/internal/money"
 	"github.com/baharilink/baharimrv/internal/mrv"
+	"github.com/baharilink/baharimrv/internal/provenance"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
@@ -56,6 +57,13 @@ var demoMonitors = []monitorSpec{
 		Height: "1.420000", Species: "Rhizophora mucronata", Lat: -4.0532, Lng: 39.6741},
 	{Email: demoEmail("juma"), Name: "Juma Mbacke", Planted: 310, Alive: 302,
 		Height: "1.180000", Species: "Avicennia marina", Lat: -4.0498, Lng: 39.6812},
+}
+
+var gaziMonitors = []monitorSpec{
+	{Email: demoEmail("said"), Name: "Said Bakari", Planted: 380, Alive: 341,
+		Height: "0.920000", Species: "Ceriops tagal", Lat: -4.4224, Lng: 39.5108},
+	{Email: demoEmail("fatuma"), Name: "Fatuma Ali", Planted: 295, Alive: 271,
+		Height: "0.760000", Species: "Ceriops tagal", Lat: -4.4231, Lng: 39.5115},
 }
 
 // Run installs the demo dataset. It is a no-op when the accounts already exist so
@@ -141,6 +149,9 @@ func Run(db *gorm.DB, identities *identity.Service, projects *mrv.Service, oidc 
 	if err := financialImports(db, project.ID, now); err != nil {
 		return err
 	}
+	if err := runGaziBay(ctx, db, hash, identities, projects, now); err != nil {
+		return fmt.Errorf("gazi bay seed: %w", err)
+	}
 	return devClient(oidc)
 }
 
@@ -197,6 +208,99 @@ func demoProject(projects *mrv.Service, manager models.User, methodology models.
 		Species:           "Rhizophora mucronata",
 		CommunityShareBPS: 4000, Sites: []string{"Mikoko Park"}, Plots: plots,
 	}, true)
+}
+
+func gaziProject(projects *mrv.Service, manager models.User, methodology models.Methodology) (models.ConservationProject, error) {
+	plots := []mrv.PlotInput{
+		{Code: "GAZI-P1", SiteName: "Gazi Bay", Latitude: -4.4224, Longitude: 39.5108, AreaHectares: "3.000000"},
+		{Code: "GAZI-P2", SiteName: "Gazi Bay", Latitude: -4.4231, Longitude: 39.5115, AreaHectares: "3.000000"},
+	}
+	return projects.CreateProject(manager.ID, mrv.ProjectInput{
+		Name:              "Gazi Bay Mangrove Restoration (demo)",
+		MethodologyID:     methodology.ID,
+		CommunityGroup:    "Gazi Bay Community Restoration Group (demo)",
+		Species:           "Ceriops tagal",
+		CommunityShareBPS: 4500,
+		Sites:             []string{"Gazi Bay"},
+		Plots:             plots,
+	}, true)
+}
+
+// runGaziBay seeds the Gazi Bay Hamisi demo project. It is called from Run()
+// after the Mikoko block. The idempotency guard checks the project row by name.
+//
+// NOTE: If the Mikoko block fails or is skipped (e.g. the manager already exists
+// but the project does not), the Gazi Bay block will also be skipped on re-runs
+// because Run() returns nil early when the Mikoko manager exists. A dev DB wipe
+// is required if Gazi Bay is missing from an otherwise complete Mikoko seed.
+func runGaziBay(ctx context.Context, db *gorm.DB, hash []byte, identities *identity.Service, projects *mrv.Service, now time.Time) error {
+	// Idempotency check on project name, not manager user.
+	var existingGazi int64
+	if err := db.Model(&models.ConservationProject{}).
+		Where("name = ?", "Gazi Bay Mangrove Restoration (demo)").
+		Count(&existingGazi).Error; err != nil {
+		return err
+	}
+	if existingGazi > 0 {
+		return nil // Gazi Bay seed already present
+	}
+
+	gaziManager, err := account(ctx, db, hash, demoEmail("hamisi.manager"), "Hamisi Mwangi", models.RoleManager, identities, now)
+	if err != nil {
+		return err
+	}
+
+	// Reuse the MED-MANGROVE-DEMO methodology created by the Mikoko seed.
+	// NOTE: Mikoko must run first for this to exist.
+	var methodology models.Methodology
+	if err := db.Where("code = ?", "MED-MANGROVE-DEMO").First(&methodology).Error; err != nil {
+		return fmt.Errorf("demo methodology MED-MANGROVE-DEMO not found: %w (Mikoko seed must run first)", err)
+	}
+
+	project, err := gaziProject(projects, gaziManager, methodology)
+	if err != nil {
+		return err
+	}
+	plots, err := plotsFor(db, project.ID)
+	if err != nil {
+		return err
+	}
+	if len(plots) < len(gaziMonitors) {
+		return fmt.Errorf("the gazi bay project was created without its plots")
+	}
+	for index, spec := range gaziMonitors {
+		monitor, err := account(ctx, db, hash, spec.Email, spec.Name, models.RoleMonitor, identities, now)
+		if err != nil {
+			return err
+		}
+		if err := db.Model(&models.Plot{}).Where("id = ?", plots[index].ID).
+			Update("assigned_monitor_id", monitor.ID).Error; err != nil {
+			return fmt.Errorf("assign gazi bay monitor: %w", err)
+		}
+		activity, err := projects.CreateActivity(gaziManager.ID, mrv.ActivityInput{
+			ProjectID: project.ID, PlotID: plots[index].ID, ActivityType: "restoration",
+			MethodologyVersion:   methodology.Version,
+			ReportingPeriodStart: now.AddDate(0, -6, 0), ReportingPeriodEnd: now,
+		})
+		if err != nil {
+			return err
+		}
+		if err := capture(projects, monitor, activity, spec, now); err != nil {
+			return err
+		}
+		// Only the first plot advances to a completion claim, mirroring the Mikoko pattern.
+		if index == 0 {
+			_, event, err := projects.Complete(ctx, activity.ID, gaziManager.ID)
+			if err != nil {
+				return fmt.Errorf("complete Gazi Bay activity: %w", err)
+			}
+			if event.Status != provenance.StatusAnchored {
+				return fmt.Errorf("Gazi Bay activity %s anchor status = %q, want %q",
+					activity.ID, event.Status, provenance.StatusAnchored)
+			}
+		}
+	}
+	return nil
 }
 
 // capture pushes one record through the real synchronisation path and then uploads
