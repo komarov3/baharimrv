@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"log/slog"
 	"time"
 
 	"github.com/baharilink/baharimrv/internal/auth"
@@ -73,85 +74,86 @@ func Run(db *gorm.DB, identities *identity.Service, projects *mrv.Service, oidc 
 	if password == "" {
 		return fmt.Errorf("demo seeding requires DEMO_SEED_PASSWORD")
 	}
-	var existing int64
-	if err := db.Model(&models.User{}).Where("email = ?", demoEmail("manager")).Count(&existing).Error; err != nil {
-		return err
-	}
-	if existing > 0 {
-		return nil
-	}
 	ctx := context.Background()
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return fmt.Errorf("hash demo password: %w", err)
 	}
 
-	manager, err := account(ctx, db, hash, demoEmail("manager"), "Halima Rasid", models.RoleManager, identities, now)
-	if err != nil {
+	// ── Mikoko Park block (idempotent: skip if Halima already exists) ──────────
+	var mikokoExists int64
+	if err := db.Model(&models.User{}).Where("email = ?", demoEmail("manager")).Count(&mikokoExists).Error; err != nil {
 		return err
 	}
-	for _, support := range []struct{ email, name, role string }{
-		{demoEmail("verifier"), "Dr. Peter Mwaka", models.RoleVerifier},
-		{demoEmail("buyer"), "Kaskazi Coast Ltd", models.RoleBuyer},
-		{demoEmail("finance"), "Zawadi Omar", models.RoleFinance},
-		{demoEmail("admin"), "BahariMRV Administrator", models.RoleAdmin},
-	} {
-		if _, err := account(ctx, db, hash, support.email, support.name, support.role, identities, now); err != nil {
+	if mikokoExists == 0 {
+		manager, err := account(ctx, db, hash, demoEmail("manager"), "Halima Rasid", models.RoleManager, identities, now)
+		if err != nil {
+			return err
+		}
+		for _, support := range []struct{ email, name, role string }{
+			{demoEmail("verifier"), "Dr. Peter Mwaka", models.RoleVerifier},
+			{demoEmail("buyer"), "Kaskazi Coast Ltd", models.RoleBuyer},
+			{demoEmail("finance"), "Zawadi Omar", models.RoleFinance},
+			{demoEmail("admin"), "BahariMRV Administrator", models.RoleAdmin},
+		} {
+			if _, err := account(ctx, db, hash, support.email, support.name, support.role, identities, now); err != nil {
+				return err
+			}
+		}
+		methodology, err := methodologyRow(db, now)
+		if err != nil {
+			return err
+		}
+		project, err := demoProject(projects, manager, methodology)
+		if err != nil {
+			return err
+		}
+		plots, err := plotsFor(db, project.ID)
+		if err != nil {
+			return err
+		}
+		if len(plots) < len(demoMonitors) {
+			return fmt.Errorf("the demo project was created without its plots")
+		}
+		for index, spec := range demoMonitors {
+			monitor, err := account(ctx, db, hash, spec.Email, spec.Name, models.RoleMonitor, identities, now)
+			if err != nil {
+				return err
+			}
+			if err := db.Model(&models.Plot{}).Where("id = ?", plots[index].ID).
+				Update("assigned_monitor_id", monitor.ID).Error; err != nil {
+				return fmt.Errorf("assign the demo monitor: %w", err)
+			}
+			activity, err := projects.CreateActivity(manager.ID, mrv.ActivityInput{
+				ProjectID: project.ID, PlotID: plots[index].ID, ActivityType: "restoration",
+				MethodologyVersion:   methodology.Version,
+				ReportingPeriodStart: now.AddDate(0, -6, 0), ReportingPeriodEnd: now,
+			})
+			if err != nil {
+				return err
+			}
+			if err := capture(projects, monitor, activity, spec, now); err != nil {
+				return err
+			}
+			if index == 0 {
+				if _, _, err := projects.Complete(ctx, activity.ID, manager.ID); err != nil {
+					return err
+				}
+			}
+		}
+		if err := sandboxBatch(db, project, now); err != nil {
+			return err
+		}
+		if err := financialImports(db, project.ID, now); err != nil {
 			return err
 		}
 	}
 
-	methodology, err := methodologyRow(db, now)
-	if err != nil {
-		return err
-	}
-	project, err := demoProject(projects, manager, methodology)
-	if err != nil {
-		return err
-	}
-	plots, err := plotsFor(db, project.ID)
-	if err != nil {
-		return err
-	}
-	if len(plots) < len(demoMonitors) {
-		return fmt.Errorf("the demo project was created without its plots")
-	}
-	for index, spec := range demoMonitors {
-		monitor, err := account(ctx, db, hash, spec.Email, spec.Name, models.RoleMonitor, identities, now)
-		if err != nil {
-			return err
-		}
-		if err := db.Model(&models.Plot{}).Where("id = ?", plots[index].ID).
-			Update("assigned_monitor_id", monitor.ID).Error; err != nil {
-			return fmt.Errorf("assign the demo monitor: %w", err)
-		}
-		activity, err := projects.CreateActivity(manager.ID, mrv.ActivityInput{
-			ProjectID: project.ID, PlotID: plots[index].ID, ActivityType: "restoration",
-			MethodologyVersion:   methodology.Version,
-			ReportingPeriodStart: now.AddDate(0, -6, 0), ReportingPeriodEnd: now,
-		})
-		if err != nil {
-			return err
-		}
-		if err := capture(projects, monitor, activity, spec, now); err != nil {
-			return err
-		}
-		// Only the first plot advances to a completion claim, so the demo shows both
-		// an activity awaiting verification and one still under monitoring.
-		if index == 0 {
-			if _, _, err := projects.Complete(ctx, activity.ID, manager.ID); err != nil {
-				return err
-			}
-		}
-	}
-	if err := sandboxBatch(db, project, now); err != nil {
-		return err
-	}
-	if err := financialImports(db, project.ID, now); err != nil {
-		return err
-	}
+	// ── Gazi Bay block (has its own idempotency guard inside) ─────────────────
 	if err := runGaziBay(ctx, db, hash, identities, projects, now); err != nil {
-		return fmt.Errorf("gazi bay seed: %w", err)
+		// Gazi Bay is demo data — a transient IOTA testnet failure must not
+		// crash the server. Log the warning and continue; next restart will retry.
+		slog.Warn("Gazi Bay demo seed incomplete — will retry on next startup", "error", err)
 	}
 	return devClient(oidc)
 }
@@ -401,7 +403,10 @@ func financialImports(db *gorm.DB, projectID string, now time.Time) error {
 func devClient(oidc *auth.OIDCService) error {
 	_, err := oidc.RegisterClient("baharimrv-local-web", "", []string{"http://localhost:5173/auth/callback"},
 		"openid profile email conservation:read")
-	return err
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		return err
+	}
+	return nil
 }
 
 func plotsFor(db *gorm.DB, projectID string) ([]models.Plot, error) {
