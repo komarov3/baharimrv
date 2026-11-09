@@ -54,20 +54,30 @@ import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.OfflineBanner
 import ke.co.baharilink.baharimrv.ui.credits.CreditsScreen
 import ke.co.baharilink.baharimrv.ui.home.HomeScreen
+import ke.co.baharilink.baharimrv.ui.moduleentry.ModuleEntryScreen
+import ke.co.baharilink.baharimrv.ui.monitor.MonitorScreen
+import ke.co.baharilink.baharimrv.ui.planting.PlantingActivityScreen
+import ke.co.baharilink.baharimrv.ui.planting.PlantingDetailScreen
+import ke.co.baharilink.baharimrv.ui.planting.PlantingListScreen
 import ke.co.baharilink.baharimrv.ui.projects.AddActivityScreen
 import ke.co.baharilink.baharimrv.ui.projects.AddPlotScreen
 import ke.co.baharilink.baharimrv.ui.projects.MonitorManagementScreen
 import ke.co.baharilink.baharimrv.ui.projects.ProjectDetailScreen
 import ke.co.baharilink.baharimrv.ui.projects.ProjectsScreen
-import ke.co.baharilink.baharimrv.ui.monitor.MonitorScreen
 import ke.co.baharilink.baharimrv.ui.profile.ProfileScreen
+import ke.co.baharilink.baharimrv.ui.satellite.SatelliteMonitoringScreen
 import ke.co.baharilink.baharimrv.ui.verification.VerificationScreen
 import ke.co.baharilink.baharimrv.ui.wallet.WalletScreen
 
 private object Routes {
     const val HOME = "home"
+    const val MODULE_ENTRY = "module-entry"
     const val PROJECTS = "projects"
     const val MONITOR = "monitor"
+    const val PLANTING = "planting"
+    const val PLANTING_CREATE = "planting/create"
+    const val PLANTING_DETAIL = "planting/detail/{activityId}"
+    const val SATELLITE = "satellite"
     const val CREDITS = "credits"
     const val WALLET = "wallet"
     const val PROFILE = "profile"
@@ -78,6 +88,7 @@ private object Routes {
     const val MANAGE_MONITORS = "manageMonitors/{projectId}/{plotId}"
 
     fun verification(activityId: String = "") = "verification?activityId=${Uri.encode(activityId)}"
+    fun plantingDetail(activityId: String) = "planting/detail/${Uri.encode(activityId)}"
 }
 
 private data class Destination(val route: String, val label: String, @DrawableRes val iconRes: Int)
@@ -117,15 +128,16 @@ fun AppRoot(
     when {
         session == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingState("Restoring secure session…") }
         session?.isAuthenticated != true -> AuthScreen(authViewModel)
-        else -> AuthenticatedShell(online, authViewModel)
+        else -> AuthenticatedShell(online, authViewModel, shellViewModel)
     }
 }
 
 @Composable
-private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel) {
+private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, shellViewModel: ShellViewModel) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    val selection by shellViewModel.selectedProjectId.collectAsStateWithLifecycle("")
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val compact = maxWidth < 600.dp
@@ -159,9 +171,50 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel) {
                             onFieldVisit = { navController.navigate(Routes.MONITOR) },
                             onVerification = { navController.navigate(Routes.verification()) },
                             onProjects = { navController.navigate(Routes.PROJECTS) },
+                            onPlanting = { navController.navigate(Routes.PLANTING) },
+                            onSatellite = { navController.navigate(Routes.SATELLITE) },
+                        )
+                    }
+                    composable(Routes.MODULE_ENTRY) {
+                        ModuleEntryScreen(
+                            onSignIn = { navController.navigate(Routes.HOME) },
+                            onJoinMonitor = { navController.navigate(Routes.MONITOR) },
                         )
                     }
                     composable(Routes.MONITOR) { MonitorScreen() }
+                    composable(Routes.PLANTING) {
+                        PlantingListScreen(
+                            onBack = { navController.popBackStack() },
+                            projectId = selection,
+                            onActivityClick = { activityId ->
+                                navController.navigate(Routes.plantingDetail(activityId))
+                            },
+                            onCreate = {
+                                navController.navigate(Routes.PLANTING_CREATE)
+                            },
+                        )
+                    }
+                    composable(Routes.PLANTING_CREATE) {
+                        PlantingActivityScreen(
+                            onBack = { navController.popBackStack() },
+                            projectId = selection,
+                        )
+                    }
+                    composable(
+                        route = Routes.PLANTING_DETAIL,
+                        arguments = listOf(navArgument("activityId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        PlantingDetailScreen(
+                            activityId = backStackEntry.arguments?.getString("activityId").orEmpty(),
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(Routes.SATELLITE) {
+                        SatelliteMonitoringScreen(
+                            onBack = { navController.popBackStack() },
+                            projectId = selection,
+                        )
+                    }
                     composable(Routes.PROJECTS) { backStackEntry -> ProjectsScreen(onProjectClick = { id -> navController.navigate(Routes.PROJECT_DETAIL.replace("{projectId}", id)) }) }
                     composable(
                         route = Routes.PROJECT_DETAIL,

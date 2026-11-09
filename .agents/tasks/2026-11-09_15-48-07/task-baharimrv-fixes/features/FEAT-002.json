@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Android planting activity detail screen. Depends on FEAT-001 (backend endpoint must exist for runtime, but not for compile). Add ActivityDetailDto and friends to Api.kt, add repository method, create PlantingDetailViewModel.kt and PlantingDetailScreen.kt, wire navigation in AppRoot.kt so tapping an activity row opens the detail screen instead of navigating to MONITOR.",
+  "status": "completed",
+  "steps": [
+    "Step 1 — Api.kt: Before the 'interface BahariMrvApi' declaration, add four data classes: MonitoringRecordViewDto(aliveCount:Int=0, plantedCount:Int=0, averageHeightMetres:String=\"\", species:String=\"\", observations:String?=null, attestationStatement:String?=null, evidence:List<EvidenceViewDto>=emptyList()), EvidenceViewDto(id:String, kind:String, sha256:String, mediaType:String), ProvViewDto(status:String, network:String?=null, explorerUrl:String?=null, objectId:String?=null), ActivityDetailDto(id:String, projectId:String, plotId:String, activityType:String, status:String, methodologyVersion:String?=null, periodStart:String?=null, periodEnd:String?=null, record:MonitoringRecordViewDto?=null, provenance:ProvViewDto?=null). Add to BahariMrvApi interface: '@GET(\"api/v1/activities/{id}/detail\") suspend fun activityDetail(@Path(\"id\") activityId: String): ActivityDetailDto'.",
+    "Step 2 — ProjectRepository.kt: Add 'suspend fun activityDetail(activityId: String) = api.activityDetail(activityId)' after the retryIdentity method.",
+    "Step 3 — New file PlantingDetailViewModel.kt at android/app/src/main/java/ke/co/baharilink/baharimrv/ui/planting/PlantingDetailViewModel.kt. Package: ke.co.baharilink.baharimrv.ui.planting. Imports: ViewModel, viewModelScope, HiltViewModel, Inject, ActivityDetailDto, ProjectRepository, LoadState, readableMessage, MutableStateFlow, asStateFlow, update, launch. Data class PlantingDetailUiState(val detail: LoadState<ActivityDetailDto>? = null). @HiltViewModel class PlantingDetailViewModel with load(activityId: String) method that updates state to Loading, calls repository.activityDetail, updates to Success or Error using e.readableMessage(). Import 'ke.co.baharilink.baharimrv.ui.components.readableMessage' explicitly.",
+    "Step 4 — New file PlantingDetailScreen.kt at android/app/src/main/java/ke/co/baharilink/baharimrv/ui/planting/PlantingDetailScreen.kt. Package: ke.co.baharilink.baharimrv.ui.planting. Top-level composable PlantingDetailScreen(activityId: String, onBack: () -> Unit, viewModel: PlantingDetailViewModel = hiltViewModel()). Uses LaunchedEffect(activityId) to call viewModel.load. Local 'var showFullScreenPhoto by remember { mutableStateOf(false) }'. Scaffold with TopAppBar (title 'Activity detail', ArrowBack nav icon calling onBack). when(state.detail) branches per plan step 7 description. Private ActivityDetailContent composable with 5 sections: (1) ContextHeader, (2) monitoring record BahariCard with KeyValue rows or EmptyState, (3) evidence thumbnail BahariCard with BahariDashedBox + sha256 first 8 chars or Text('No evidence attached'), (4) NavyLedgerCard on-chain section with KeyValue rows + BahariButton GREEN 'View on IOTA ↗' launching Intent(ACTION_VIEW) via LocalContext.current when explorerUrl non-null, (5) BahariCard attestation section. Private statusColor(status: String): Color helper. Private FullScreenPhotoOverlay using Dialog(DialogProperties(usePlatformDefaultWidth=false)) with fillMaxSize black background.",
+    "Step 5 — AppRoot.kt: In 'private object Routes' add: 'const val PLANTING_DETAIL = \"planting/detail/{activityId}\"' and 'fun plantingDetail(activityId: String) = \"planting/detail/${Uri.encode(activityId)}\"'. Add import 'import ke.co.baharilink.baharimrv.ui.planting.PlantingDetailScreen'. In NavHost after the PLANTING_CREATE composable, add: composable(route = Routes.PLANTING_DETAIL, arguments = listOf(navArgument(\"activityId\") { type = NavType.StringType })) { backStackEntry -> PlantingDetailScreen(activityId = backStackEntry.arguments?.getString(\"activityId\").orEmpty(), onBack = { navController.popBackStack() }) }. In the existing PLANTING composable block, change 'onActivityClick = { activityId -> navController.navigate(Routes.MONITOR) }' to 'onActivityClick = { activityId -> navController.navigate(Routes.plantingDetail(activityId)) }'."
+  ],
+  "acceptance_criteria": [
+    "'cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:compileDebugKotlin' shows BUILD SUCCESSFUL",
+    "'cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:assembleDebug' shows BUILD SUCCESSFUL",
+    "PlantingDetailViewModel.kt and PlantingDetailScreen.kt exist in the ui/planting/ package",
+    "AppRoot.kt Routes object contains PLANTING_DETAIL constant and plantingDetail() function",
+    "AppRoot.kt PLANTING composable block's onActivityClick calls Routes.plantingDetail(activityId) instead of Routes.MONITOR",
+    "Api.kt contains ActivityDetailDto, MonitoringRecordViewDto, EvidenceViewDto, ProvViewDto data classes and activityDetail endpoint in BahariMrvApi"
+  ],
+  "verification": [
+    "cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:compileDebugKotlin 2>&1 | grep -E 'error:|BUILD'",
+    "cd /Users/Komarov/Documents/BahariMRV/android && ./gradlew :app:assembleDebug 2>&1 | grep -E 'error:|BUILD SUCCESSFUL'"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}

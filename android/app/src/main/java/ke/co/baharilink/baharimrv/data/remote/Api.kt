@@ -215,6 +215,15 @@ data class CreatePlotRequestDto(
     val assignedMonitorId: String? = null,
 )
 
+/** Request to create a planting activity bound to one plot and methodology. */
+data class CreateActivityRequestDto(
+    val plotId: String,
+    val activityType: String,
+    val methodologyVersion: String,
+    val reportingPeriodStart: String? = null,
+    val reportingPeriodEnd: String? = null,
+)
+
 data class CreateProjectRequest(
     val name: String,
     val methodologyId: String,
@@ -719,6 +728,51 @@ data class PlotResponse(
 )
 
 
+// ── planting activity detail ──────────────────────────────────────────────
+
+/**
+ * Bundles the monitoring record, evidence manifest, and the latest provenance
+ * event for one activity in a single round trip, so the mobile detail screen
+ * does not chase three endpoints. `record` and `provenance` are null when the
+ * activity has no synced record or is not yet anchored on-chain.
+ */
+data class MonitoringRecordViewDto(
+    val aliveCount: Int = 0,
+    val plantedCount: Int = 0,
+    val averageHeightMetres: String = "",
+    val species: String = "",
+    val observations: String? = null,
+    val attestationStatement: String? = null,
+    val evidence: List<EvidenceViewDto> = emptyList(),
+)
+
+data class EvidenceViewDto(
+    val id: String,
+    val kind: String,
+    val sha256: String,
+    val mediaType: String,
+)
+
+data class ProvViewDto(
+    val status: String,
+    val network: String? = null,
+    val explorerUrl: String? = null,
+    val objectId: String? = null,
+)
+
+data class ActivityDetailDto(
+    val id: String,
+    val projectId: String,
+    val plotId: String,
+    val activityType: String,
+    val status: String,
+    val methodologyVersion: String? = null,
+    val periodStart: String? = null,
+    val periodEnd: String? = null,
+    val record: MonitoringRecordViewDto? = null,
+    val provenance: ProvViewDto? = null,
+)
+
 interface BahariMrvApi {
     @GET("api/v1/health")
     suspend fun health(): HealthDto
@@ -748,6 +802,11 @@ interface BahariMrvApi {
     suspend fun projects(): ProjectsResponse
     @GET("api/v1/projects/{id}/activities")
     suspend fun activities(@Path("id") projectId: String): ActivitiesResponse
+    @POST("api/v1/projects/{id}/activities")
+    suspend fun createActivity(
+        @Path("id") projectId: String,
+        @Body request: CreateActivityRequestDto
+    ): ProjectActivityDto
     @GET("api/v1/projects/{id}/weather")
     suspend fun weather(@Path("id") projectId: String): WeatherDto
 
@@ -819,6 +878,9 @@ interface BahariMrvApi {
 
     @GET("api/v1/activities/{id}/provenance")
     suspend fun provenance(@Path("id") activityId: String): ProvenanceDto
+
+    @GET("api/v1/activities/{id}/detail")
+    suspend fun activityDetail(@Path("id") activityId: String): ActivityDetailDto
 
     @POST("api/v1/activities/{id}/complete")
     suspend fun complete(@Path("id") activityId: String): CompleteResponse

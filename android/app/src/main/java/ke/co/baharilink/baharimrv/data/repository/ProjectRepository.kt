@@ -6,6 +6,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import ke.co.baharilink.baharimrv.data.remote.BahariMrvApi
 import ke.co.baharilink.baharimrv.data.remote.DecisionRequest
+import ke.co.baharilink.baharimrv.data.remote.CreateActivityRequestDto
 import ke.co.baharilink.baharimrv.data.remote.CreatePlotRequestDto
 import ke.co.baharilink.baharimrv.data.remote.CreateProjectRequest
 import ke.co.baharilink.baharimrv.data.remote.UpdatePlotRequest
@@ -29,6 +30,8 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun health() = api.health()
     suspend fun projects() = api.projects()
     suspend fun activities(projectId: String) = api.activities(projectId).items
+    suspend fun createActivity(projectId: String, request: CreateActivityRequestDto) =
+        api.createActivity(projectId, request)
     suspend fun weather(projectId: String) = api.weather(projectId)
     suspend fun salinity(projectId: String) = api.salinity(projectId)
     suspend fun satellitePasses(projectId: String, mission: String) =
@@ -78,6 +81,7 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun listings() = api.listings()
     suspend fun identity() = api.identity()
     suspend fun retryIdentity() = api.retryIdentity()
+    suspend fun activityDetail(activityId: String) = api.activityDetail(activityId)
     suspend fun links() = api.links()
 
     /**
