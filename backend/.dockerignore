@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Go
+*.exe
+*.test
+*.db
+*.db-shm
+*.db-wal
+*.log
+tmp-*/
+data/
+vendor/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Binaries
+bin/
+baharimrv-server
+mrv-server
+tmp-mrv-server
+
+# Config
+.env
+.env.*
+!.env.example

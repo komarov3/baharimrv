@@ -1,0 +1,23 @@
+app = "baharimrv-executor"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 9000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+
+  [http_service.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512"
+
+[metrics]
+  port = 9090
+  path = "/metrics"
