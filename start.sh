@@ -96,13 +96,14 @@ if [[ "$WITH_CHAIN" == true ]]; then
     success "Executor node_modules present"
   fi
 
-  # tsx (used for dev mode)
+  # tsx (used for dev mode) — install locally if missing
   EXECUTOR_TSX="$EXECUTOR_DIR/node_modules/.bin/tsx"
   if [[ ! -f "$EXECUTOR_TSX" ]]; then
     info "Installing tsx…"
-    (cd "$EXECUTOR_DIR" && npm install --save-dev tsx --silent) \
+    (cd "$EXECUTOR_DIR" && npm install --save-dev tsx@4.23.15 --silent) \
       || fatal "Failed to install tsx"
   fi
+  [[ -f "$EXECUTOR_TSX" ]] || fatal "tsx still not found at $EXECUTOR_TSX after install"
   success "tsx available"
 fi
 
@@ -151,7 +152,7 @@ if [[ "$WITH_CHAIN" == true ]]; then
   [[ -f "$EXECUTOR_DIR/.env" ]] || fatal "executor/.env not found — check executor/ directory"
 
   EXECUTOR_LOG="$LOG_DIR/executor.log"
-  (cd "$EXECUTOR_DIR" && node_modules/.bin/tsx src/index.ts >> "$EXECUTOR_LOG" 2>&1) &
+  (cd "$EXECUTOR_DIR" && "$EXECUTOR_TSX" src/index.ts >> "$EXECUTOR_LOG" 2>&1) &
   EXECUTOR_PID=$!
   PIDS+=($EXECUTOR_PID)
 
@@ -178,12 +179,14 @@ header "── Backend API (port $BACKEND_PORT) ──────────�
 EVIDENCE_DIR="$BACKEND_DIR/data/evidence"
 [[ -d "$EVIDENCE_DIR" ]] || mkdir -p "$EVIDENCE_DIR"
 
-# build env from .env file, optionally override SEED_DEMO_DATA
-ENV_VARS=($(grep -v '^#' "$BACKEND_DIR/.env" | grep -v '^$'))
-[[ "$SEED" == false ]] && ENV_VARS+=("SEED_DEMO_DATA=false")
+# build env from .env file using source (handles quoted values and special chars)
+SEED_OVERRIDE=""
+[[ "$SEED" == false ]] && SEED_OVERRIDE="SEED_DEMO_DATA=false"
 
 BACKEND_LOG="$LOG_DIR/backend.log"
-(cd "$BACKEND_DIR" && env "${ENV_VARS[@]}" "$BINARY" >> "$BACKEND_LOG" 2>&1) &
+# kill anything that grabbed the port while executor was starting
+lsof -ti ":$BACKEND_PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+(cd "$BACKEND_DIR" && set -a && source .env && set +a && [[ -n "$SEED_OVERRIDE" ]] && export SEED_DEMO_DATA=false; "$BINARY") >> "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 PIDS+=($BACKEND_PID)
 
