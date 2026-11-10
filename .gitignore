@@ -9,6 +9,7 @@ build/
 coverage/
 backend/baharimrv
 backend/tmp-mrv-server
+backend/bin/
 backend/data/
 backend/baharimrv-local.db-shm
 backend/baharimrv-local.db-wal
