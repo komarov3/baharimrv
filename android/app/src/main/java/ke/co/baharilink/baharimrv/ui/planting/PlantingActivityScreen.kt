@@ -273,6 +273,37 @@ fun PlantingActivityScreen(
                     Text("Core Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
 
+                    // ── Project selector ─────────────────────────────────
+                    var projectExpanded by remember { mutableStateOf(false) }
+                    val selectedProject = state.availableProjects.find { it.id == state.projectId }
+                    ExposedDropdownMenuBox(
+                        expanded = projectExpanded,
+                        onExpandedChange = { projectExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = selectedProject?.name ?: if (state.projectId.isBlank()) "Select a project" else state.projectId,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Project") },
+                            leadingIcon = { Icon(Icons.Default.FolderOpen, null, modifier = Modifier.size(20.dp)) },
+                            trailingIcon = { Icon(if (projectExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, "Select project") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            singleLine = true,
+                        )
+                        if (state.availableProjects.isNotEmpty()) {
+                            ExposedDropdownMenu(expanded = projectExpanded, onDismissRequest = { projectExpanded = false }) {
+                                state.availableProjects.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Column { Text(p.name, fontWeight = FontWeight.Medium); Text(p.status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } },
+                                        onClick = { viewModel.setProjectId(p.id); projectExpanded = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
                     // ── Plot selector ─────────────────────────────────────
                     var plotExpanded by remember { mutableStateOf(false) }
                     val selectedPlot = state.availablePlots.find { it.id == state.plotId }

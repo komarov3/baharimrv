@@ -45,6 +45,7 @@ class PlantingActivityViewModel @Inject constructor(
 
     init {
         loadMethodologies()
+        loadProjects()
     }
 
     private fun loadMethodologies() {
