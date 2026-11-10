@@ -6,6 +6,7 @@ package app
 import (
 	"errors"
 	"net/http"
+	"log/slog"
 	"time"
 
 	"github.com/baharilink/baharimrv/internal/api"
@@ -92,9 +93,14 @@ func Build(cfg config.Config) (*App, error) {
 	projects.SetRestorationMatcher(jahazi.NewMatcherAdapter(jahaziService))
 
 	if cfg.SeedDemoData {
-		if err := seed.Run(db, identities, projects, oidcService, cfg.DemoSeedPassword, time.Now().UTC()); err != nil {
-			return nil, err
-		}
+		// Run seed in the background so the HTTP server starts immediately
+		// and passes Fly.io health checks. Seed provisions IOTA identities
+		// which can take 10–30 s on testnet.
+		go func() {
+			if err := seed.Run(db, identities, projects, oidcService, cfg.DemoSeedPassword, time.Now().UTC()); err != nil {
+				slog.Warn("demo seed failed", "error", err)
+			}
+		}()
 	}
 
 	return &App{

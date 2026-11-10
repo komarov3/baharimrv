@@ -1012,6 +1012,53 @@ type ActivityInput struct {
 	ReportingPeriodEnd   *time.Time `json:"reportingPeriodEnd"`
 }
 
+// UnmarshalJSON accepts reporting periods as either full RFC3339 timestamps or
+// plain YYYY-MM-DD dates, since the web and mobile clients submit date inputs.
+func (i *ActivityInput) UnmarshalJSON(data []byte) error {
+	type raw struct {
+		ProjectID            string  `json:"projectId"`
+		PlotID               string  `json:"plotId"`
+		ActivityType         string  `json:"activityType"`
+		MethodologyVersion   string  `json:"methodologyVersion"`
+		ReportingPeriodStart *string `json:"reportingPeriodStart"`
+		ReportingPeriodEnd   *string `json:"reportingPeriodEnd"`
+	}
+	var r raw
+	if err := json.Unmarshal(data, &r); err != nil {
+		return err
+	}
+	i.ProjectID = r.ProjectID
+	i.PlotID = r.PlotID
+	i.ActivityType = r.ActivityType
+	i.MethodologyVersion = r.MethodologyVersion
+	if r.ReportingPeriodStart != nil && strings.TrimSpace(*r.ReportingPeriodStart) != "" {
+		t, err := parseActivityDate(*r.ReportingPeriodStart)
+		if err != nil {
+			return err
+		}
+		i.ReportingPeriodStart = &t
+	}
+	if r.ReportingPeriodEnd != nil && strings.TrimSpace(*r.ReportingPeriodEnd) != "" {
+		t, err := parseActivityDate(*r.ReportingPeriodEnd)
+		if err != nil {
+			return err
+		}
+		i.ReportingPeriodEnd = &t
+	}
+	return nil
+}
+
+func parseActivityDate(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t.UTC(), nil
+	}
+	if t, err := time.Parse("2006-01-02", value); err == nil {
+		return t.UTC(), nil
+	}
+	return time.Time{}, fmt.Errorf("invalid reporting period date %q", value)
+}
+
 func (s *Service) CreateActivity(userID string, input ActivityInput) (models.ConservationActivity, error) {
 	if err := s.AssertProjectAccess(userID, input.ProjectID); err != nil {
 		return models.ConservationActivity{}, err
