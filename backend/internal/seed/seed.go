@@ -127,7 +127,8 @@ func Run(db *gorm.DB, identities *identity.Service, projects *mrv.Service, oidc 
 			activity, err := projects.CreateActivity(manager.ID, mrv.ActivityInput{
 				ProjectID: project.ID, PlotID: plots[index].ID, ActivityType: "restoration",
 				MethodologyVersion:   methodology.Version,
-				ReportingPeriodStart: now.AddDate(0, -6, 0), ReportingPeriodEnd: now,
+				ReportingPeriodStart: func() *time.Time { t := now.AddDate(0, -6, 0); return &t }(),
+				ReportingPeriodEnd:   &now,
 			})
 			if err != nil {
 				return err
@@ -292,7 +293,8 @@ func runGaziBay(ctx context.Context, db *gorm.DB, hash []byte, identities *ident
 		activity, err := projects.CreateActivity(gaziManager.ID, mrv.ActivityInput{
 			ProjectID: project.ID, PlotID: plots[index].ID, ActivityType: "restoration",
 			MethodologyVersion:   methodology.Version,
-			ReportingPeriodStart: now.AddDate(0, -6, 0), ReportingPeriodEnd: now,
+			ReportingPeriodStart: func() *time.Time { t := now.AddDate(0, -6, 0); return &t }(),
+			ReportingPeriodEnd:   &now,
 		})
 		if err != nil {
 			return err

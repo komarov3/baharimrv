@@ -272,15 +272,49 @@ fun PlantingActivityScreen(
                     Text("Core Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(12.dp))
 
-                    OutlinedTextField(
-                        value = state.plotId,
-                        onValueChange = { viewModel.setPlotId(it) },
-                        label = { Text("Plot ID") },
-                        leadingIcon = { Icon(Icons.Default.Place, null, modifier = Modifier.size(20.dp)) },
-                        supportingText = { Text("e.g. P-14 · bound to this activity and all field visits") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
+                    // ── Plot selector ─────────────────────────────────────
+                    var plotExpanded by remember { mutableStateOf(false) }
+                    val selectedPlot = state.availablePlots.find { it.id == state.plotId }
+                    ExposedDropdownMenuBox(
+                        expanded = plotExpanded,
+                        onExpandedChange = { if (!state.plotsLoading) plotExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = when {
+                                state.plotsLoading -> "Loading plots…"
+                                selectedPlot != null -> "${selectedPlot.label} · ${selectedPlot.status}"
+                                state.availablePlots.isEmpty() -> "No plots found for project"
+                                else -> "Select a plot"
+                            },
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Plot") },
+                            leadingIcon = { Icon(Icons.Default.Place, null, modifier = Modifier.size(20.dp)) },
+                            trailingIcon = {
+                                if (state.plotsLoading)
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                else
+                                    Icon(if (plotExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, "Select plot")
+                            },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            singleLine = true,
+                        )
+                        if (state.availablePlots.isNotEmpty()) {
+                            ExposedDropdownMenu(expanded = plotExpanded, onDismissRequest = { plotExpanded = false }) {
+                                state.availablePlots.forEach { plot ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(plot.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                                Text("${plot.status} · ${plot.areaHectares ?: "??"} ha", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        },
+                                        onClick = { viewModel.setPlotId(plot.id); plotExpanded = false },
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(12.dp))
 

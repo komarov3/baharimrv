@@ -1004,12 +1004,12 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 
 // CreateActivity opens a reporting-period activity on a plot.
 type ActivityInput struct {
-	ProjectID            string    `json:"projectId"`
-	PlotID               string    `json:"plotId"`
-	ActivityType         string    `json:"activityType"`
-	MethodologyVersion   string    `json:"methodologyVersion"`
-	ReportingPeriodStart time.Time `json:"reportingPeriodStart"`
-	ReportingPeriodEnd   time.Time `json:"reportingPeriodEnd"`
+	ProjectID            string     `json:"projectId"`
+	PlotID               string     `json:"plotId"`
+	ActivityType         string     `json:"activityType"`
+	MethodologyVersion   string     `json:"methodologyVersion"`
+	ReportingPeriodStart *time.Time `json:"reportingPeriodStart"`
+	ReportingPeriodEnd   *time.Time `json:"reportingPeriodEnd"`
 }
 
 func (s *Service) CreateActivity(userID string, input ActivityInput) (models.ConservationActivity, error) {
@@ -1027,13 +1027,23 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	if err := s.db.Where("id = ? AND project_id = ?", input.PlotID, input.ProjectID).First(&plot).Error; err != nil {
 		return models.ConservationActivity{}, domain.Invalid("the plot does not belong to this project")
 	}
-	if input.ReportingPeriodEnd.Before(input.ReportingPeriodStart) {
+	if input.ReportingPeriodEnd != nil && input.ReportingPeriodStart != nil &&
+		input.ReportingPeriodEnd.Before(*input.ReportingPeriodStart) {
 		return models.ConservationActivity{}, domain.Invalid("the reporting period ends before it starts")
 	}
 	if input.ActivityType == "" || input.MethodologyVersion == "" {
 		return models.ConservationActivity{}, domain.Invalid("activity type and methodology version are required")
 	}
 	now := s.now().UTC()
+	// Default reporting period: past 90 days if not supplied
+	start := now.AddDate(0, -3, 0)
+	end := now
+	if input.ReportingPeriodStart != nil {
+		start = input.ReportingPeriodStart.UTC()
+	}
+	if input.ReportingPeriodEnd != nil {
+		end = input.ReportingPeriodEnd.UTC()
+	}
 	project, _, err := s.project(input.ProjectID)
 	if err != nil {
 		return models.ConservationActivity{}, err
@@ -1041,7 +1051,7 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	activity := models.ConservationActivity{
 		ID: uuid.NewString(), ProjectID: project.ID, PlotID: plot.ID, ManagerID: project.ManagerID,
 		ActivityType: input.ActivityType, Status: models.ActivityDraft,
-		ReportingPeriodStart: input.ReportingPeriodStart.UTC(), ReportingPeriodEnd: input.ReportingPeriodEnd.UTC(),
+		ReportingPeriodStart: start, ReportingPeriodEnd: end,
 		MethodologyVersion: input.MethodologyVersion, Measurements: datatypes.JSON([]byte(`{}`)),
 		CreatedAt: now, UpdatedAt: now,
 	}
