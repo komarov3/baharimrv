@@ -26,8 +26,14 @@ class SatelliteNotificationWorker @AssistedInject constructor(
             projects.forEach { project ->
                 val pass = runCatching { repository.satelliteLatest(project.id, "S2") }.getOrNull()
                 val windowStart = pass?.windowStart?.let { runCatching { Instant.parse(it) }.getOrNull() }
-                if (windowStart != null && windowStart.isBefore(Instant.now().plusSeconds(24 * 60 * 60)) && windowStart.isAfter(Instant.now())) {
-                    notify(project.name, "Sentinel-2 pass expected around $windowStart")
+                val now = Instant.now()
+                if (windowStart != null) {
+                    when {
+                        windowStart.isAfter(now) && windowStart.isBefore(now.plusSeconds(24 * 60 * 60)) ->
+                            notify(project.name, "Sentinel-2 pass expected around $windowStart")
+                        windowStart.isBefore(now) && windowStart.isAfter(now.minusSeconds(24 * 60 * 60)) ->
+                            notify(project.name, "Sentinel-2 pass completed; NDVI corroboration may now be available")
+                    }
                 }
             }
             Result.success()

@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +93,11 @@ import ke.co.baharilink.baharimrv.ui.components.stateTone
 fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
     val state    by viewModel.state.collectAsStateWithLifecycle()
     val context  = LocalContext.current
+
+    LaunchedEffect(state.message, state.error) {
+        state.message?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+        state.error?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
     val recorder = remember { AudioRecorder(context) }
     var showPlotSheet  by remember { mutableStateOf(false) }
     var showPhotoMenu  by remember { mutableStateOf(false) }
