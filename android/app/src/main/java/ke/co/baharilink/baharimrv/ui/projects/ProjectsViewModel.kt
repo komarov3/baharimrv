@@ -50,8 +50,8 @@ class ProjectsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _state.update { it.copy(methodologies = repository.methodologies().items) }
-            } catch (_: Exception) {
-                // Methodologies are optional for display; create form will show empty picker.
+            } catch (e: Exception) {
+                _state.update { it.copy(createError = "Could not load methodologies: ${e.readableMessage()}") }
             }
         }
     }
