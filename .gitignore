@@ -16,6 +16,7 @@ backend/baharimrv-local.db-wal
 android/.gradle/
 android/local.properties
 android/**/build/
+android/.kotlin/
 android/app/google-services.json
 backend/config/firebase-adminsdk.json
 *.keystore
