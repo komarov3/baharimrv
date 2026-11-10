@@ -366,7 +366,7 @@ func (s *Service) GenerateMrvLink(activityID string, jahaziProjectID string) (Mr
 	}
 
 	var req models.RestorationRequest
-	if activity.RestorationRequestID != "" {
+	if activity.RestorationRequestID != nil {
 		if err := s.db.Where("id = ?", activity.RestorationRequestID).First(&req).Error; err != nil {
 			return MrvLinkPayload{}, err
 		}
@@ -511,7 +511,7 @@ type AttributionData struct {
 	VerifierAttestation *AttestationData `json:"verifierAttestation,omitempty"`
 	ProofID            string         `json:"proofId"`
 	JahaziFunded       bool           `json:"jahaziFunded"`
-	RestorationRequestID string       `json:"restorationRequestId,omitempty"`
+	RestorationRequestID *string       `json:"restorationRequestId,omitempty"`
 }
 
 type IotaProof struct {

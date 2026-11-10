@@ -256,7 +256,7 @@ type ConservationActivity struct {
 	Measurements         datatypes.JSON `gorm:"type:jsonb" json:"measurements"`
 	CurrentEventID       string         `gorm:"type:text;default:''" json:"currentEventId,omitempty"`
 	JahaziFunded         bool           `gorm:"column:jahazi_funded;not null;default:false" json:"jahaziFunded"`
-	RestorationRequestID string         `gorm:"column:restoration_request_id;type:uuid;index" json:"restorationRequestId,omitempty"`
+	RestorationRequestID *string        `gorm:"column:restoration_request_id;type:uuid;index" json:"restorationRequestId,omitempty"`
 	MrvLinkGenerated     bool           `gorm:"column:mrv_link_generated;not null;default:false" json:"mrvLinkGenerated"`
 	MrvLinkPushedAt      *time.Time     `gorm:"column:mrv_link_pushed_at" json:"mrvLinkPushedAt,omitempty"`
 	CreatedAt            time.Time      `json:"createdAt"`
