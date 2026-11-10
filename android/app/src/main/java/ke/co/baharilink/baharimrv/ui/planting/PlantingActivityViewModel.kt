@@ -7,6 +7,7 @@ import javax.inject.Inject
 import ke.co.baharilink.baharimrv.data.remote.CreateActivityRequestDto
 import ke.co.baharilink.baharimrv.data.remote.MethodologyDto
 import ke.co.baharilink.baharimrv.data.remote.PlotDto
+import ke.co.baharilink.baharimrv.data.remote.ProjectRowDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
 import ke.co.baharilink.baharimrv.ui.components.readableMessage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,7 @@ import kotlinx.coroutines.launch
 data class PlantingActivityUiState(
     val projectId: String = "",
     val plotId: String = "",
-    val availableProjects: List<ke.co.baharilink.baharimrv.data.remote.ProjectRowDto> = emptyList(),
+    val availableProjects: List<ProjectRowDto> = emptyList(),
     val availablePlots: List<PlotDto> = emptyList(),
     val plotsLoading: Boolean = false,
     val availableMethodologies: List<MethodologyDto> = emptyList(),

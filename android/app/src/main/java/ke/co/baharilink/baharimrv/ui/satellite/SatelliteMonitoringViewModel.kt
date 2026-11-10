@@ -19,7 +19,7 @@ data class SatelliteMonitoringUiState(
     val projectId: String = "",
     val latestPass: LoadState<SatellitePassDto?> = LoadState.Success(null),
     val passes: LoadState<List<SatellitePassDto>> = LoadState.Success(emptyList()),
-    val dashboard: LoadState<DashboardDto> = LoadState.Success(DashboardDto()),
+    val dashboard: LoadState<DashboardDto> = LoadState.Loading,
     val loading: Boolean = false,
     val error: String? = null,
 )
@@ -62,8 +62,8 @@ class SatelliteMonitoringViewModel @Inject constructor(
     }
 
     fun plotMarkers(): List<PlotMarker> {
-        val state = _state.value
-        return state.dashboard.valueOrNull()?.plots?.map { plot ->
+        val dashboard = (_state.value.dashboard as? LoadState.Success)?.data
+        return dashboard?.plots?.map { plot ->
             PlotMarker(
                 id = plot.id,
                 label = plot.label,
@@ -72,16 +72,6 @@ class SatelliteMonitoringViewModel @Inject constructor(
                 ndvi = plot.ndvi,
             )
         } ?: emptyList()
-    }
-
-    fun ndviColor(ndvi: Double?): Int {
-        return when (ndvi) {
-            null -> 0xFF9E9E9E // grey - no data
-            in 0.6..1.0 -> 0xFF388E3C // green - healthy
-            in 0.4..0.6 -> 0xFFFB8C00 // amber - moderate
-            in 0.2..0.4 -> 0xFFF44336 // red - stressed
-            else -> 0xFF9E9E36 // olive - low
-        }
     }
 }
 
