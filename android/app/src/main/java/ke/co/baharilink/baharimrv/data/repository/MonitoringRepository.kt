@@ -72,6 +72,12 @@ class MonitoringRepository @Inject constructor(
     val records: Flow<List<MonitoringWithEvidence>> = monitoringDao.observeAll()
     val pendingCount: Flow<Int> = monitoringDao.observePendingCount()
 
+    // ── Remote lookups for dropdowns ──────────────────────────────────────────
+    suspend fun projects()                        = api.projects().rows
+    suspend fun methodologies()                   = api.methodologies().items
+    suspend fun dashboard(projectId: String)      = api.dashboard(projectId)
+    suspend fun activities(projectId: String)     = api.activities(projectId).items
+
     suspend fun saveCapture(input: CaptureInput, selections: List<EvidenceSelection>): String = withContext(Dispatchers.IO) {
         validate(input)
         val now = System.currentTimeMillis()

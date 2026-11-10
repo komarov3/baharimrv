@@ -1,6 +1,7 @@
 package ke.co.baharilink.baharimrv.ui.planting
 
 import android.content.ContentValues
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -518,17 +519,50 @@ fun PlantingActivityScreen(
                 }
             }
 
-            // ── Methodology ───────────────────────────────────────────────
+            // ── Methodology dropdown ──────────────────────────────────────
             item {
-                OutlinedTextField(
-                    value = state.methodologyVersion,
-                    onValueChange = { viewModel.setMethodologyVersion(it) },
-                    label = { Text("Methodology") },
-                    leadingIcon = { Icon(Icons.Default.Description, null, modifier = Modifier.size(20.dp)) },
-                    placeholder = { Text("e.g., MRV v1.2, Verra VM0033") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
+                var methodExpanded by remember { mutableStateOf(false) }
+                val selectedMethod = state.availableMethodologies.find { it.version == state.methodologyVersion }
+                ExposedDropdownMenuBox(
+                    expanded = methodExpanded,
+                    onExpandedChange = { if (!state.methodologiesLoading) methodExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = when {
+                            state.methodologiesLoading -> "Loading methodologies…"
+                            selectedMethod != null -> "${selectedMethod.name} · v${selectedMethod.version}"
+                            state.availableMethodologies.isEmpty() -> "No methodologies found"
+                            else -> if (state.methodologyVersion.isBlank()) "Select methodology" else state.methodologyVersion
+                        },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Methodology") },
+                        leadingIcon = { Icon(Icons.Default.Description, null, modifier = Modifier.size(20.dp)) },
+                        trailingIcon = {
+                            if (state.methodologiesLoading)
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            else
+                                Icon(if (methodExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, "Select")
+                        },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        singleLine = true,
+                    )
+                    if (state.availableMethodologies.isNotEmpty()) {
+                        ExposedDropdownMenu(expanded = methodExpanded, onDismissRequest = { methodExpanded = false }) {
+                            state.availableMethodologies.forEach { m ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Column {
+                                            Text(m.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                            Text("${m.code} · v${m.version}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    },
+                                    onClick = { viewModel.setMethodologyVersion(m.version); methodExpanded = false },
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             // ── Reporting period ──────────────────────────────────────────
@@ -719,20 +753,15 @@ fun PlantingActivityScreen(
                               state.species.isNotBlank() &&
                               state.methodologyVersion.isNotBlank() &&
                               state.seedlingsPlanted.isNotBlank() &&
-                              !state.creating,
+                              !state.creating &&
+                              !state.anchoring,
                 ) {
                     Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        if (state.creating) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                        } else {
-                            Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
+                        when {
+                            state.creating  -> { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Creating activity…", fontWeight = FontWeight.Bold) }
+                            state.anchoring -> { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Anchoring on IOTA…", fontWeight = FontWeight.Bold) }
+                            else            -> { Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Create & anchor planting activity", fontWeight = FontWeight.Bold) }
                         }
-                        Text(
-                            if (state.creating) "Creating activity…" else "Create planting activity",
-                            fontWeight = FontWeight.Bold,
-                        )
                     }
                 }
             }
@@ -743,17 +772,37 @@ fun PlantingActivityScreen(
                     ErrorState(message = state.error!!, onRetry = {})
                 }
                 if (state.message != null) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFE7F8F1))) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(Icons.Default.CheckCircle, null, tint = GreenPrimary, modifier = Modifier.size(20.dp))
-                            Column {
-                                Text(state.message!!, color = Color(0xFF047857), fontWeight = FontWeight.Medium)
-                                Text("Next step: record survival during a field visit", style = MaterialTheme.typography.bodySmall, color = Color(0xFF059669))
+                    val anchored = state.anchorStatus == "anchored"
+                    NavyLedgerCard {
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(
+                                if (anchored) Icons.Default.CheckCircle else Icons.Default.HourglassTop,
+                                null,
+                                tint = if (anchored) GreenPrimary else Color(0xFFD97706),
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(state.message!!, fontWeight = FontWeight.Medium)
+                                if (state.anchorStatus != null) {
+                                    Text(
+                                        "Anchor status: ${state.anchorStatus}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (anchored) GreenPrimary else Color(0xFFD97706),
+                                    )
+                                }
                             }
+                        }
+                        if (!state.explorerUrl.isNullOrBlank()) {
+                            val ctx = LocalContext.current
+                            Spacer(Modifier.height(8.dp))
+                            BahariButton(
+                                onClick = { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.explorerUrl))) },
+                                variant = BahariButtonVariant.GREEN,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text("View on IOTA ↗") }
+                        } else if (state.anchorStatus != null && !anchored) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("The anchor transaction will confirm on IOTA testnet within a few seconds.", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

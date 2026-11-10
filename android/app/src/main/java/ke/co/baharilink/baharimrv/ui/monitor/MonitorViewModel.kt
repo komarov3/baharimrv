@@ -6,6 +6,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import ke.co.baharilink.baharimrv.data.local.MonitoringWithEvidence
 import ke.co.baharilink.baharimrv.data.local.ProjectSelectionStore
+import ke.co.baharilink.baharimrv.data.remote.MethodologyDto
+import ke.co.baharilink.baharimrv.data.remote.PlotDto
+import ke.co.baharilink.baharimrv.data.remote.ProjectActivityDto
+import ke.co.baharilink.baharimrv.data.remote.ProjectRowDto
 import ke.co.baharilink.baharimrv.data.repository.CaptureInput
 import ke.co.baharilink.baharimrv.data.repository.EvidenceSelection
 import ke.co.baharilink.baharimrv.data.repository.MonitoringRepository
@@ -41,6 +45,15 @@ data class MonitorUiState(
     val recording: Boolean = false,
     val message: String? = null,
     val error: String? = null,
+    // dropdowns
+    val availableProjects: List<ProjectRowDto> = emptyList(),
+    val availablePlots: List<PlotDto> = emptyList(),
+    val availableActivities: List<ProjectActivityDto> = emptyList(),
+    val availableMethodologies: List<MethodologyDto> = emptyList(),
+    val projectsLoading: Boolean = false,
+    val plotsLoading: Boolean = false,
+    val activitiesLoading: Boolean = false,
+    val methodologiesLoading: Boolean = false,
 )
 
 @HiltViewModel
@@ -57,7 +70,61 @@ class MonitorViewModel @Inject constructor(
         viewModelScope.launch { repository.pendingCount.collect { count -> _state.update { it.copy(pendingCount = count) } } }
         viewModelScope.launch {
             selection.selectedProjectId.collect { id ->
-                if (_state.value.projectId.isBlank()) _state.update { it.copy(projectId = id) }
+                if (_state.value.projectId.isBlank() && id.isNotBlank()) {
+                    _state.update { it.copy(projectId = id) }
+                    loadPlotsAndActivities(id)
+                }
+            }
+        }
+        loadProjects()
+        loadMethodologies()
+    }
+
+    private fun loadProjects() {
+        _state.update { it.copy(projectsLoading = true) }
+        viewModelScope.launch {
+            try {
+                val rows = repository.projects()
+                _state.update { it.copy(availableProjects = rows, projectsLoading = false) }
+            } catch (_: Exception) {
+                _state.update { it.copy(projectsLoading = false) }
+            }
+        }
+    }
+
+    private fun loadMethodologies() {
+        _state.update { it.copy(methodologiesLoading = true) }
+        viewModelScope.launch {
+            try {
+                val methods = repository.methodologies()
+                _state.update { it.copy(availableMethodologies = methods, methodologiesLoading = false) }
+            } catch (_: Exception) {
+                _state.update { it.copy(methodologiesLoading = false) }
+            }
+        }
+    }
+
+    fun selectProject(projectId: String) {
+        _state.update { it.copy(projectId = projectId, plotId = "", activityId = "", availablePlots = emptyList(), availableActivities = emptyList()) }
+        if (projectId.isNotBlank()) loadPlotsAndActivities(projectId)
+    }
+
+    private fun loadPlotsAndActivities(projectId: String) {
+        _state.update { it.copy(plotsLoading = true, activitiesLoading = true) }
+        viewModelScope.launch {
+            try {
+                val dashboard = repository.dashboard(projectId)
+                _state.update { it.copy(availablePlots = dashboard.plots, plotsLoading = false) }
+            } catch (_: Exception) {
+                _state.update { it.copy(plotsLoading = false) }
+            }
+        }
+        viewModelScope.launch {
+            try {
+                val activities = repository.activities(projectId)
+                _state.update { it.copy(availableActivities = activities, activitiesLoading = false) }
+            } catch (_: Exception) {
+                _state.update { it.copy(activitiesLoading = false) }
             }
         }
     }
@@ -89,10 +156,8 @@ class MonitorViewModel @Inject constructor(
         }
     }
 
-    fun setLatitude(value: String) = setCoordinate { it.copy(latitude = value) }
-
-    fun setLongitude(value: String) = setCoordinate { it.copy(longitude = value) }
-
+    fun setLatitude(value: String)   = setCoordinate { it.copy(latitude = value) }
+    fun setLongitude(value: String)  = setCoordinate { it.copy(longitude = value) }
     fun setGpsAccuracy(value: String) = setCoordinate { it.copy(gpsAccuracy = value) }
 
     private fun setCoordinate(transform: (MonitorUiState) -> MonitorUiState) =
@@ -104,14 +169,12 @@ class MonitorViewModel @Inject constructor(
 
     fun addEvidence(selection: EvidenceSelection) = _state.update { current ->
         val fix = current.copy(evidence = current.evidence + selection)
-        fix.copy(
-            evidence = fix.evidence.map {
-                if (it === selection) it.copy(
-                    latitude = current.latitude.toDoubleOrNull(),
-                    longitude = current.longitude.toDoubleOrNull(),
-                ) else it
-            },
-        )
+        fix.copy(evidence = fix.evidence.map {
+            if (it === selection) it.copy(
+                latitude = current.latitude.toDoubleOrNull(),
+                longitude = current.longitude.toDoubleOrNull(),
+            ) else it
+        })
     }
 
     fun syncNow() = repository.scheduleSync()
