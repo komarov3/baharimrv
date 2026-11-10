@@ -1,4 +1,13 @@
-ALTER TABLE methodologies ADD COLUMN IF NOT EXISTS estimation jsonb NOT NULL DEFAULT '{}';
+-- Add estimation column to methodologies (reference data for project creation)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                     AND table_name = 'methodologies' 
+                     AND column_name = 'estimation') THEN
+        ALTER TABLE methodologies ADD COLUMN estimation jsonb NOT NULL DEFAULT '{}';
+    END IF;
+END $$;
 
 INSERT INTO methodologies (id, code, name, version, required_evidence, estimation, created_at, updated_at)
 VALUES (
