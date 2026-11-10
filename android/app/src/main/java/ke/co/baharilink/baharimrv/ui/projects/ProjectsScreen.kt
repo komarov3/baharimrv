@@ -115,11 +115,11 @@ private fun CreateProjectForm(
     var species by remember { mutableStateOf("Rhizophora mucronata") }
     var communityShare by remember { mutableStateOf("6000") }
     var sites by remember { mutableStateOf("") }
-    var plotCode by remember { mutableStateOf("P1") }
+    var plotCode by remember { mutableStateOf("") }
     var plotSite by remember { mutableStateOf("") }
-    var area by remember { mutableStateOf("1.0") }
-    var latitude by remember { mutableStateOf("-4.05") }
-    var longitude by remember { mutableStateOf("39.67") }
+    var area by remember { mutableStateOf("") }
+    var latitude by remember { mutableStateOf("") }
+    var longitude by remember { mutableStateOf("") }
     var methodologyId by remember { mutableStateOf(state.methodologies.firstOrNull()?.id ?: "") }
 
     LaunchedEffect(conservationType) {
@@ -207,20 +207,22 @@ private fun CreateProjectForm(
                 }
             }
         }
-        OutlinedTextField(value = plotCode, onValueChange = { plotCode = it }, label = { Text("First plot code") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = plotSite, onValueChange = { plotSite = it }, label = { Text("First plot site name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = plotCode, onValueChange = { plotCode = it }, label = { Text("First plot code") }, placeholder = { Text("e.g. P1") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = plotSite, onValueChange = { plotSite = it }, label = { Text("First plot site name") }, placeholder = { Text("Defaults to first site above") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, placeholder = { Text("e.g. 2.5") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, placeholder = { Text("e.g. -4.0532") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, placeholder = { Text("e.g. 39.6741") }, modifier = Modifier.fillMaxWidth())
 
         Button(
             onClick = {
+                val siteList = sites.split(',').map { it.trim() }.filter { it.isNotBlank() }
+                val firstSite = siteList.firstOrNull() ?: "Site 1"
                 val plot = CreatePlotRequestDto(
-                    siteName = plotSite.ifBlank { sites.split(',').firstOrNull()?.trim().orEmpty() },
-                    code = plotCode,
+                    siteName = plotSite.trim().ifBlank { firstSite },
+                    code = plotCode.trim().ifBlank { "P1" },
                     latitude = latitude.toDoubleOrNull() ?: 0.0,
                     longitude = longitude.toDoubleOrNull() ?: 0.0,
-                    areaHectares = area,
+                    areaHectares = area.trim().ifBlank { "1.0" },
                 )
                 viewModel.createProject(
                     name = name,
@@ -228,8 +230,8 @@ private fun CreateProjectForm(
                     conservationType = conservationType,
                     communityGroup = communityGroup,
                     species = species,
-                    communityShareBasisPoints = communityShare.toIntOrNull() ?: 0,
-                    sites = sites.split(','),
+                    communityShareBasisPoints = communityShare.toIntOrNull() ?: 6000,
+                    sites = if (siteList.isEmpty()) listOf("Site 1") else siteList,
                     plots = listOf(plot),
                 )
             },
