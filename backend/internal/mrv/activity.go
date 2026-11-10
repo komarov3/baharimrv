@@ -188,7 +188,7 @@ func (s *Service) Complete(ctx context.Context, activityID, userID string) (mode
 		return activity, event, err
 	}
 	activity.Status = models.ActivityAwaitingVerification
-	activity.CurrentEventID = event.ID
+	activity.CurrentEventID = &event.ID
 
 	if len(gap.Stored) > 0 && s.satellite.Mode() != "live" {
 		if _, err := s.satellite.AttachSandbox(activity, ndviBaseline(summary)); err != nil {
