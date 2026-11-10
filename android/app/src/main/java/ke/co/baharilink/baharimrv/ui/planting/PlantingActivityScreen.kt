@@ -791,7 +791,7 @@ fun PlantingActivityScreen(
                         when {
                             state.creating  -> { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Creating activity…", fontWeight = FontWeight.Bold) }
                             state.anchoring -> { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(8.dp)); Text("Anchoring on IOTA…", fontWeight = FontWeight.Bold) }
-                            else            -> { Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Create & anchor planting activity", fontWeight = FontWeight.Bold) }
+                            else            -> { Icon(Icons.Default.Check, null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Create planting activity", fontWeight = FontWeight.Bold) }
                         }
                     }
                 }

@@ -116,21 +116,11 @@ class PlantingActivityViewModel @Inject constructor(
                         reportingPeriodEnd   = current.reportingPeriodEnd.ifBlank { null },
                     ),
                 )
-                _state.update { it.copy(creating = false, anchoring = true, message = "Activity created — anchoring on IOTA testnet…") }
-
-                // Step 2: submit a completion claim to trigger on-chain anchoring
-                val completed = repository.completeActivity(activity.id)
-                val event = completed.event
-                val anchored = event?.status == "anchored"
                 _state.update {
                     it.copy(
+                        creating = false,
                         anchoring = false,
-                        anchorStatus = event?.status ?: "proof_pending",
-                        explorerUrl = event?.explorerUrl,
-                        message = if (anchored)
-                            "✔ Planting activity anchored on IOTA testnet — tap 'View on IOTA ↗' to verify"
-                        else
-                            "Activity created. On-chain anchor is pending — it will confirm shortly.",
+                        message = "✔ Planting activity created as a draft. Add monitoring records, then complete it to anchor on IOTA.",
                     )
                 }
             } catch (e: Exception) {
