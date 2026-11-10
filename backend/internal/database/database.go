@@ -110,34 +110,92 @@ func migrate(db *gorm.DB, driver string) error {
 	return nil
 }
 
+// splitStatements cuts a migration file on the semicolons that end a statement. A
+// semicolon inside a quoted literal or a dollar-quoted body does not: Postgres DO
+// blocks and function bodies are written $$ ... $$ and carry their own semicolons, so
+// a splitter that only knows about quotes hands the driver fragments of one statement.
 func splitStatements(contents string) []string {
+	runes := []rune(contents)
 	var statements []string
 	var current strings.Builder
-	var quote rune
-	escaped := false
-	for _, character := range contents {
-		switch {
-		case escaped:
-			escaped = false
-		case quote != 0:
-			if character == quote {
-				quote = 0
-			}
-		case character == '\'' || character == '"':
-			quote = character
-		case character == '\\':
-			escaped = true
-		case character == ';':
-			if statement := strings.TrimSpace(current.String()); statement != "" {
-				statements = append(statements, statement)
-			}
-			current.Reset()
-			continue
+	flush := func() {
+		if statement := strings.TrimSpace(current.String()); statement != "" {
+			statements = append(statements, statement)
 		}
-		current.WriteRune(character)
+		current.Reset()
 	}
-	if statement := strings.TrimSpace(current.String()); statement != "" {
-		statements = append(statements, statement)
+	for i := 0; i < len(runes); i++ {
+		switch character := runes[i]; {
+		case character == '\'' || character == '"':
+			end := quotedEnd(runes, i)
+			current.WriteString(string(runes[i:end]))
+			i = end - 1
+		case character == '$':
+			if end := dollarQuotedEnd(runes, i); end > i {
+				current.WriteString(string(runes[i:end]))
+				i = end - 1
+			} else {
+				current.WriteRune(character)
+			}
+		case character == ';':
+			flush()
+		default:
+			current.WriteRune(character)
+		}
 	}
+	flush()
 	return statements
+}
+
+// quotedEnd returns the index just past a string literal, or the end of the file when
+// the literal is never closed. A backslash escapes the next character.
+func quotedEnd(runes []rune, start int) int {
+	quote := runes[start]
+	for i := start + 1; i < len(runes); i++ {
+		switch runes[i] {
+		case '\\':
+			i++
+		case quote:
+			return i + 1
+		}
+	}
+	return len(runes)
+}
+
+// dollarQuotedEnd returns the index just past a $tag$ ... $tag$ body, or 0 when the
+// dollar sign opens nothing: $1 is a parameter, and an unterminated body is left for
+// the driver to reject rather than silently swallowing the rest of the file.
+func dollarQuotedEnd(runes []rune, start int) int {
+	tag := []rune(dollarTag(runes, start))
+	if len(tag) == 0 {
+		return 0
+	}
+	for i := start + len(tag); i+len(tag) <= len(runes); i++ {
+		if string(runes[i:i+len(tag)]) == string(tag) {
+			return i + len(tag)
+		}
+	}
+	return 0
+}
+
+// dollarTag reads the opening tag at start, both dollar signs included. The tag is
+// empty ($$) or an identifier that may not begin with a digit.
+func dollarTag(runes []rune, start int) string {
+	i := start + 1
+	if i < len(runes) && runes[i] == '$' {
+		return "$$"
+	}
+	for i < len(runes) {
+		character := runes[i]
+		letter := character == '_' || (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
+		digit := character >= '0' && character <= '9'
+		if !letter && !(digit && i > start+1) {
+			break
+		}
+		i++
+	}
+	if i > start+1 && i < len(runes) && runes[i] == '$' {
+		return string(runes[start : i+1])
+	}
+	return ""
 }

@@ -45,6 +45,7 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import ke.co.baharilink.baharimrv.BuildConfig
 import ke.co.baharilink.baharimrv.ui.components.BahariButton
 import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
 import ke.co.baharilink.baharimrv.ui.components.BahariCard
@@ -99,22 +100,26 @@ fun SatelliteMonitoringScreen(
         ) {
 
             // ── Map with NDVI plot markers ─────────────────────────────────
-            item {
-                Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
-                    GoogleMap(
-                        modifier = Modifier.fillMaxSize(),
-                        cameraPositionState = cameraPositionState,
-                        properties = MapProperties(mapType = MapType.SATELLITE),
-                        uiSettings = MapUiSettings(zoomControlsEnabled = true, myLocationButtonEnabled = false),
-                    ) {
-                        markers.forEach { marker ->
-                            val hue = ndviToHue(marker.ndvi)
-                            Marker(
-                                state = MarkerState(position = LatLng(marker.latitude, marker.longitude)),
-                                title = marker.label,
-                                snippet = marker.ndvi?.let { "NDVI: ${"%.2f".format(it)}" } ?: "NDVI: N/A",
-                                icon = BitmapDescriptorFactory.defaultMarker(hue),
-                            )
+            // An unconfigured key authenticates every GoogleMap call as a failure,
+            // so a checkout without one keeps the plot table and pass cards below.
+            if (BuildConfig.MAPS_CONFIGURED) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = cameraPositionState,
+                            properties = MapProperties(mapType = MapType.SATELLITE),
+                            uiSettings = MapUiSettings(zoomControlsEnabled = true, myLocationButtonEnabled = false),
+                        ) {
+                            markers.forEach { marker ->
+                                val hue = ndviToHue(marker.ndvi)
+                                Marker(
+                                    state = MarkerState(position = LatLng(marker.latitude, marker.longitude)),
+                                    title = marker.label,
+                                    snippet = marker.ndvi?.let { "NDVI: ${"%.2f".format(it)}" } ?: "NDVI: N/A",
+                                    icon = BitmapDescriptorFactory.defaultMarker(hue),
+                                )
+                            }
                         }
                     }
                 }

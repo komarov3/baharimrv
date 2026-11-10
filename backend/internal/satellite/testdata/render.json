@@ -1,0 +1,15 @@
+{
+  "scene_id": "S2C_37MER_20261105_1_L2A",
+  "key_prefix": "5f0c8fa4-6f3c-4f2c-9b41-7d8e0c1a2b3c/S2C_37MER_20261105_1_L2A",
+  "palette_version": "ndvi-5band/1",
+  "class_table": "msk-0509/1",
+  "quality": "complete",
+  "tiles_rendered": 1,
+  "tiles_empty": 0,
+  "tiles_omitted": 0,
+  "bytes_written": 18012,
+  "pixels_read": 786432,
+  "zoom_min": 14,
+  "zoom_max": 14,
+  "notes": []
+}

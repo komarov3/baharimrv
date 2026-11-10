@@ -12,24 +12,27 @@ import (
 )
 
 type Config struct {
-	Environment         string
-	Port                string
-	DatabaseURL         string
-	CORSOrigins         []string
-	PublicBaseURL       string
-	SessionTTL          time.Duration
-	KMSKEK              []byte
-	ChainMode           string
-	IOTANetwork         string
-	IOTARPCURL          string
-	IOTAExecutorURL     string
-	IOTAExecutorAPIKey  string
-	IOTAPackageID       string
-	SatelliteMode       string
-	RegistryMode        string
-	PaymentMode         string
-	EvidenceRoot        string
-	IOTAExplorerURL     string
+	Environment        string
+	Port               string
+	DatabaseURL        string
+	CORSOrigins        []string
+	PublicBaseURL      string
+	SessionTTL         time.Duration
+	KMSKEK             []byte
+	ChainMode          string
+	IOTANetwork        string
+	IOTARPCURL         string
+	IOTAExecutorURL    string
+	IOTAExecutorAPIKey string
+	IOTAPackageID      string
+	SatelliteMode      string
+	SatelliteProvider  string
+	S2WorkerURL        string
+	S2WorkerToken      string
+	RegistryMode       string
+	PaymentMode        string
+	EvidenceRoot       string
+	IOTAExplorerURL    string
 	// Gas station: monitors sponsor wallet and auto-faucets when low
 	IOTASponsorAddress  string
 	IOTAGasThreshold    uint64
@@ -111,20 +114,26 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("DEMO_SEED_PASSWORD is required when demo seeding is enabled")
 	}
 	return Config{
-		Environment:         environment,
-		Port:                value("PORT", "8080"),
-		DatabaseURL:         databaseURL,
-		CORSOrigins:         origins,
-		PublicBaseURL:       strings.TrimRight(publicURL, "/"),
-		SessionTTL:          duration("SESSION_TTL", time.Hour),
-		KMSKEK:              kek,
-		ChainMode:           chainMode,
-		IOTANetwork:         value("IOTA_NETWORK", "testnet"),
-		IOTARPCURL:          value("IOTA_RPC_URL", "https://api.testnet.iota.cafe"),
-		IOTAExecutorURL:     os.Getenv("IOTA_EXECUTOR_URL"),
-		IOTAExecutorAPIKey:  os.Getenv("IOTA_EXECUTOR_API_KEY"),
-		IOTAPackageID:       os.Getenv("IOTA_PACKAGE_ID"),
-		SatelliteMode:       value("SATELLITE_MODE", "sandbox"),
+		Environment:        environment,
+		Port:               value("PORT", "8080"),
+		DatabaseURL:        databaseURL,
+		CORSOrigins:        origins,
+		PublicBaseURL:      strings.TrimRight(publicURL, "/"),
+		SessionTTL:         duration("SESSION_TTL", time.Hour),
+		KMSKEK:             kek,
+		ChainMode:          chainMode,
+		IOTANetwork:        value("IOTA_NETWORK", "testnet"),
+		IOTARPCURL:         value("IOTA_RPC_URL", "https://api.testnet.iota.cafe"),
+		IOTAExecutorURL:    os.Getenv("IOTA_EXECUTOR_URL"),
+		IOTAExecutorAPIKey: os.Getenv("IOTA_EXECUTOR_API_KEY"),
+		IOTAPackageID:      os.Getenv("IOTA_PACKAGE_ID"),
+		SatelliteMode:      value("SATELLITE_MODE", "sandbox"),
+		// An empty worker URL is not a boot failure: a live deployment with no
+		// imagery answers `unavailable`, which is honest, while answering a
+		// synthetic figure would not be.
+		SatelliteProvider:   value("SATELLITE_PROVIDER", "sandbox"),
+		S2WorkerURL:         os.Getenv("S2_WORKER_URL"),
+		S2WorkerToken:       os.Getenv("S2_WORKER_TOKEN"),
 		RegistryMode:        value("REGISTRY_MODE", "sandbox"),
 		PaymentMode:         value("PAYMENT_MODE", "sandbox"),
 		EvidenceRoot:        value("EVIDENCE_ROOT", "data/evidence"),

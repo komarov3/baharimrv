@@ -68,7 +68,10 @@ func Build(cfg config.Config) (*App, error) {
 	}
 
 	anchors := provenance.NewService(db, adapter, cfg.IOTAExplorerURL)
-	imagery := satellite.NewService(db, cfg.SatelliteMode)
+	imagery := satellite.NewService(db, satellite.Options{
+		Mode: cfg.SatelliteMode, Provider: cfg.SatelliteProvider,
+		WorkerURL: cfg.S2WorkerURL, WorkerToken: cfg.S2WorkerToken,
+	})
 	projects := mrv.NewService(db, identities, anchors, imagery, store)
 
 	sessions := auth.NewService(db, identities, cfg.SessionTTL)
@@ -83,8 +86,8 @@ func Build(cfg config.Config) (*App, error) {
 	marketplace := market.NewService(db, projects, anchors, stepUp, cfg.RegistryMode, cfg.PaymentMode)
 	proofs := proof.NewService(db, projects, identities, anchors, imagery, store, cfg.RegistryMode, cfg.PublicBaseURL)
 	jahaziService := jahazi.NewService(db, cfg.JahaziWebhookURL, cfg.JahaziWebhookSecret, cfg.IOTAExplorerURL)
-	jahaziChain   := jahazi.NewChainOps(db, adapter)
-	notifier      := notifications.NewService(db)
+	jahaziChain := jahazi.NewChainOps(db, adapter)
+	notifier := notifications.NewService(db)
 	jahaziService.SetNotifier(notifier)
 	projects.SetRestorationMatcher(jahazi.NewMatcherAdapter(jahaziService))
 
@@ -103,11 +106,11 @@ func Build(cfg config.Config) (*App, error) {
 			FederationHandler: auth.NewFederationHandler(federation, cfg.FederationClients),
 			StepUp:            stepUp, Identities: identities, Projects: projects,
 			Anchors:      anchors,
-			Satellite:     imagery,
+			Satellite:    imagery,
 			Verification: verification.NewHandler(verifications), VerificationService: verifications,
 			Market: marketplace, Proof: proofs, Evidence: store,
-			Jahazi: jahaziService,
-		JahaziChain: jahaziChain,
+			Jahazi:      jahaziService,
+			JahaziChain: jahaziChain,
 		}),
 		DB: db, Evidence: store,
 	}, nil

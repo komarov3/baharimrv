@@ -48,6 +48,7 @@ func run() error {
 	go func() {
 		slog.Info("baharimrv api listening", "address", server.Addr, "environment", cfg.Environment,
 			"chain_mode", cfg.ChainMode, "satellite_mode", cfg.SatelliteMode,
+			"satellite_provider", cfg.SatelliteProvider,
 			"registry_mode", cfg.RegistryMode, "payment_mode", cfg.PaymentMode)
 		serveErrors <- server.ListenAndServe()
 	}()

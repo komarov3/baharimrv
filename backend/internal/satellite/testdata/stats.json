@@ -1,0 +1,60 @@
+{
+  "scene_id": "S2C_37MER_20261105_1_L2A",
+  "acquired_at": "2026-11-05T07:50:55.647000+00:00",
+  "cloud_pct": 29.627669,
+  "platform": "sentinel-2c",
+  "epsg": 32737,
+  "relative_orbit": "",
+  "grid": "37MER",
+  "processor_baseline": "05.13",
+  "discovery_source": "element84-stac",
+  "footprint_geojson": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          38.99982891299001,
+          -3.618524361526298
+        ],
+        [
+          38.99982881981933,
+          -4.084946833769192
+        ],
+        [
+          39.98930269217857,
+          -4.322595757161909
+        ],
+        [
+          39.988464170273744,
+          -3.617983709421384
+        ],
+        [
+          38.99982891299001,
+          -3.618524361526298
+        ]
+      ]
+    ]
+  },
+  "quality": "complete",
+  "class_table": "msk-0509/1",
+  "palette_version": "ndvi-5band/1",
+  "notes": [],
+  "mean_ndvi": 0.837,
+  "median_ndvi": 0.8476,
+  "valid_pixels": 289,
+  "expected_pixels": 289,
+  "coverage_pct": 100.0,
+  "per_cell": [
+    {
+      "plot_id": "plot-1",
+      "area_hectares": 2.5,
+      "mean_ndvi": 0.837,
+      "median_ndvi": 0.8476,
+      "valid_pixels": 289,
+      "expected_pixels": 289,
+      "coverage_pct": 100.0
+    }
+  ],
+  "pixels_read": 944,
+  "weight_by_area": true
+}

@@ -1,0 +1,38 @@
+app = "baharimrv-s2-worker"
+
+# The band reads are latency-bound, not CPU-bound: one remote COG open costs
+# roughly the same 6 HTTP exchanges wherever the worker runs, and every one of
+# them is answered from us-west-2. Measured from a client on the other side of
+# the Atlantic, one 20x20 pixel window took 9 to 52 seconds. A region on the
+# west coast of the US is the difference between a 5 second refresh and a minute.
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 9000
+  # Internal only: the Go API reaches this app over 6PN at
+  # http://baharimrv-s2-worker.internal:9000 and no public IPv4 is allocated.
+  force_https = false
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # Mirrors MAX_CONCURRENCY in the container. Keep the two equal: the semaphore
+  # is per process, so a second machine would double the request rate the two
+  # public catalogs see.
+  [http_service.concurrency]
+    hard_limit = 2
+    soft_limit = 2
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512"
+
+# Tiles on a volume, not the ephemeral filesystem, so a restart does not re-render
+# every project. Only needed with TILE_STORE_BACKEND=volume; R2 needs none.
+# Create it once: fly volumes create s2_tiles --app baharimrv-s2-worker
+[mounts]
+  source = "s2_tiles"
+  destination = "/data/tiles"

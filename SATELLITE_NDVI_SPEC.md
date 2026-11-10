@@ -134,7 +134,7 @@ dlon        = side_m / 2 / (111_320 * cos(lat * pi / 180))
 cell        = Polygon(lat ± dlat, lon ± dlon)
 ```
 
-The analysis geometry is the union of those cells. Weight each cell by its true area in hectares when computing the project mean. At 10 m resolution a 0.5 ha plot is roughly a 7 by 7 pixel block, so the 30 m floor only matters for sub-0.1 ha records.
+The analysis geometry covers the union of those cells, and is carried as a MultiPolygon whose members are the cells, which is the shape `s2_worker/aoi.py`'s `search_geometry` already builds and the shape `/v1/scene` accepts. A pixel mask counts a shared pixel once, so overlapping cells cover exactly their union without either side needing a boolean geometry operation. Weight each cell by its true area in hectares when computing the project mean. At 10 m resolution a 0.5 ha plot is roughly a 7 by 7 pixel block, so the 30 m floor only matters for sub-0.1 ha records.
 
 Two honesty rules follow from this:
 
@@ -156,9 +156,21 @@ POST /v1/search
 
 For the baseline, the same calendar window one year earlier, `<now - 410d> / <now - 365d>`, same rules, and store both scene identifiers on the summary. Read the granule identifier, the sensing time, and the cloud percentage from the item rather than from anything rendered, because a rendered tile is derived data. Methodology periods in `MethodologyPeriod` should drive the window once methodologies carry seasonality; until then, 45 days is the documented convention.
 
+Two measured facts from the Kilifi spike change how the window and the screen are used.
+
+A date-only upper bound is midnight UTC, which silently drops that morning's pass. The 2026-11-10 acquisition over Tile 37MER senses at 07:51Z; a window ending `2026-11-10` cannot see it. Send full timestamps, and treat a bare date as end of day.
+
+The scene-wide cloud figure does not describe the plots, so it cannot be the last screen. Rank candidates by cloud tier then recency, then read only the 20 m class layer over the AOI for each of the first five and take the first whose usable fraction reaches the 60 percent floor. On 2026-11-10 over Kilifi creek the freshest granule reported 24.9 percent cloud and was 100 percent cloud class over the plot, while `S2C_37MER_20261105_1_L2A` reported 29.6 percent and was 100 percent vegetation. Recency alone would have published an empty figure, and the ladder alone would have called it clean. If nothing in five tries reaches the floor, measure the best-seen candidate and report it as `partial` with its coverage; an operator needs the number that exists plus the coverage it came with.
+
 ### 5.3 Pixel math
 
-`NDVI = (B08 - B04) / (B08 + B04)` on Surface Reflectance bands, scale factor 0.0001. Mask with `s2:nodi` plus the SCL band, dropping classes 3, 4, 5, 6, 7, and 8 (cloud medium, cloud high, cloud thin, shadow, snow, water). Water exclusion matters here: mangrove plots sit at the tidal edge and unmasked water pulls means down hard enough to fake a trend.
+`NDVI = (B08 - B04) / (B08 + B04)` on Surface Reflectance bands, scale factor 0.0001.
+
+The class layer is `SCL.tif`, and its numbering depends on the processor. Every granule the catalogs serve today is baseline 05.09 or later, where the classes are 0 no data, 1 saturated or defective, 2 dark area, 3 cloud shadow, 4 vegetation, 5 not vegetated, 6 water, 7 unclassified, 8 cloud medium probability, 9 cloud high probability, 10 thin cirrus, 11 snow. Only 4 and 5 are a surface that can be indexed, so the mask is a whitelist of those two rather than a blacklist, which keeps any class we have not mapped out of the mean instead of into it. Water exclusion matters most here: mangrove plots sit at the tidal edge and unmasked water pulls means down hard enough to fake a trend.
+
+This table was read off the rasters, by matching a decimated class histogram against the `s2:*_percentage` fields the same item publishes. Two granules are recorded as fixtures and the test runs on both: `S2C_37MER_20261105_1_L2A` puts 17.2 percent of its valid pixels at class 9 against `high_proba_clouds` 17.52, and 12.46 at class 8 against `medium_proba_clouds` 12.11; `S2A_37MER_20261018_0_L2A` puts 30.08 at class 9 against 30.04, and 12.72 at class 8 against 15.54. A third, `S2C_37MER_20261026_0_L2A`, was matched the same way during the spike (59.4 percent at class 9 against the 59.33 its item publishes, 40.2 against 40.14); that item is in the recorded catalog, its histogram is not, so what CI checks is the two granules above. The pre-05.09 numbering put clouds at 3, 4 and 5, which is exactly where vegetation and bare ground sit now, so a granule masked with the wrong table averages the cloud and throws away the mangroves. The worker refuses any granule whose baseline is below 05.09 rather than guessing at its table, and records `msk-0509/1` in the summary so a verifier knows which table produced the number.
+
+Measured on the 2.5 ha cell at Kilifi creek, 158 m per side, through the service's own read path and over the cell's 289 pixels of the 10 m grid and nothing else: mean 0.837, median 0.8476, coverage 100 percent on `S2C_37MER_20261105_1_L2A`, against mean 0.7979 and median 0.8107 on the year-earlier `S2C_37MER_20251110_0_L2A`, which is +0.0391 absolute and +4.90 percent. The first spike run of the same pair reported 0.8309 and 0.7933 over 400 pixels, because it averaged the read window including its 2 pixel context pad; the service slices the cell out of that window before the statistics, so the pad serves the mask reprojection and never enters a mean. The 289-pixel figures, the class table and one rendered tile are the golden fixtures in section 13, and `spike/kilifi_scene.py` now computes them through `job.py`, so a re-run re-measures the quoted numbers instead of drifting from them.
 
 ### 5.4 Rendered overlay
 
@@ -188,6 +200,8 @@ STAC search gives acquisitions, not future passes. Replace the synthetic predict
 ## 6. Schema changes
 
 One migration, `000009_satellite_ndvi_overlay.sql`, written for both `postgres` and `sqlite` directories because both are embedded at [database.go:17](backend/internal/database/database.go#L17) and the drift test only exercises SQLite. Postgres uses `jsonb` and `timestamptz`, SQLite uses `TEXT` and `TIMESTAMP`, matching the style already in each driver's `000001_init.sql`.
+
+The runner cuts each file into statements on semicolons, so two rules follow. A comment must not contain one, or the text after it becomes a statement of its own. And a `$tag$ ... $tag$` body has to stay whole: `000008` writes its conditional ALTER as a `DO $$` block, which the old splitter cut into `DO $$ BEGIN ...`, `END IF` and `END $$`, so a fresh Postgres database failed there and never reached `000009`. `splitStatements` now reads dollar-quoted bodies as one unit, with a regression test over the real file.
 
 ### 6.1 Alter `plots`
 
@@ -222,10 +236,10 @@ CREATE TABLE project_ndvi_summaries (
   period_start timestamptz NOT NULL,
   period_end timestamptz NOT NULL,
   current_scene_id text NOT NULL,
-  current_acquired_at timestamptz NOT NULL,
+  current_acquired_at timestamptz,
   baseline_scene_id text NOT NULL DEFAULT '',
   baseline_acquired_at timestamptz,
-  mean_ndvi numeric(6,4) NOT NULL,
+  mean_ndvi numeric(6,4),
   baseline_mean_ndvi numeric(6,4),
   change_abs numeric(6,4),
   change_pct numeric(8,2),
@@ -245,6 +259,8 @@ CREATE TABLE project_ndvi_summaries (
 CREATE INDEX idx_project_ndvi_summaries_project ON project_ndvi_summaries(project_id, period_end desc);
 ```
 
+`mean_ndvi` and `current_acquired_at` are nullable, which is a deliberate change from the first draft of this table. A computation that found no usable granule still gets a row, because a manager needs to see that the system looked and what it concluded, but it has no figure and no sensing time to record. Zero cannot stand in for either: NDVI 0.0 is a real reading for bare substrate, and a zero timestamp is a date nobody measured. `current_scene_id` stays `NOT NULL` and is the empty string in that case, following the convention the rest of the schema uses for absent strings. `coverage_pct` stays `NOT NULL` at 0, since no usable pixel is what 0 percent coverage means.
+
 ### 6.4 New `satellite_refresh_jobs`
 
 ```sql
@@ -255,7 +271,7 @@ CREATE TABLE satellite_refresh_jobs (
   requested_by text NOT NULL DEFAULT '',
   reason text NOT NULL DEFAULT '',
   error text NOT NULL DEFAULT '',
-  summary_id uuid,
+  summary_id text NOT NULL DEFAULT '',
   started_at timestamptz,
   finished_at timestamptz,
   created_at timestamptz NOT NULL,
@@ -266,6 +282,8 @@ CREATE UNIQUE INDEX idx_satellite_refresh_jobs_open ON satellite_refresh_jobs(pr
 ```
 
 The partial unique index is the single-flight lock: one open job per project, enforced by the database rather than by memory, so concurrent Android refresh taps cannot stack up jobs on a worker sized for two at a time.
+
+`summary_id` is text defaulting to the empty string rather than a nullable uuid, which is a change from the first draft. The Go model holds it as a plain `string`, and a queued job has no summary yet, so GORM would insert `''`; PostgreSQL refuses to cast that to a uuid. This follows the convention `000001_init.sql` already uses for an absent reference such as `current_event_id` and `superseded_by_id`, and it behaves identically on both drivers.
 
 ### 6.5 Go models
 
@@ -315,7 +333,8 @@ Add a regression test asserting both paths appear in the route list, since nothi
   "cloudCoverPct": 12.4,
   "quality": "complete",
   "adapterMode": "live",
-  "provider": "copernicus-stac",
+  "provider": "opendata-s2",
+  "discoverySource": "copernicus-stac",
   "processingVersion": "ndvi/s2-l2a-opendata/1",
   "bbox": { "minLat": -3.71, "minLon": 39.18, "maxLat": -3.55, "maxLon": 39.36 },
   "zoomRange": { "min": 10, "max": 16 },
@@ -379,11 +398,13 @@ Internal API, authenticated with `Authorization: Bearer ${S2_WORKER_TOKEN}`:
 
 | Route | Input | Output |
 |---|---|---|
-| `POST /v1/scene` | `{ aoi_geojson, window_days, max_cloud_pct, end_time }` | `{ scene_id, acquired_at, cloud_pct, mission, grid, relative_orbit, footprint_geojson, discovery_source, bands: { red, nir, scl } }` where the band values are COG URLs |
-| `POST /v1/stats` | `{ cells: [{ plot_id, geometry }], scene: { bands, ... }, weight_by_area }` | `{ scene_id, acquired_at, cloud_pct, mean_ndvi, median_ndvi, coverage_pct, per_cell: [{ plot_id, mean_ndvi, valid_pixels, total_pixels }] }` |
-| `POST /v1/tiles/render` | `{ bbox, zoom_min, zoom_max, scene, palette_version, key_prefix }` | `{ tiles_rendered, tiles_empty, bytes_fetched, range_requests, key_prefix, palette_version }` |
-| `DELETE /v1/tiles` | `{ key_prefix }` | `{ purged }` |
-| `GET /v1/health` | | `{ status, discovery_sources_reachable, tile_store_writable, last_error }` |
+| `POST /v1/scene` | `{ aoi_geojson, window_days, max_cloud_pct, end_time }` | `{ scene_id, acquired_at, cloud_pct, mission, grid, relative_orbit, processor_baseline, footprint_geojson, discovery_source, bands: { red, nir, scl } }` where the band values are COG URLs. This route runs the coverage screen in 5.2 itself, because the screen is a pixel read, and returns the granule that passed rather than the newest one that looked clean. `screened` lists each candidate tried with its usable fraction, so the walk is auditable. |
+| `POST /v1/stats` | `{ cells: [{ plot_id, geometry }], scene: { bands, ... }, weight_by_area }` | `{ scene_id, acquired_at, cloud_pct, mean_ndvi, median_ndvi, coverage_pct, quality, class_table, palette_version, per_cell: [{ plot_id, mean_ndvi, valid_pixels, total_pixels }] }` |
+| `POST /v1/tiles/render` | `{ bbox, zoom_min, zoom_max, scene, palette_version, key_prefix }` | `{ scene_id, key_prefix, palette_version, class_table, quality, tiles_rendered, tiles_empty, tiles_omitted, bytes_written, pixels_read, zoom_min, zoom_max, notes }` |
+| `DELETE /v1/tiles` | `{ key_prefix }` | `{ key_prefix, purged }` |
+| `GET /v1/health` | | `{ status, version, discovery_sources_reachable, tile_store_writable, tile_store_backend, last_error, palette_version, class_table, limits, band_hosts }` |
+
+Failures are typed so the API never has to parse a message: every non-2xx body is `{ "error": <code>, "detail": <text>, "notes": [...] }` with `error` one of `unauthorized`, `bad_request`, `unavailable` (HTTP 404, the honest empty), `band_unavailable` (502), `store_unavailable` (503), `busy` (503, the concurrency cap was still full after a 30 s queue wait), `palette_mismatch` (409) or `internal`. `GET /v1/health` needs no token, because the platform probes it and it holds no project data and starts no imagery fetch. It reports discovery reachability from the last real job rather than pinging two public catalogs on every probe.
 
 The worker holds no project state and performs no authorization. The Go API decides which AOI belongs to which caller, chooses the object-store key prefix, and persists every result. That split keeps this service replaceable.
 
@@ -391,14 +412,15 @@ Rules:
 
 1. **Discovery failover, always recorded.** Query CDSE STAC first, then earth-search. Both are anonymous. Write whichever supplied the scene into `discovery_source`, which becomes `provider` on the pass row, so a provenance reader can trace the choice. If a source returns an item whose COG URL 404s, fall through to the other source rather than failing the job.
 2. **Never invent a scene.** No item in the window means a typed `unavailable` response, which the API renders as the existing unavailable state. No partial guessing.
-3. **Bounded fetches.** Windowed reads only, never a whole band. Guard rails are a maximum of 4000 range requests and 120 s wall clock per job and a maximum AOI extent per zoom level. Exceed any guard and return `partial` with the coverage figure you actually achieved rather than a full-coverage claim.
-4. **Concurrency cap 2** in the container, one job per worker process, so a burst of refresh taps from the pilot cannot saturate its own CPU or hammer two public services.
-5. **Masking is nearest, not bilinear.** SCL is a 20 m class raster; reproject with nearest neighbour onto the 10 m grid. Interpolating a class raster manufactures cloud-free pixels.
-6. **Palette lives in one module** and is exported through `/v1/health` plus the render payload, so server-rendered tiles and the Android legend cannot drift apart.
-7. **Cache keys carry the scene.** Object keys are `{project_id}/{scene_id}/{z}/{x}/{y}.png`. A new scene never overwrites an old tile, and purging is by prefix when a project adopts a different scene.
-8. **CI is fixture-driven.** Record STAC responses and band windows in `services/s2-worker/tests/fixtures/`, and run all tests without network. A golden-image test compares rendered tiles against committed PNGs for a fixed Kilifi scene.
+3. **Bounded fetches, and bound the thing we can measure.** Windowed reads only, never a whole band. The spike measured what a read actually costs: opening one remote COG and pulling a 20 x 20 pixel window is about six HTTP exchanges and 9 to 11 seconds from a client far from `us-west-2`, while the second read of the same file inside the same process is 0.01 seconds. Whole spike, two scenes measured, two candidates screened, two z14 tiles: 91 seconds and 1,574,752 pixels. So the ceilings are pixels returned per job and wall clock, both of which the worker can count itself, plus a maximum AOI extent per zoom level. Range requests are GDAL's, not ours; report them from its debug stream as an operator metric instead of pretending to enforce them. Exceed any guard and return `partial` with the coverage figure you actually achieved rather than a full-coverage claim.
+4. **One window per project, not one per plot.** Because the cost is per remote open, reading each plot cell separately is three opens times the plot count: 40 plots would be 120 opens, roughly twenty minutes on the measured link, for pixels that lie inside one rectangle. Read the union bounding box of all plot cells once, then take zonal stats per cell out of that array. The ceiling in rule 3 caps the union extent, which is what keeps this honest at 400 plots.
+5. **Concurrency cap 2** in the container, one job per worker process, so a burst of refresh taps from the pilot cannot saturate its own CPU or hammer two public services.
+6. **Masking is nearest, not bilinear.** SCL is a 20 m class raster; reproject with nearest neighbour onto the 10 m grid. Interpolating a class raster manufactures cloud-free pixels.
+7. **Palette lives in one module** and is exported through `/v1/health` plus the render payload, so server-rendered tiles and the Android legend cannot drift apart.
+8. **Cache keys carry the scene.** Object keys are `{project_id}/{scene_id}/{z}/{x}/{y}.png`. A new scene never overwrites an old tile, and purging is by prefix when a project adopts a different scene.
+9. **CI is fixture-driven.** Record STAC responses and band windows in `services/s2-worker/tests/fixtures/`, and run all tests without network. A golden-image test compares rendered tiles against committed PNGs for a fixed Kilifi scene.
 
-Environment: `S2_WORKER_TOKEN`, `STAC_PRIMARY_URL` (`https://stac.dataspace.copernicus.eu/v1`), `STAC_FALLBACK_URL` (`https://earth-search.aws.element84.com/v1`), `COG_ALLOWED_HOSTS` (host allow list for band reads, default `sentinel-cogs.s3.us-west-2.amazonaws.com`), `TILE_STORE_BACKEND` (`r2` or `volume`), `TILE_STORE_BUCKET`, `TILE_STORE_ENDPOINT`, `TILE_STORE_ACCESS_KEY_ID`, `TILE_STORE_SECRET_ACCESS_KEY`, `MAX_RANGE_REQUESTS`, `JOB_TIMEOUT_S`, `MAX_CONCURRENCY`.
+Environment: `S2_WORKER_TOKEN`, `STAC_PRIMARY_URL` (`https://stac.dataspace.copernicus.eu/v1`), `STAC_FALLBACK_URL` (`https://earth-search.aws.element84.com/v1`), `COG_ALLOWED_HOSTS` (host allow list for band reads, default `sentinel-cogs.s3.us-west-2.amazonaws.com`), `TILE_STORE_BACKEND` (`r2` or `volume`), `TILE_STORE_BUCKET`, `TILE_STORE_ENDPOINT`, `TILE_STORE_ACCESS_KEY_ID`, `TILE_STORE_SECRET_ACCESS_KEY`, `MAX_PIXELS_PER_JOB` (8000000), `JOB_TIMEOUT_S` (120), `MAX_CONCURRENCY` (2), `MIN_COVERAGE_PCT` (60), `MAX_SCENE_TRIES` (5). Each route call gets its own budget, so a ceiling spent on `/v1/scene` cannot truncate a later `/v1/stats` for the same project.
 
 Sizing: one shared-cpu-1x with 512 MB is enough for the pilot. The image is roughly 250 MB because of the GDAL and rasterio wheels, so build it with a layer-cached Dockerfile rather than expecting fast rebuilds.
 
@@ -419,13 +441,15 @@ type Provider interface {
 
    A `TileSet` is `{KeyPrefix, PaletteVersion, ZoomMin, ZoomMax, SceneId}`, which is an address within our own store rather than a credential, so it has no lifetime and cannot expire mid-session.
 
-   `SandboxProvider` returns today's synthetic values with `AdapterMode: "sandbox"` and no tile set. `OpenDataStacProvider` calls s2-worker over internal HTTP; its `Name()` is `opendata-s2`. `NewService` picks by `SATELLITE_PROVIDER`, defaulting to sandbox, and in `live` mode an unconfigured or unreachable worker returns the existing `unavailable` result instead of a success. That preserves principle 9 in SPEC.md, honest degraded states.
+   `SandboxProvider` returns today's synthetic values with `AdapterMode: "sandbox"` and no tile set. `OpenDataStacProvider` calls s2-worker over internal HTTP; its `Name()` is `opendata-s2`. `NewService` picks by `SATELLITE_PROVIDER`, defaulting to sandbox, and a live deployment whose worker is not configured returns the existing `unavailable` result instead of a success. That preserves principle 9 in SPEC.md, honest degraded states.
+
+   The label comes from the provider that produced the figure, not from `SATELLITE_MODE`. A sandbox provider can only ever answer `adapterMode: "sandbox"` with `quality: "synthetic"`, so no combination of environment variables can present a modelled number as imagery, and `SATELLITE_MODE=live` with the provider left unset still yields a sandbox label rather than a live one. Only the worker's typed `unavailable` reply, which means the catalogs answered and nothing usable was in the window, degrades an observation to `unavailable` without an error; a refused call, a bad token, a full queue or a dead host is returned as an error so the refresh job records the fault instead of writing a period that never existed. Tiles are the same rule: a render that comes back `partial` is a failure, because a layer with holes in it reads on a map as bare substrate.
 
 2. Bump `ProcessingVersion` from `"sandbox-ndvi/1"` at [service.go:21](backend/internal/satellite/service.go#L21) to `"ndvi/s2-l2a-opendata/1"` for live rows, keeping the sandbox constant untouched so old rows stay interpretable.
 
 3. Replace the centroid-sum AOI in `ProjectAOI` with the buffered-cell union from section 5.1, and return both `AnalysisGeometry` (cell union, GeoJSON) and `FramingBBox`. Persist both on the summary so the method is auditable.
 
-4. On job completion, write `project_ndvi_summaries` with `canon.Hash(result)` and the canonical `result` payload, reusing the pattern in `AttachSandbox` at [service.go:70](backend/internal/satellite/service.go#L70). The hashed payload must contain scene IDs, acquisition times, means, coverage, plot count, and processing version, so a verifier can re-derive the number.
+4. On job completion, write `project_ndvi_summaries` with `canon.Hash(result)` and the canonical `result` payload, reusing the pattern in `AttachSandbox` at [service.go:70](backend/internal/satellite/service.go#L70). The hashed payload must contain scene IDs, acquisition times, means, coverage, plot count, processing version, class table version, palette version, and the processor baseline of each scene, so a verifier can re-derive the number and know which mask produced it.
 
 5. Anchor it through the existing generic path. Call the executor `anchor` operation with `kind = "satellite_ndvi"`, `commitment = result_hash`, `idempotency_key = summary id`, and record the transaction in `provenance_events` plus `chain_object_ids`. Two notes: fix the missing `break` after `case 'anchor'` at [executor/src/index.ts:113](executor/src/index.ts#L113) first, since today an anchor also runs `create_ledger`; and follow the existing hash-then-encode convention in `backend/internal/chain/iota.go` rather than hashing in the worker.
 
@@ -582,13 +606,13 @@ The research pilot needs 0 through 4. Phase 5 makes the figure verifiable, which
 
 Backend:
 
-1. `go test ./internal/...` plus `go test ./internal/database/` for the migration drift check on both drivers.
+1. `go test ./internal/...` plus `go test ./internal/database/`: the drift check compares the SQLite migrations against every registered model, and a splitter regression test reads the real `postgres/000008` file to prove a `DO $$` block stays one statement. No PostgreSQL server runs in CI, so the Postgres DDL is reviewed against the constructs already in the committed migrations rather than executed.
 2. AOI unit tests: a 0.5 ha plot at latitude -3.6 produces a side near 71 m, cells overlap into one geometry when two plots sit 40 m apart, and a project with no plots yields `quality: "unavailable"` with no worker call.
-3. Provider contract tests against recorded s2-worker fixtures, covering success, STAC timeout, both catalogs empty, over-cloud, and a CDSE item whose COG URL 404s so the job fails over to earth-search. The over-cloud and timeout cases must produce `cloudy` and `unavailable`, never a synthetic pass.
+3. Provider contract tests against recorded s2-worker fixtures: `backend/internal/satellite/provider_test.go` runs against `testdata/`, which `services/s2-worker/tests/record_route_fixtures.py` writes out of the same `job.py` functions the routes call, so the seam is checked against the service rather than against a description of it. The golden figures arrive intact, the granule search sends a full-timestamp upper bound and the baseline asks for the same window one year earlier, the cells and the scene reference come back to `/v1/stats` unchanged, the quality of a figure is the worse of the two answers, a typed `unavailable` becomes the empty state with no measurement attempted, and every other failure, a busy queue or a wrong token included, is an error rather than a period with no imagery. The catalog-level cases, STAC timeout, both catalogs empty, an item whose COG URL 404s so the job fails over to the other source, belong to the worker's route tests, because that is where the catalogs are read.
 4. Authorization tests: tenant A cannot fetch tenant B's tiles, an unauthenticated tile request is rejected, zoom outside 8 to 16 is rejected, and a tile request naming a scene that is not the project's active one returns `410`.
 5. Handler tests asserting `adapter_mode` is `sandbox` whenever `SATELLITE_PROVIDER` is unset.
 
-Worker: fixture-driven with no network in CI, one golden PNG per palette version, one golden stats response, plus tests for the concurrency cap of 2 and the range-request ceiling that assert `partial` rather than a full-coverage result.
+Worker: 189 fixture-driven tests with no network in CI. The arithmetic and job layers cover the AOI cells, band reads and retries, NDVI and the class mask, the two-tier cloud ladder, the coverage screen, the palette, tile rendering, and the STAC sources; the route layer (`tests/test_app.py`, 44 tests) covers the bearer check, every typed error code in section 8, the concurrency cap, the palette refusal, a key prefix that is not one project and one scene, a band URL on an unlisted host, and the render-to-purge round trip. Two golden fixtures pin the output: one stats response (289 pixels, mean 0.837 on `S2C_37MER_20261105_1_L2A`) and one PNG per palette version, compared byte for byte rather than by loose pixel similarity, since a palette change is a version bump and not a rounding difference. The ceiling tests assert `partial` rather than a full-coverage result. The class table gets its own test: a recorded STAC item and its raster histogram must agree with the `s2:*_percentage` metadata for two granules, one under the cloud ceiling and one over it, so a silent renumbering upstream fails a build instead of poisoning an anchored figure.
 
 Android: JVM tests for the ViewModel on sandbox, live, partial-coverage, scene-superseded, and offline-cached states; a pure-function test for tile bbox containment and zoom clamping; device QA on a Kenya project covering pan and zoom, legend readability, sandbox labelling, and airplane-mode behavior. The map itself needs a device or emulator, since Compose unit tests cannot verify tile rendering.
 
@@ -600,13 +624,14 @@ Definition of done for the pilot: a manager opens the satellite screen on a real
 
 1. **Anonymous endpoints carry no promises.** Both STAC catalogs are unsponsored public services, and either could start requiring keys, rate-limit anonymous search, or move hosts. I already saw one host in their documentation family fail to resolve from this network, which is exactly the kind of churn to expect. Mitigated by two independent sources behind the interface in section 8, a host allow list rather than a hardcoded base URL, the free self-serve CDSE account as the first escalation, and an honest `unavailable` state instead of a synthetic pass when both fail.
 2. **The worker is now the flakiest component.** Vendor risk became our risk. GDAL and rasterio wheel friction, memory blowups on oversized windows, JP2 versus COG quirks, partial reads, and retries all land on us. Mitigated by the phase 1 spike before service code, bounded fetches, golden-image fixtures, `partial` as a first-class quality value, and jobs that are retryable because the scene index is unique.
-3. **Egress costs are unproven, not free by proof.** The `sentinel-cogs` bucket is distributed through AWS Open Data and public-access requests to sponsored datasets normally carry no data-transfer charge, but I did not verify the sponsorship terms for this bucket. Confirm before launch, because the assumption is load-bearing at scale. If it does not hold, the fixes are running the worker in `us-west-2` beside the data, mirroring tiles in our own store, or switching band reads to CDSE with an account.
+3. **Egress costs are unproven, not free by proof.** The `sentinel-cogs` bucket is distributed through AWS Open Data and public-access requests to sponsored datasets normally carry no data-transfer charge, but I did not verify the sponsorship terms for this bucket. Confirm before launch, because the assumption is load-bearing at scale. If it does not hold, the fixes are running the worker in `us-west-2` beside the data, mirroring tiles in our own store, or switching band reads to CDSE with an account. The per-job volume the worker asks for is bounded by `MAX_PIXELS_PER_JOB`, and the 2026-11-10 spike run on a client far from `us-west-2` gives some idea of what that costs in time rather than money: a scene screen of 16.8 s, a project-level measure job of 106 s for 1,232 pixels read, and a two-tile z14 render job of 167 s for 786,432 pixels, which blew the 120 s wall clock and came back `partial` with zero tiles stored. One machine on one link is not a pricing figure, but it does say the region choice is not cosmetic, and that a render job must be split across requests rather than squeezed by raising the ceiling.
 4. **"Last pass" can mislead.** Surface reflectance products reach these catalogs hours to days after sensing, and the two indexes differ, the CDSE probe found a same-day granule while the earth-search index led with a scene three days older. The UI must show the acquisition date over the map and the ingest lag wherever a refresh is offered, never imply imagery from today.
 5. **Cloud and tidal water near the Kenyan coast.** The 45 day window, the cloud ladder, and SCL class masking address most of it. The residual case is a genuinely cloudy quarter, which must read as `cloudy` rather than as no change. Consider the cirrus band as a secondary check for thin cloud over mangrove canopy.
 6. **Centroids are not boundaries.** Project-level means over buffered cells are defensible. Per-plot claims are not, which is why phase 6 exists and why nothing in this spec claims otherwise.
 7. **Maps SDK key and billing.** `GOOGLE_MAPS_API_KEY` is currently absent from `android/local.properties`, so the key resolves to an empty string and no map renders at all. Beyond the key, Google's own usage cap applies to the basemap, which is a second billing dependency unrelated to imagery and worth stating plainly.
 8. **Stale tiles are our bug class now.** There is no expiring vendor handle to blame, so a cache key that omits the scene identifier will quietly serve last month's pixels under this month's label. Scene-scoped keys in section 8, a `scene` query parameter on every tile request in section 7, and the Android client rebuilding its provider only when the active scene changes in section 10.5 are one mechanism doing one job. Treat any report of mismatched imagery as a cache-key defect first.
 9. **NDVI on mangrove canopy is a weak proxy for carbon.** NDVI saturates in dense canopy, so a healthy stand may show little change while biomass grows. If the research narrative leans on this figure, evaluate EVI, which uses the blue band that is also sitting in the same COG directory, or a canopy-height proxy before making NDVI a headline metric.
+10. **The class table is a correctness risk, not a preference.** Sentinel-2 L2A renumbered its per-pixel class layer at processing baseline 05.09, when SCL became MSK. Under the old numbering clouds sit at 3, 4 and 5, which is exactly where vegetation and bare ground sit under the new one, so an inherited table does not merely lose accuracy: it decides which pixels count as a surface. The two mistakes are inverses of each other. A whitelist copied from a pre-2024 recipe ({8, 9}) applied to a current granule selects cloud medium and cloud high, so a mostly clouded scene returns full coverage and a plausible-looking mean of cloud. The current whitelist applied to a pre-05.09 granule drops its vegetation and reports a clear scene as unusable. Mitigated three ways: the whitelist is {4, 5} so an unmapped class is dropped from the mean rather than folded into it, `stac.table_supported()` refuses granules below baseline 05.09 instead of guessing, and section 13 derives the table from a recorded histogram against the same item's `s2:*_percentage` fields, which fails CI if Copernicus renumbers again. The granule that reported 0 percent usable over Kilifi creek while its item published 24.9 percent cloud is not an instance of this risk: it is a current-baseline pass with real cloud sitting over the plots and nowhere else, and it was caught by the coverage screen in 5.2. Keeping those two failures apart matters, because one is fixed by refusing a granule and the other by measuring before adopting.
 
 ---
 

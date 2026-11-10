@@ -8,7 +8,6 @@ plugins {
     id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 val localProperties = Properties().apply {
@@ -47,6 +46,7 @@ android {
         buildConfigField("String", "JAHAZI_CLIENT_ID", quoted(config("JAHAZI_CLIENT_ID")))
         buildConfigField("String", "JAHAZI_REDIRECT_URI", quoted(redirectUri))
         buildConfigField("boolean", "AUTH_CONFIGURED", authConfigured.toString())
+        buildConfigField("boolean", "MAPS_CONFIGURED", config("GOOGLE_MAPS_API_KEY").isNotBlank().toString())
 
         manifestPlaceholders["ssoScheme"] = redirectPart(URI::getScheme, "https")
         manifestPlaceholders["ssoHost"] = redirectPart(URI::getHost, "callback.invalid")
@@ -121,12 +121,6 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:4.4.1")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
-    // Firebase (google-services.json present in app/)
-    val firebaseBom = platform("com.google.firebase:firebase-bom:33.7.0")
-    implementation(firebaseBom)
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-crashlytics")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

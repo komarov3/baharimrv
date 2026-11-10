@@ -24,3 +24,9 @@ backend/config/firebase-adminsdk.json
 .agents/pipeline/
 chain.zip
 backend/baharimrv-local.db
+
+# Python worker services
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/

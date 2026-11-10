@@ -1,0 +1,75 @@
+{
+  "scene_id": "S2C_37MER_20261105_1_L2A",
+  "acquired_at": "2026-11-05T07:50:55.647000+00:00",
+  "cloud_pct": 29.627669,
+  "platform": "sentinel-2c",
+  "epsg": 32737,
+  "relative_orbit": "",
+  "grid": "37MER",
+  "processor_baseline": "05.13",
+  "discovery_source": "element84-stac",
+  "footprint_geojson": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          38.99982891299001,
+          -3.618524361526298
+        ],
+        [
+          38.99982881981933,
+          -4.084946833769192
+        ],
+        [
+          39.98930269217857,
+          -4.322595757161909
+        ],
+        [
+          39.988464170273744,
+          -3.617983709421384
+        ],
+        [
+          38.99982891299001,
+          -3.618524361526298
+        ]
+      ]
+    ]
+  },
+  "quality": "complete",
+  "class_table": "msk-0509/1",
+  "palette_version": "ndvi-5band/1",
+  "notes": [
+    "copernicus-stac: 28 items, 28 refused for no https COGs, cloud above 70%, or a processor below 05.09",
+    "element84-stac: 28 items, 9 refused for no https COGs, cloud above 70%, or a processor below 05.09",
+    "2 candidates screened before S2C_37MER_20261105_1_L2A cleared 60.0% over the plots"
+  ],
+  "bands": {
+    "red": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/37/M/ER/2026/11/S2C_37MER_20261105_1_L2A/B04.tif",
+    "nir": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/37/M/ER/2026/11/S2C_37MER_20261105_1_L2A/B08.tif",
+    "scl": "https://sentinel-cogs.s3.us-west-2.amazonaws.com/sentinel-s2-l2a-cogs/37/M/ER/2026/11/S2C_37MER_20261105_1_L2A/SCL.tif"
+  },
+  "window": {
+    "start": "2026-09-21T12:00:00+00:00",
+    "end": "2026-11-05T12:00:00+00:00",
+    "days": 45,
+    "cloud_ceilings": [
+      40.0,
+      70.0
+    ]
+  },
+  "screened": [
+    {
+      "scene_id": "S2B_37MER_20261110_0_L2A",
+      "usable_pct": 0.0,
+      "cloud_pct": 24.946672,
+      "acquired_at": "2026-11-10T07:51:04.216000+00:00"
+    },
+    {
+      "scene_id": "S2C_37MER_20261105_1_L2A",
+      "usable_pct": 100.0,
+      "cloud_pct": 29.627669,
+      "acquired_at": "2026-11-05T07:50:55.647000+00:00"
+    }
+  ],
+  "pixels_read": 944
+}

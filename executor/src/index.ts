@@ -97,7 +97,6 @@ app.post('/anchor', async (req: Request, res: Response) => {
       case 'provision_identity':
         result = await provisionIdentity(keypair, pkg, params as any);
         break;
-        break;
       case 'link_role_object':
         result = await linkRoleObject(keypair, params as any);
         break;
@@ -112,6 +111,7 @@ app.post('/anchor', async (req: Request, res: Response) => {
         break;
       case 'anchor':
         result = await anchorProvenance(keypair, pkg, params as any);
+        break;
       case 'create_ledger':
         result = await createLedger(keypair, pkg, params as any);
         break;

@@ -148,6 +148,8 @@ func New(deps Dependencies) http.Handler {
 		session.GET("/projects/:id/documents", r.projectDocuments)
 		session.POST("/projects/:id/activities", bodyLimit, r.createActivity)
 		session.POST("/projects/:id/plots", bodyLimit, r.addPlot)
+		session.GET("/projects/:id/satellite/passes", r.projectSatellitePasses)
+		session.GET("/projects/:id/satellite/latest", r.projectSatelliteLatest)
 
 		session.GET("/documents/:id", r.downloadDocument)
 		session.POST("/sync/batch", bodyLimit, r.syncBatch)
@@ -243,7 +245,8 @@ func (r *router) health(c *gin.Context) {
 		"status": "ok",
 		"modes": gin.H{
 			"chain": r.config.ChainMode, "satellite": r.config.SatelliteMode,
-			"registry": r.config.RegistryMode, "payment": r.config.PaymentMode,
+			"satelliteProvider": r.satellite.ProviderName(),
+			"registry":          r.config.RegistryMode, "payment": r.config.PaymentMode,
 		},
 		"serverTime": time.Now().UTC(),
 	})

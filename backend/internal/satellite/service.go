@@ -35,14 +35,41 @@ type Summary struct {
 }
 
 type Service struct {
-	db   *gorm.DB
-	mode string
-	now  func() time.Time
+	db       *gorm.DB
+	mode     string
+	provider Provider
+	now      func() time.Time
+	// retryDelay is the pause between attempts at a failed provider call. It is a
+	// field so a test can drive the retry path without waiting out the real one.
+	retryDelay time.Duration
 }
 
-func NewService(db *gorm.DB, mode string) *Service {
-	return &Service{db: db, mode: mode, now: time.Now}
+// Options is what the environment says about imagery. Mode still decides how
+// per-activity corroboration behaves; Provider decides where a project figure comes
+// from, and an unset or unrecognised value means sandbox.
+type Options struct {
+	Mode        string
+	Provider    string
+	WorkerURL   string
+	WorkerToken string
 }
+
+func NewService(db *gorm.DB, opts Options) *Service {
+	service := &Service{db: db, mode: opts.Mode, now: time.Now, retryDelay: jobRetryDelay}
+	switch opts.Provider {
+	case ProviderOpenData:
+		service.provider = NewOpenDataStac(opts.WorkerURL, opts.WorkerToken)
+	default:
+		service.provider = NewSandboxProvider()
+	}
+	return service
+}
+
+// Provider names the installed source so health and a summary can say which
+// machinery produced a figure. It is never inferred from SATELLITE_MODE.
+func (s *Service) Provider() Provider { return s.provider }
+
+func (s *Service) ProviderName() string { return s.provider.Name() }
 
 // Mode reports the configured adapter. Anything other than "live" is sandbox.
 func (s *Service) Mode() string { return s.mode }
@@ -141,20 +168,28 @@ func round4(value float64) float64 {
 	return math.Round(value*10000) / 10000
 }
 
+func round2(value float64) float64 {
+	return math.Round(value*100) / 100
+}
+
 func shortHash(value string) string {
 	digest := sha256.Sum256([]byte(value))
 	return hex.EncodeToString(digest[:8])
 }
 
 type AOI struct {
-	CentroidLat float64 `json:"centroidLatitude"`
-	CentroidLon float64 `json:"centroidLongitude"`
-	MinLat      float64 `json:"minLatitude"`
-	MaxLat      float64 `json:"maxLatitude"`
-	MinLon      float64 `json:"minLongitude"`
-	MaxLon      float64 `json:"maxLongitude"`
-	PlotCount   int     `json:"plotCount"`
-	Status      string  `json:"status"`
+	ProjectID    string          `json:"projectId,omitempty"`
+	CentroidLat  float64         `json:"centroidLatitude"`
+	CentroidLon  float64         `json:"centroidLongitude"`
+	MinLat       float64         `json:"minLatitude"`
+	MaxLat       float64         `json:"maxLatitude"`
+	MinLon       float64         `json:"minLongitude"`
+	MaxLon       float64         `json:"maxLongitude"`
+	PlotCount    int             `json:"plotCount"`
+	Status       string          `json:"status"`
+	Cells        []Cell          `json:"cells,omitempty"`
+	AnalysisGeom json.RawMessage `json:"analysisGeometry,omitempty"`
+	FramingBBox  []float64       `json:"framingBBox,omitempty"`
 }
 
 type Pass struct {
@@ -172,38 +207,40 @@ type Pass struct {
 	AdapterMode   string     `json:"adapterMode"`
 }
 
+// ProjectAOI is the project's analysis area: one buffered cell per registered plot, the
+// geometry they cover, and a bbox for framing the map. The cell order is fixed by code
+// then id, because the geometry is hashed into the summary and a database that returned
+// rows in a different order would otherwise change the commitment for the same ground.
 func (s *Service) ProjectAOI(projectID string) (AOI, error) {
 	var plots []models.Plot
-	if err := s.db.Where("project_id = ?", projectID).Find(&plots).Error; err != nil {
+	if err := s.db.Where("project_id = ?", projectID).Order("code").Order("id").Find(&plots).Error; err != nil {
 		return AOI{}, err
 	}
 	if len(plots) == 0 {
-		return AOI{Status: "unavailable"}, nil
+		return AOI{ProjectID: projectID, Status: "unavailable"}, nil
 	}
-	aoi := AOI{PlotCount: len(plots), Status: "available"}
-	for _, plot := range plots {
-		aoi.CentroidLat += plot.Latitude
-		aoi.CentroidLon += plot.Longitude
-		if aoi.MinLat == 0 || plot.Latitude < aoi.MinLat { aoi.MinLat = plot.Latitude }
-		if plot.Latitude > aoi.MaxLat { aoi.MaxLat = plot.Latitude }
-		if aoi.MinLon == 0 || plot.Longitude < aoi.MinLon { aoi.MinLon = plot.Longitude }
-		if plot.Longitude > aoi.MaxLon { aoi.MaxLon = plot.Longitude }
-	}
-	aoi.CentroidLat /= float64(len(plots))
-	aoi.CentroidLon /= float64(len(plots))
+	aoi := aoiFromPlots(plots)
+	aoi.ProjectID = projectID
+	aoi.Status = "available"
 	return aoi, nil
 }
 
 func (s *Service) missionRepeat(mission string) time.Duration {
-	if mission == "S1" { return 6 * 24 * time.Hour }
+	if mission == "S1" {
+		return 6 * 24 * time.Hour
+	}
 	return 5 * 24 * time.Hour
 }
 
 func (s *Service) PredictPasses(projectID, mission string, from, to time.Time) ([]Pass, error) {
 	mission = strings.ToUpper(strings.TrimSpace(mission))
-	if mission != "S1" && mission != "S2" { mission = "S2" }
+	if mission != "S1" && mission != "S2" {
+		mission = "S2"
+	}
 	aoi, err := s.ProjectAOI(projectID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	if aoi.Status != "available" {
 		return []Pass{{ID: "unavailable", ProjectID: projectID, Mission: mission, PassType: "unavailable", StatusDetail: "No project plots/AOI are available for satellite correlation.", AdapterMode: s.mode}}, nil
 	}
@@ -212,7 +249,9 @@ func (s *Service) PredictPasses(projectID, mission string, from, to time.Time) (
 		passes := make([]Pass, 0, 4)
 		lastAcquired := from.Add(-24 * time.Hour)
 		cloud := 18.0
-		if mission == "S2" { cloud = 42.0 }
+		if mission == "S2" {
+			cloud = 42.0
+		}
 		passes = append(passes, Pass{
 			ID: "sandbox-last-" + mission, ProjectID: projectID, Mission: mission,
 			PassType: "processed", WindowStart: lastAcquired, WindowEnd: lastAcquired.Add(15 * time.Minute),
@@ -224,14 +263,16 @@ func (s *Service) PredictPasses(projectID, mission string, from, to time.Time) (
 		cursor := from.UTC().Truncate(time.Hour)
 		for i := 0; i < 3; i++ {
 			start := cursor.Add(time.Duration(i)*repeat + 2*time.Hour)
-			if start.After(to) { break }
+			if start.After(to) {
+				break
+			}
 			end := start.Add(15 * time.Minute)
 			passes = append(passes, Pass{
 				ID: fmt.Sprintf("sandbox-predicted-%s-%d", mission, i), ProjectID: projectID, Mission: mission,
 				PassType: "predicted", WindowStart: start, WindowEnd: end,
-				CoveragePct: 90.0,
+				CoveragePct:  90.0,
 				StatusDetail: "Predicted acquisition window based on AOI and orbit cycle. Not a confirmed acquisition.",
-				AdapterMode: "sandbox",
+				AdapterMode:  "sandbox",
 			})
 		}
 		return passes, nil
@@ -242,7 +283,9 @@ func (s *Service) PredictPasses(projectID, mission string, from, to time.Time) (
 
 func (s *Service) LatestPass(projectID, mission string) (Pass, bool, error) {
 	passes, err := s.PredictPasses(projectID, mission, time.Now().UTC().Add(-30*24*time.Hour), time.Now().UTC().Add(30*24*time.Hour))
-	if err != nil { return Pass{}, false, err }
+	if err != nil {
+		return Pass{}, false, err
+	}
 	for _, pass := range passes {
 		if pass.PassType == "processed" {
 			return pass, true, nil

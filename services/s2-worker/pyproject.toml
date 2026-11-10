@@ -1,0 +1,35 @@
+[project]
+name = "baharimrv-s2-worker"
+version = "0.1.0"
+description = "Sentinel-2 NDVI worker: anonymous STAC discovery, windowed COG reads, masked NDVI, tile rendering."
+requires-python = ">=3.12"
+# rio-tiler and numexpr were on the original list and neither is used. The read
+# path is rasterio windows plus the arithmetic in s2_worker/ndvi.py, and every
+# unused dependency is another hundred megabytes in an image whose whole cost is
+# GDAL.
+dependencies = [
+    "rasterio>=1.5",
+    "numpy>=2.0",
+    "pillow>=13.0",
+    "requests>=2.32",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "boto3>=1.34",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+s2-worker = "s2_worker.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["s2_worker*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

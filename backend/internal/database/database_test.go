@@ -2,6 +2,7 @@ package database
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,5 +116,66 @@ func TestMigrationIsIdempotent(t *testing.T) {
 		if err := database.Exec("SELECT COUNT(*) FROM users").Error; err != nil {
 			t.Fatalf("pass %d schema check: %v", attempt, err)
 		}
+	}
+}
+
+// TestSplitKeepsThePostgresDoBlockWhole pins the defect that stopped a fresh PostgreSQL
+// database from booting. 000008 writes its conditional ALTER as a DO block, and a
+// splitter that only knew about quotes cut it into "DO $$ BEGIN ...", "END IF" and
+// "END $$", none of which a driver can execute. The SQLite drift test cannot see this:
+// it never reads the postgres directory.
+func TestSplitKeepsThePostgresDoBlockWhole(t *testing.T) {
+	contents, err := migrationFiles.ReadFile("migrations/postgres/000008_base_methodology.sql")
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+	statements := splitStatements(string(contents))
+	if len(statements) != 2 {
+		t.Fatalf("got %d statements, want the DO block and the INSERT: %q", len(statements), statements)
+	}
+	if !strings.Contains(statements[0], "DO $$") || !strings.HasSuffix(statements[0], "END $$") {
+		t.Errorf("first statement is not one whole DO block: %q", statements[0])
+	}
+	if !strings.HasPrefix(statements[1], "INSERT INTO methodologies") {
+		t.Errorf("second statement = %q", statements[1])
+	}
+}
+
+func TestSplitStatements(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+		want []string
+	}{
+		{"two statements", "SELECT 1; SELECT 2;", []string{"SELECT 1", "SELECT 2"}},
+		{"no trailing semicolon", "SELECT 1", []string{"SELECT 1"}},
+		{"empty", " ; \n; ", nil},
+		{"semicolon in a literal", "INSERT INTO t VALUES ('a;b');", []string{"INSERT INTO t VALUES ('a;b')"}},
+		{"doubled quote", "INSERT INTO t VALUES ('it''s; fine');", []string{"INSERT INTO t VALUES ('it''s; fine')"}},
+		{
+			"do block",
+			"DO $$ BEGIN IF true THEN ALTER TABLE t ADD COLUMN c int; END IF; END $$; SELECT 1;",
+			[]string{"DO $$ BEGIN IF true THEN ALTER TABLE t ADD COLUMN c int; END IF; END $$", "SELECT 1"},
+		},
+		{
+			"tagged body with a quote inside",
+			"CREATE FUNCTION f() RETURNS int AS $body$ BEGIN RAISE NOTICE 'hi; there'; RETURN 1; END; $body$ LANGUAGE plpgsql;",
+			[]string{"CREATE FUNCTION f() RETURNS int AS $body$ BEGIN RAISE NOTICE 'hi; there'; RETURN 1; END; $body$ LANGUAGE plpgsql"},
+		},
+		{"parameter is not a quote", "SELECT $1; SELECT $2;", []string{"SELECT $1", "SELECT $2"}},
+		{"unterminated body is left for the driver", "DO $$ BEGIN SELECT 1;", []string{"DO $$ BEGIN SELECT 1"}},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := splitStatements(testCase.sql)
+			if len(got) != len(testCase.want) {
+				t.Fatalf("got %d statements %q, want %d %q", len(got), got, len(testCase.want), testCase.want)
+			}
+			for i := range got {
+				if got[i] != testCase.want[i] {
+					t.Errorf("statement %d = %q, want %q", i, got[i], testCase.want[i])
+				}
+			}
+		})
 	}
 }

@@ -91,7 +91,7 @@ type IdentityProvision struct {
 	// RoleCapObjectID stores the on-chain object ID of the role capability
 	// issued after identity provisioning (ManagerCap, MonitorCap, VerifierCap).
 	// Empty for DID-only roles (buyer, finance, admin).
-	RoleCapObjectID   string     `gorm:"column:role_cap_object_id" json:"roleCapObjectId,omitempty"`
+	RoleCapObjectID string `gorm:"column:role_cap_object_id" json:"roleCapObjectId,omitempty"`
 }
 
 type KeyReference struct {
@@ -225,16 +225,22 @@ type Site struct {
 }
 
 type Plot struct {
-	ID                string    `gorm:"type:uuid;primaryKey" json:"id"`
-	ProjectID         string    `gorm:"type:uuid;index;not null" json:"projectId"`
-	SiteID            string    `gorm:"type:uuid;index;not null" json:"siteId"`
-	Code              string    `gorm:"uniqueIndex:idx_site_plot;not null" json:"code"`
-	Latitude          float64   `json:"latitude"`
-	Longitude         float64   `json:"longitude"`
-	AreaHectares      string    `gorm:"type:numeric(20,6);not null" json:"areaHectares"`
-	AssignedMonitorID string    `gorm:"type:uuid;index" json:"assignedMonitorId,omitempty"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	ID                string  `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID         string  `gorm:"type:uuid;index;not null" json:"projectId"`
+	SiteID            string  `gorm:"type:uuid;index;not null" json:"siteId"`
+	Code              string  `gorm:"uniqueIndex:idx_site_plot;not null" json:"code"`
+	Latitude          float64 `json:"latitude"`
+	Longitude         float64 `json:"longitude"`
+	AreaHectares      string  `gorm:"type:numeric(20,6);not null" json:"areaHectares"`
+	AssignedMonitorID string  `gorm:"type:uuid;index" json:"assignedMonitorId,omitempty"`
+	// Boundary is the surveyed plot outline as a GeoJSON Polygon in EPSG:4326. It is
+	// stored for the phase 6 precision upgrade and not read yet: the analysis cell is
+	// still the square buffered around the centroid, so the sample is only as good as
+	// that position, which is what GpsAccuracyM records.
+	Boundary     datatypes.JSON `gorm:"type:jsonb" json:"boundary,omitempty"`
+	GpsAccuracyM *float64       `json:"gpsAccuracyM,omitempty"`
+	CreatedAt    time.Time      `json:"createdAt"`
+	UpdatedAt    time.Time      `json:"updatedAt"`
 }
 
 type ConservationActivity struct {
@@ -534,26 +540,85 @@ type ReconciliationCase struct {
 }
 
 type SatellitePass struct {
-	ID             string     `gorm:"type:uuid;primaryKey" json:"id"`
-	ProjectID      string     `gorm:"type:uuid;index;not null" json:"project_id"`
-	ActivityID     string     `gorm:"type:uuid;index" json:"activity_id,omitempty"`
-	Mission        string     `gorm:"not null;index" json:"mission"`
-	PassType       string     `gorm:"not null;index" json:"pass_type"`
-	WindowStart    time.Time  `gorm:"not null" json:"window_start"`
-	WindowEnd      time.Time  `gorm:"not null" json:"window_end"`
-	AcquiredAt     *time.Time `json:"acquired_at,omitempty"`
-	SceneID        string     `json:"scene_id,omitempty"`
-	Orbit          string     `json:"orbit,omitempty"`
-	Tile           string     `json:"tile,omitempty"`
-	CloudCoverPct  *float64   `json:"cloud_cover_pct,omitempty"`
-	CoveragePct    float64    `json:"coverage_pct"`
-	StatusDetail   string     `gorm:"type:text" json:"status_detail"`
-	AdapterMode    string     `gorm:"not null" json:"adapter_mode"`
-	ResultHash     string     `json:"result_hash,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID            string     `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID     string     `gorm:"type:uuid;index;not null" json:"project_id"`
+	ActivityID    string     `gorm:"type:uuid;index" json:"activity_id,omitempty"`
+	Mission       string     `gorm:"not null;index" json:"mission"`
+	PassType      string     `gorm:"not null;index" json:"pass_type"`
+	WindowStart   time.Time  `gorm:"not null" json:"window_start"`
+	WindowEnd     time.Time  `gorm:"not null" json:"window_end"`
+	AcquiredAt    *time.Time `json:"acquired_at,omitempty"`
+	SceneID       string     `json:"scene_id,omitempty"`
+	Orbit         string     `json:"orbit,omitempty"`
+	Tile          string     `json:"tile,omitempty"`
+	CloudCoverPct *float64   `json:"cloud_cover_pct,omitempty"`
+	CoveragePct   float64    `json:"coverage_pct"`
+	StatusDetail  string     `gorm:"type:text" json:"status_detail"`
+	AdapterMode   string     `gorm:"not null" json:"adapter_mode"`
+	ResultHash    string     `json:"result_hash,omitempty"`
+	// Provider names the catalog that supplied the item, because the two differ in how
+	// much provenance they expose: a CDSE granule name encodes orbit and processing
+	// baseline, an earth-search item does not.
+	Provider string `gorm:"type:text;not null;default:''" json:"provider,omitempty"`
+	// NdviMean is this pass's own figure for the project, so a reader can see the
+	// scatter between passes rather than only the window mean.
+	NdviMean          *float64       `json:"ndvi_mean,omitempty"`
+	Footprint         datatypes.JSON `gorm:"type:jsonb" json:"footprint_geojson,omitempty"`
+	ProcessingVersion string         `gorm:"type:text;not null;default:''" json:"processing_version,omitempty"`
+	CreatedAt         time.Time      `json:"created_at"`
+	UpdatedAt         time.Time      `json:"updated_at"`
 }
 
+// ProjectNdviSummary is one computation of a project's area-weighted NDVI mean and the
+// change against the same window a year earlier. Rows are appended, never updated: a
+// figure that was anchored keeps the value it was anchored with, and the hash is over
+// the result payload, so a re-run that changes the number changes the commitment.
+type ProjectNdviSummary struct {
+	ID             string    `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID      string    `gorm:"type:uuid;not null" json:"projectId"`
+	PeriodStart    time.Time `gorm:"not null" json:"periodStart"`
+	PeriodEnd      time.Time `gorm:"not null" json:"periodEnd"`
+	CurrentSceneID string    `gorm:"type:text;not null" json:"currentSceneId"`
+	// CurrentAcquiredAt is the granule's own timestamp, not the moment it was read. It
+	// and MeanNDVI are nil when the computation found nothing usable: NDVI 0.0 is a real
+	// reading for bare substrate, so a zero cannot stand in for an absent figure.
+	CurrentAcquiredAt  *time.Time     `json:"currentAcquiredAt,omitempty"`
+	BaselineSceneID    string         `gorm:"type:text;not null;default:''" json:"baselineSceneId,omitempty"`
+	BaselineAcquiredAt *time.Time     `json:"baselineAcquiredAt,omitempty"`
+	MeanNDVI           *float64       `gorm:"type:numeric(6,4)" json:"meanNdvi,omitempty"`
+	BaselineMeanNDVI   *float64       `gorm:"type:numeric(6,4)" json:"baselineMeanNdvi,omitempty"`
+	ChangeAbs          *float64       `gorm:"type:numeric(6,4)" json:"changeAbs,omitempty"`
+	ChangePct          *float64       `gorm:"type:numeric(8,2)" json:"changePct,omitempty"`
+	CoveragePct        float64        `gorm:"type:numeric(6,2);not null" json:"coveragePct"`
+	CurrentCloudPct    *float64       `gorm:"type:numeric(6,2)" json:"currentCloudPct,omitempty"`
+	PlotCount          int            `gorm:"not null" json:"plotCount"`
+	Quality            string         `gorm:"type:text;not null" json:"quality"`
+	AdapterMode        string         `gorm:"type:text;not null" json:"adapterMode"`
+	Provider           string         `gorm:"type:text;not null;default:''" json:"provider,omitempty"`
+	MethodologyVersion string         `gorm:"type:text;not null;default:''" json:"methodologyVersion,omitempty"`
+	Result             datatypes.JSON `gorm:"type:jsonb;not null" json:"result"`
+	ResultHash         string         `gorm:"type:text;not null" json:"resultHash"`
+	ProcessingVersion  string         `gorm:"type:text;not null" json:"processingVersion"`
+	ComputedAt         time.Time      `gorm:"not null" json:"computedAt"`
+	CreatedAt          time.Time      `json:"createdAt"`
+}
+
+// SatelliteRefreshJob is one queued compute. The database, not a map in memory, holds
+// the one-open-job-per-project rule, so a restart cannot strand a project with a
+// running job nothing will ever finish.
+type SatelliteRefreshJob struct {
+	ID          string     `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID   string     `gorm:"type:uuid;not null" json:"projectId"`
+	Status      string     `gorm:"type:text;not null;index" json:"status"`
+	RequestedBy string     `gorm:"type:text;not null;default:''" json:"requestedBy,omitempty"`
+	Reason      string     `gorm:"type:text;not null;default:''" json:"reason,omitempty"`
+	Error       string     `gorm:"type:text;not null;default:''" json:"error,omitempty"`
+	SummaryID   string     `gorm:"type:text;not null;default:''" json:"summaryId,omitempty"`
+	StartedAt   *time.Time `json:"startedAt,omitempty"`
+	FinishedAt  *time.Time `json:"finishedAt,omitempty"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+}
 
 type FinancialImport struct {
 	ID          string    `gorm:"type:uuid;primaryKey" json:"id"`
@@ -593,18 +658,18 @@ type Alert struct {
 }
 
 type Incident struct {
-	ID           string     `gorm:"type:uuid;primaryKey" json:"id"`
-	Type         string     `gorm:"not null;index" json:"type"`
-	Status       string     `gorm:"not null;index" json:"status"`
-	StartedAt    time.Time  `json:"startedAt"`
-	FinishedAt   *time.Time `json:"finishedAt,omitempty"`
-	DurationMs   int64      `json:"durationMs"`
-	Error        string     `gorm:"type:text" json:"error,omitempty"`
-	RetryCount   int        `json:"retryCount"`
-	ResourceType string     `json:"resourceType,omitempty"`
-	ResourceID   string     `json:"resourceId,omitempty"`
+	ID           string         `gorm:"type:uuid;primaryKey" json:"id"`
+	Type         string         `gorm:"not null;index" json:"type"`
+	Status       string         `gorm:"not null;index" json:"status"`
+	StartedAt    time.Time      `json:"startedAt"`
+	FinishedAt   *time.Time     `json:"finishedAt,omitempty"`
+	DurationMs   int64          `json:"durationMs"`
+	Error        string         `gorm:"type:text" json:"error,omitempty"`
+	RetryCount   int            `json:"retryCount"`
+	ResourceType string         `json:"resourceType,omitempty"`
+	ResourceID   string         `json:"resourceId,omitempty"`
 	Metadata     datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`
-	CreatedAt    time.Time  `json:"createdAt"`
+	CreatedAt    time.Time      `json:"createdAt"`
 }
 
 type AdminNote struct {
@@ -617,15 +682,15 @@ type AdminNote struct {
 }
 
 type ExportJob struct {
-	ID         string     `gorm:"type:uuid;primaryKey" json:"id"`
-	Requester  string     `gorm:"type:uuid;not null" json:"requester"`
-	Kind       string     `gorm:"not null" json:"kind"`
-	Filters    datatypes.JSON `gorm:"type:jsonb" json:"filters,omitempty"`
-	Status     string     `gorm:"not null;index" json:"status"`
-	FileRef    string     `json:"fileRef,omitempty"`
-	ExpiresAt  *time.Time `json:"expiresAt,omitempty"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	CompletedAt *time.Time `json:"completedAt,omitempty"`
+	ID          string         `gorm:"type:uuid;primaryKey" json:"id"`
+	Requester   string         `gorm:"type:uuid;not null" json:"requester"`
+	Kind        string         `gorm:"not null" json:"kind"`
+	Filters     datatypes.JSON `gorm:"type:jsonb" json:"filters,omitempty"`
+	Status      string         `gorm:"not null;index" json:"status"`
+	FileRef     string         `json:"fileRef,omitempty"`
+	ExpiresAt   *time.Time     `json:"expiresAt,omitempty"`
+	CreatedAt   time.Time      `json:"createdAt"`
+	CompletedAt *time.Time     `json:"completedAt,omitempty"`
 }
 
 type SavedView struct {
@@ -640,29 +705,29 @@ type SavedView struct {
 }
 
 type VerificationOverride struct {
-	ID             string    `gorm:"type:uuid;primaryKey" json:"id"`
-	RequestID      string    `gorm:"type:uuid;not null;index" json:"requestId"`
-	AdminID        string    `gorm:"type:uuid;not null" json:"adminId"`
-	Reason         string    `gorm:"type:text;not null" json:"reason"`
-	StepUpReceipt  string    `json:"stepUpReceipt,omitempty"`
-	CreatedAt      time.Time `json:"createdAt"`
+	ID            string    `gorm:"type:uuid;primaryKey" json:"id"`
+	RequestID     string    `gorm:"type:uuid;not null;index" json:"requestId"`
+	AdminID       string    `gorm:"type:uuid;not null" json:"adminId"`
+	Reason        string    `gorm:"type:text;not null" json:"reason"`
+	StepUpReceipt string    `json:"stepUpReceipt,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type PublicProofVerificationLog struct {
-	ID          string    `gorm:"type:uuid;primaryKey" json:"id"`
-	ProofID     string    `gorm:"type:uuid;not null;index" json:"proofId"`
-	CheckedAt   time.Time `json:"checkedAt"`
-	Overall     string    `gorm:"not null" json:"overall"`
-	FailedChecks string   `gorm:"type:text" json:"failedChecks,omitempty"`
-	IPHash      string    `json:"ipHash,omitempty"`
+	ID           string    `gorm:"type:uuid;primaryKey" json:"id"`
+	ProofID      string    `gorm:"type:uuid;not null;index" json:"proofId"`
+	CheckedAt    time.Time `json:"checkedAt"`
+	Overall      string    `gorm:"not null" json:"overall"`
+	FailedChecks string    `gorm:"type:text" json:"failedChecks,omitempty"`
+	IPHash       string    `json:"ipHash,omitempty"`
 }
 
 // ── Jahazi cross-platform integration ─────────────────────────────────────────
 
 // RestorationClaimStatus constants for the RestorationRequest lifecycle.
 const (
-	RestorationClaimOpen             = "open"
-	RestorationClaimMatched           = "matched"
+	RestorationClaimOpen               = "open"
+	RestorationClaimMatched            = "matched"
 	RestorationClaimFulfilled          = "fulfilled"
 	RestorationClaimPartiallyFulfilled = "partially_fulfilled"
 	RestorationClaimExpired            = "expired"
@@ -674,26 +739,26 @@ const (
 // against open requests — only matched activities generate MRV links and
 // trigger the certificate loop. Normal project activities never touch Jahazi.
 type RestorationRequest struct {
-	ID                string         `gorm:"type:uuid;primaryKey" json:"id"`
-	ProjectID         string         `gorm:"type:uuid;index;not null" json:"projectId"`
-	JahaziClaimID     string         `gorm:"uniqueIndex;not null" json:"jahaziClaimId"`
-	JahaziProjectID   string         `gorm:"not null" json:"jahaziProjectId"`
-	PeriodStart       time.Time      `json:"periodStart"`
-	PeriodEnd         time.Time      `json:"periodEnd"`
-	TotalCostUsd      string         `gorm:"type:numeric(30,2);not null" json:"totalCostUsd"`
-	TotalUnits        int            `gorm:"not null" json:"totalUnits"`
-	Species           string         `gorm:"not null" json:"species"`
-	ContributorCount  int            `gorm:"not null" json:"contributorCount"`
-	ContributorJSON   datatypes.JSON `gorm:"column:contributor_breakdown;type:jsonb;not null" json:"contributorBreakdown"`
-	Nonce             string         `gorm:"uniqueIndex;not null" json:"-"`
-	Signature         string         `gorm:"not null" json:"-"`
-	Status            string         `gorm:"not null;index" json:"status"`
-	MatchedActivityID string         `gorm:"type:uuid;index" json:"matchedActivityId,omitempty"`
-	FulfilledUnits    int            `gorm:"default:0" json:"fulfilledUnits"`
-	ExpiresAt         time.Time      `gorm:"index" json:"expiresAt"`
-	ChainAnchorObjectID string       `gorm:"column:chain_anchor_object_id" json:"chainAnchorObjectId,omitempty"`
-	CreatedAt         time.Time      `json:"createdAt"`
-	UpdatedAt         time.Time      `json:"updatedAt"`
+	ID                  string         `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID           string         `gorm:"type:uuid;index;not null" json:"projectId"`
+	JahaziClaimID       string         `gorm:"uniqueIndex;not null" json:"jahaziClaimId"`
+	JahaziProjectID     string         `gorm:"not null" json:"jahaziProjectId"`
+	PeriodStart         time.Time      `json:"periodStart"`
+	PeriodEnd           time.Time      `json:"periodEnd"`
+	TotalCostUsd        string         `gorm:"type:numeric(30,2);not null" json:"totalCostUsd"`
+	TotalUnits          int            `gorm:"not null" json:"totalUnits"`
+	Species             string         `gorm:"not null" json:"species"`
+	ContributorCount    int            `gorm:"not null" json:"contributorCount"`
+	ContributorJSON     datatypes.JSON `gorm:"column:contributor_breakdown;type:jsonb;not null" json:"contributorBreakdown"`
+	Nonce               string         `gorm:"uniqueIndex;not null" json:"-"`
+	Signature           string         `gorm:"not null" json:"-"`
+	Status              string         `gorm:"not null;index" json:"status"`
+	MatchedActivityID   string         `gorm:"type:uuid;index" json:"matchedActivityId,omitempty"`
+	FulfilledUnits      int            `gorm:"default:0" json:"fulfilledUnits"`
+	ExpiresAt           time.Time      `gorm:"index" json:"expiresAt"`
+	ChainAnchorObjectID string         `gorm:"column:chain_anchor_object_id" json:"chainAnchorObjectId,omitempty"`
+	CreatedAt           time.Time      `json:"createdAt"`
+	UpdatedAt           time.Time      `json:"updatedAt"`
 }
 
 // JahaziContribution mirrors a tourist contribution from Jahazi into the
@@ -708,4 +773,3 @@ type JahaziContribution struct {
 	Nonce                string `json:"nonce"`
 	Signature            string `json:"signature"`
 }
-

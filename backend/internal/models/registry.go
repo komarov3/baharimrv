@@ -10,6 +10,7 @@ func All() []any {
 		&SyncAction{}, &AuditEvent{}, &ProofDocument{}, &CreditBatch{}, &MarketplaceListing{},
 		&Purchase{}, &CustodyEvent{}, &RevenueAllocation{}, &Retirement{}, &ReconciliationCase{},
 		&SatellitePass{}, &FinancialImport{}, &ProjectDocument{}, &StepUpToken{},
+		&ProjectNdviSummary{}, &SatelliteRefreshJob{},
 		&SystemConfig{}, &Alert{}, &Incident{}, &AdminNote{}, &ExportJob{}, &SavedView{},
 		&VerificationOverride{}, &PublicProofVerificationLog{},
 		&RestorationRequest{},

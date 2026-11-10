@@ -1,0 +1,107 @@
+{
+ "usable_classes": [
+  4,
+  5
+ ],
+ "class_table": "msk-0509/1",
+ "granules": [
+  {
+   "scene_id": "S2C_37MER_20261105_1_L2A",
+   "processor_baseline": "05.13",
+   "cloud_pct": 29.627669,
+   "item_percentages": {
+    "s2:degraded_msi_data_percentage": 0.1391,
+    "s2:nodata_pixel_percentage": 41.33046,
+    "s2:saturated_defective_pixel_percentage": 0,
+    "s2:cloud_shadow_percentage": 9.936681,
+    "s2:vegetation_percentage": 21.728091,
+    "s2:not_vegetated_percentage": 13.407302,
+    "s2:water_percentage": 25.109312,
+    "s2:unclassified_percentage": 0.183809,
+    "s2:medium_proba_clouds_percentage": 12.105316,
+    "s2:high_proba_clouds_percentage": 17.522223,
+    "s2:thin_cirrus_percentage": 0.00013,
+    "s2:snow_ice_percentage": 0
+   },
+   "raster": {
+    "scene_wide": {
+     "total_pixels": 262144,
+     "valid_pixels": 154007,
+     "pct_of_all": {
+      "0": 41.25,
+      "2": 0.0,
+      "3": 5.94,
+      "4": 13.36,
+      "5": 7.06,
+      "6": 14.93,
+      "7": 0.03,
+      "8": 7.32,
+      "9": 10.1
+     },
+     "pct_of_valid": {
+      "0": 70.22,
+      "2": 0.0,
+      "3": 10.11,
+      "4": 22.74,
+      "5": 12.02,
+      "6": 25.42,
+      "7": 0.05,
+      "8": 12.46,
+      "9": 17.2
+     }
+    },
+    "over_cell": {
+     "total_pixels": 144,
+     "pct_of_all": {
+      "4": 100.0
+     }
+    }
+   }
+  },
+  {
+   "scene_id": "S2A_37MER_20261018_0_L2A",
+   "processor_baseline": "05.13",
+   "cloud_pct": 68.770033,
+   "item_percentages": {
+    "s2:degraded_msi_data_percentage": 0.079,
+    "s2:nodata_pixel_percentage": 0,
+    "s2:saturated_defective_pixel_percentage": 0,
+    "s2:cloud_shadow_percentage": 5.022336,
+    "s2:vegetation_percentage": 10.930999,
+    "s2:not_vegetated_percentage": 10.537964,
+    "s2:water_percentage": 4.103775,
+    "s2:unclassified_percentage": 0.633896,
+    "s2:medium_proba_clouds_percentage": 15.53832,
+    "s2:high_proba_clouds_percentage": 30.043772,
+    "s2:thin_cirrus_percentage": 23.187935,
+    "s2:snow_ice_percentage": 0
+   },
+   "raster": {
+    "scene_wide": {
+     "total_pixels": 262144,
+     "valid_pixels": 262144,
+     "pct_of_all": {
+      "3": 5.09,
+      "4": 11.03,
+      "5": 10.38,
+      "6": 4.42,
+      "7": 0.3,
+      "8": 12.72,
+      "9": 30.08,
+      "10": 25.97
+     },
+     "pct_of_valid": {
+      "3": 5.09,
+      "4": 11.03,
+      "5": 10.38,
+      "6": 4.42,
+      "7": 0.3,
+      "8": 12.72,
+      "9": 30.08,
+      "10": 25.97
+     }
+    }
+   }
+  }
+ ]
+}
