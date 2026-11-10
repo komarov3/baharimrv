@@ -1,19 +1,5 @@
--- Migration 000008: seed the base mangrove restoration methodology
--- This is reference data required for project creation on all environments.
--- The seed package creates this same record when SEED_DEMO_DATA=true;
--- this migration ensures it exists on production and fresh installs too.
--- Uses INSERT OR IGNORE so re-running is safe.
-
-INSERT OR IGNORE INTO methodologies (
-    id,
-    code,
-    name,
-    version,
-    required_evidence,
-    estimation,
-    created_at,
-    updated_at
-) VALUES (
+INSERT OR IGNORE INTO methodologies (id, code, name, version, required_evidence, estimation, created_at, updated_at)
+VALUES (
     'c6454811-b062-43b6-bbb7-5c380b8e4ca5',
     'MED-MANGROVE-DEMO',
     'Community mangrove restoration (demo methodology)',
