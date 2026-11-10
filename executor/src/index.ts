@@ -244,8 +244,60 @@ async function provisionIdentity(
     ],
   });
 
-  const res = await submitTx(keypair, tx);
-  return { ...res, did, address: keypair.getPublicKey().toIotaAddress(), did_document_reference: res.objectId };
+  try {
+    const res = await submitTx(keypair, tx);
+    return { ...res, did, address: keypair.getPublicKey().toIotaAddress(), did_document_reference: res.objectId };
+  } catch (err: any) {
+    // EDuplicateUserId (Move abort code 4) means this user_id is already in the registry.
+    // This happens on retries or when a previous tx committed but the Go readback timed out.
+    // Resolve the existing document and return it as a success so EnsureProvision can recover.
+    const isDuplicate =
+      (err?.message?.includes('MoveAbort') && err?.message?.includes(', 4)')) ||
+      err?.message?.includes('EDuplicateUserId') ||
+      err?.message?.includes('error_code: 4') ||
+      (err?.message?.includes('abort code:') && err?.message?.includes(' 4'));
+
+    if (isDuplicate) {
+      console.log(`[executor] provision_identity: EDuplicateUserId for ${params.idempotency_key} — resolving existing document`);
+      const existing = await resolveExistingIdentity(params.idempotency_key);
+      if (existing) {
+        return {
+          txHash: existing.txHash,
+          objectId: existing.objectId,
+          transaction_reference: existing.txHash,
+          did,
+          address: keypair.getPublicKey().toIotaAddress(),
+          did_document_reference: existing.objectId,
+        };
+      }
+      // Could not resolve — rethrow with a clearer message
+      throw new Error(`Identity already provisioned for ${params.idempotency_key} but could not resolve existing document`);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Resolve an existing IdentityDocument from the registry for the given user_id.
+ * Uses iota_getDynamicFieldObject to look up the dynamic field on the IdentityRegistry.
+ */
+async function resolveExistingIdentity(userId: string): Promise<{ txHash: string; objectId: string } | null> {
+  try {
+    // The registry maps user_id (String) → IdentityDocument object ID via dynamic_field
+    const result = await (client as any).getDynamicFieldObject({
+      parentId: IDENTITY_REG,
+      name: { type: '0x1::string::String', value: userId },
+    });
+    const objectId = result?.data?.objectId ?? result?.data?.content?.fields?.id?.id ?? '';
+    if (objectId) {
+      // We don't have the original txHash — use a sentinel that the Go side treats as confirmed
+      return { txHash: `recovered:${userId}`, objectId };
+    }
+    return null;
+  } catch (e: any) {
+    console.error('[executor] resolveExistingIdentity error:', e?.message);
+    return null;
+  }
 }
 
 async function anchorProvenance(

@@ -59,9 +59,21 @@ func (i *IOTA) ProvisionIdentity(ctx context.Context, userID string, publicKey [
 	if response.DID == "" || response.DIDDocumentRef == "" || response.Address == "" || response.TransactionRef == "" {
 		return IdentityResult{}, fmt.Errorf("identity executor returned an incomplete result")
 	}
-	valid, err := i.ResolveIdentity(ctx, response.DIDDocumentRef)
-	if err != nil || !valid {
-		return IdentityResult{}, fmt.Errorf("identity document readback did not confirm provisioning")
+	// Retry readback with backoff — IOTA testnet finality is typically 1-2s
+	// and a single immediate read often races the object becoming visible.
+	var valid bool
+	var readErr error
+	for attempt := 0; attempt < 4; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 600 * time.Millisecond)
+		}
+		valid, readErr = i.ResolveIdentity(ctx, response.DIDDocumentRef)
+		if readErr == nil && valid {
+			break
+		}
+	}
+	if readErr != nil || !valid {
+		return IdentityResult{}, fmt.Errorf("identity document readback did not confirm provisioning after retries")
 	}
 	return IdentityResult{response.DID, response.DIDDocumentRef, response.Address, response.TransactionRef, "testnet"}, nil
 }

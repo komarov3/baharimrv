@@ -117,7 +117,18 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 		return Result{}, ErrInvalidCredentials
 	}
 	provision, err := s.identity.ForUser(user.ID)
-	if err != nil || provision.State != models.IdentityActive || user.Status != models.IdentityActive {
+	if err != nil {
+		return Result{User: user, Identity: provision}, identity.ErrProvisioning
+	}
+	// Auto-retry provisioning for identity_failed accounts — the most common
+	// failure cause (EDuplicateUserId race or finality timeout) is recoverable.
+	// This lets a user log in and trigger recovery without a separate retry call.
+	if provision.State == models.IdentityFailed {
+		if retried, retryErr := s.identity.EnsureProvision(ctx, user.ID); retryErr == nil {
+			provision = retried
+		}
+	}
+	if provision.State != models.IdentityActive || user.Status != models.IdentityActive {
 		return Result{User: user, Identity: provision}, identity.ErrProvisioning
 	}
 	// Cross-platform role healing: if the user has no cap yet, check the hub
