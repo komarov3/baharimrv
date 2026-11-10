@@ -254,7 +254,7 @@ type ConservationActivity struct {
 	ReportingPeriodEnd   time.Time      `json:"reportingPeriodEnd"`
 	MethodologyVersion   string         `gorm:"not null" json:"methodologyVersion"`
 	Measurements         datatypes.JSON `gorm:"type:jsonb" json:"measurements"`
-	CurrentEventID       *string        `gorm:"type:uuid" json:"currentEventId,omitempty"`
+	CurrentEventID       string         `gorm:"type:text;default:''" json:"currentEventId,omitempty"`
 	JahaziFunded         bool           `gorm:"column:jahazi_funded;not null;default:false" json:"jahaziFunded"`
 	RestorationRequestID string         `gorm:"column:restoration_request_id;type:uuid;index" json:"restorationRequestId,omitempty"`
 	MrvLinkGenerated     bool           `gorm:"column:mrv_link_generated;not null;default:false" json:"mrvLinkGenerated"`
