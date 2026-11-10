@@ -177,6 +177,12 @@ func account(ctx context.Context, db *gorm.DB, hash []byte, email, name, role st
 }
 
 func methodologyRow(db *gorm.DB, now time.Time) (models.Methodology, error) {
+	// The methodology is inserted by migration 000008 on all environments.
+	// Look it up first; only create if it somehow doesn't exist yet.
+	var existing models.Methodology
+	if err := db.Where("code = ?", "MED-MANGROVE-DEMO").First(&existing).Error; err == nil {
+		return existing, nil
+	}
 	estimation, err := json.Marshal(map[string]any{
 		"tonnes_co2_per_tree":    "0.006250",
 		"source":                 "Demo parameter set. Not a verified allometric equation.",
@@ -187,7 +193,8 @@ func methodologyRow(db *gorm.DB, now time.Time) (models.Methodology, error) {
 		return models.Methodology{}, fmt.Errorf("encode demo estimation parameters: %w", err)
 	}
 	methodology := models.Methodology{
-		ID: uuid.NewString(), Code: "MED-MANGROVE-DEMO", Name: "Community mangrove restoration (demo methodology)",
+		ID: "c6454811-b062-43b6-bbb7-5c380b8e4ca5", Code: "MED-MANGROVE-DEMO",
+		Name:             "Community mangrove restoration (demo methodology)",
 		Version:          "1.0",
 		RequiredEvidence: "Geo-tagged survival count, average height, species note, at least one field photo or voice log.",
 		Estimation:       datatypes.JSON(estimation), CreatedAt: now, UpdatedAt: now,
