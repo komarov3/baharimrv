@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "66779356464",
+    "project_id": "baharimrv",
+    "storage_bucket": "baharimrv.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:66779356464:android:a4c3b1415c86cb1ea4bcf5",
+        "android_client_info": {
+          "package_name": "ke.co.baharilink.baharimrv"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "66779356464-grk8e01hbki1o1g5c58a4rdis4p42i9d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ-IRh1hwQypQ1GxSVlKmW49xQptrz_Bw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "66779356464-grk8e01hbki1o1g5c58a4rdis4p42i9d.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

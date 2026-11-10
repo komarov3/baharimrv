@@ -22,3 +22,4 @@ backend/config/firebase-adminsdk.json
 *.jks
 .agents/pipeline/
 chain.zip
+backend/baharimrv-local.db

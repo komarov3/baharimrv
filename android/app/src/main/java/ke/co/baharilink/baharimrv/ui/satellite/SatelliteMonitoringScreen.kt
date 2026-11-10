@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,6 +25,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +33,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.maps.compose.CameraPositionState
+import com.google.android.gms.maps.compose.GoogleMap
+import com.google.android.gms.maps.compose.Marker
+import com.google.android.gms.maps.compose.rememberCameraPositionState
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.FirebaseApp
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.google.firebase.analytics.FirebaseAnalytics.Event.SELECT_CONTENT
+import com.google.firebase.analytics.FirebaseAnalytics.Param.ITEM_ID
+import com.google.firebase.analytics.FirebaseAnalytics.Param.ITEM_NAME
 import ke.co.baharilink.baharimrv.data.remote.SatellitePassDto
 import ke.co.baharilink.baharimrv.ui.components.BahariButton
 import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
@@ -52,10 +66,17 @@ fun SatelliteMonitoringScreen(
     projectId: String,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val analytics = FirebaseAnalytics.getInstance(LocalContext.current)
 
     LaunchedEffect(projectId) {
         viewModel.setProjectId(projectId)
+        analytics.logEvent(SELECT_CONTENT) {
+            param(ITEM_ID, projectId)
+            param(ITEM_NAME, "satellite_monitoring_screen")
+        }
     }
+
+    val markers = viewModel.plotMarkers()
 
     Scaffold(
         topBar = {
@@ -69,7 +90,88 @@ fun SatelliteMonitoringScreen(
             )
         },
     ) {
-        when (val latestPass = state.latestPass) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // NDVI Map Overlay
+            if (state.dashboard.valueOrNull()?.plots?.isNotEmpty() == true) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp)
+                        .padding(8.dp),
+                ) {
+                    Text(
+                        text = "NDVI Map Overlay",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, top = 4.dp),
+                    )
+                    GoogleMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraPositionState = rememberCameraPositionState {
+                            val firstPlot = state.dashboard.valueOrNull()?.plots?.firstOrNull()
+                            if (firstPlot != null) {
+                                CameraPosition.fromLatLngZoom(
+                                    LatLng(firstPlot.latitude, firstPlot.longitude),
+                                    14f,
+                                )
+                            } else {
+                                CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 2f)
+                            }
+                        },
+                    ) {
+                        state.dashboard.valueOrNull()?.plots?.forEach { plot ->
+                            val ndviColor = viewModel.ndviColor(plot.ndvi)
+                            Marker(
+                                position = LatLng(plot.latitude, plot.longitude),
+                                title = plot.label,
+                                snippet = "NDVI: ${plot.ndvi?.let { "%.2f".format(it) } ?: "N/A"}",
+                                icon = BitmapDescriptorFactory.hue(
+                                    when {
+                                        plot.ndvi == null -> 0.0f // grey
+                                        plot.ndvi in 0.6..1.0 -> 120.0f // green
+                                        plot.ndvi in 0.4..0.6 -> 30.0f // amber/orange
+                                        plot.ndvi in 0.2..0.4 -> 0.0f // red
+                                        else -> 60.0f // olive
+                                    },
+                                ),
+                                onClick = {
+                                    analytics.logEvent(SELECT_CONTENT) {
+                                        param(ITEM_ID, plot.id)
+                                        param(ITEM_NAME, "ndvi_marker_${plot.label}")
+                                    }
+                                },
+                                window = {
+                                    Card(
+                                        modifier = Modifier.width(200.dp),
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(8.dp),
+                                        ) {
+                                            Text(
+                                                text = plot.label,
+                                                style = MaterialTheme.typography.titleSmall,
+                                            )
+                                            Text(
+                                                text = "NDVI: ${plot.ndvi?.let { "%.3f".format(it) } ?: "no data"}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                            )
+                                            Text(
+                                                text = "Lat: ${plot.latitude.toString().take(7)}, Lng: ${plot.longitude.toString().take(7)}",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            when (val latestPass = state.latestPass) {
             is LoadState.Loading -> {
                 androidx.compose.foundation.layout.Box(
                     modifier = Modifier.fillMaxSize(),
