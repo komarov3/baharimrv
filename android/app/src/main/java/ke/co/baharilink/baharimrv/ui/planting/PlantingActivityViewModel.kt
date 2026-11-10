@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 data class PlantingActivityUiState(
     val projectId: String = "",
     val plotId: String = "",
+    val availableProjects: List<ke.co.baharilink.baharimrv.data.remote.ProjectRowDto> = emptyList(),
     val availablePlots: List<PlotDto> = emptyList(),
     val plotsLoading: Boolean = false,
     val availableMethodologies: List<MethodologyDto> = emptyList(),
@@ -61,6 +62,15 @@ class PlantingActivityViewModel @Inject constructor(
     fun setProjectId(value: String) {
         _state.update { it.copy(projectId = value, plotId = "", availablePlots = emptyList()) }
         if (value.isNotBlank()) loadPlots(value)
+    }
+
+    private fun loadProjects() {
+        viewModelScope.launch {
+            try {
+                val rows = repository.projects().rows
+                _state.update { it.copy(availableProjects = rows) }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun loadPlots(projectId: String) {

@@ -1024,6 +1024,9 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 		return models.ConservationActivity{}, ErrForbidden
 	}
 	var plot models.Plot
+	if input.PlotID == "" || input.ProjectID == "" {
+		return models.ConservationActivity{}, domain.Invalid("plot and project IDs are required")
+	}
 	if err := s.db.Where("id = ? AND project_id = ?", input.PlotID, input.ProjectID).First(&plot).Error; err != nil {
 		return models.ConservationActivity{}, domain.Invalid("the plot does not belong to this project")
 	}

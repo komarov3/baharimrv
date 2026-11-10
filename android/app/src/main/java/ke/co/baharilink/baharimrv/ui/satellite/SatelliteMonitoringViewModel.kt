@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import ke.co.baharilink.baharimrv.data.remote.DashboardDto
+import ke.co.baharilink.baharimrv.data.remote.PlotDto
 import ke.co.baharilink.baharimrv.data.remote.SatellitePassDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
 import ke.co.baharilink.baharimrv.ui.components.LoadState
@@ -17,6 +19,7 @@ data class SatelliteMonitoringUiState(
     val projectId: String = "",
     val latestPass: LoadState<SatellitePassDto?> = LoadState.Success(null),
     val passes: LoadState<List<SatellitePassDto>> = LoadState.Success(emptyList()),
+    val dashboard: LoadState<DashboardDto> = LoadState.Success(DashboardDto()),
     val loading: Boolean = false,
     val error: String? = null,
 )
@@ -36,11 +39,13 @@ class SatelliteMonitoringViewModel @Inject constructor(
             try {
                 val latest = repository.satelliteLatest(projectId, mission)
                 val passes = repository.satellitePasses(projectId, mission)
+                val dashboard = repository.dashboard(projectId)
                 _state.update {
                     it.copy(
                         loading = false,
                         latestPass = LoadState.Success(latest),
                         passes = LoadState.Success(passes),
+                        dashboard = LoadState.Success(dashboard),
                     )
                 }
             } catch (e: Exception) {
@@ -55,4 +60,35 @@ class SatelliteMonitoringViewModel @Inject constructor(
             load(current.projectId, "")
         }
     }
+
+    fun plotMarkers(): List<PlotMarker> {
+        val state = _state.value
+        return state.dashboard.valueOrNull()?.plots?.map { plot ->
+            PlotMarker(
+                id = plot.id,
+                label = plot.label,
+                latitude = plot.latitude,
+                longitude = plot.longitude,
+                ndvi = plot.ndvi,
+            )
+        } ?: emptyList()
+    }
+
+    fun ndviColor(ndvi: Double?): Int {
+        return when (ndvi) {
+            null -> 0xFF9E9E9E // grey - no data
+            in 0.6..1.0 -> 0xFF388E3C // green - healthy
+            in 0.4..0.6 -> 0xFFFB8C00 // amber - moderate
+            in 0.2..0.4 -> 0xFFF44336 // red - stressed
+            else -> 0xFF9E9E36 // olive - low
+        }
+    }
 }
+
+data class PlotMarker(
+    val id: String,
+    val label: String,
+    val latitude: Double,
+    val longitude: Double,
+    val ndvi: Double?,
+)
