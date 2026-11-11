@@ -41,6 +41,11 @@ CREATE TABLE IF NOT EXISTS project_ndvi_summaries (
   result TEXT NOT NULL DEFAULT '{}',
   result_hash TEXT NOT NULL,
   processing_version TEXT NOT NULL,
+  -- Zoom range the worker rendered tiles for. Null when the summary was computed
+  -- without a render (sandbox, no plots, or the worker refused), so a proxy that
+  -- reads null answers 410 instead of guessing a range.
+  tile_min_zoom INTEGER,
+  tile_max_zoom INTEGER,
   computed_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP NOT NULL
 );

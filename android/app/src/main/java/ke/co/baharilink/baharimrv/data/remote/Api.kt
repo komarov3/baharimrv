@@ -222,6 +222,7 @@ data class CreateActivityRequestDto(
     val methodologyVersion: String,
     val reportingPeriodStart: String? = null,
     val reportingPeriodEnd: String? = null,
+    val measurements: Map<String, String>? = null,
 )
 
 data class CreateProjectRequest(
@@ -778,6 +779,7 @@ data class ActivityDetailDto(
     val periodEnd: String? = null,
     val record: MonitoringRecordViewDto? = null,
     val provenance: ProvViewDto? = null,
+    val measurements: Map<String, String>? = null,
 )
 
 interface BahariMrvApi {

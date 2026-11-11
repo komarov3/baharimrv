@@ -38,6 +38,7 @@ type Service struct {
 	db       *gorm.DB
 	mode     string
 	provider Provider
+	tiles    *TileCache
 	now      func() time.Time
 	// retryDelay is the pause between attempts at a failed provider call. It is a
 	// field so a test can drive the retry path without waiting out the real one.
@@ -52,6 +53,13 @@ type Options struct {
 	Provider    string
 	WorkerURL   string
 	WorkerToken string
+	// TilesRoot is the shared filesystem root the worker writes rendered PNGs
+	// into. Empty means no tiles are advertised and the overlay omits
+	// tileBaseUrl, so the client never asks for pixels the proxy cannot serve.
+	TilesRoot string
+	// TileCacheCapacity defaults to DefaultTileCacheEntries when zero. A test
+	// can shrink it to drive the eviction path without a large render.
+	TileCacheCapacity int
 }
 
 func NewService(db *gorm.DB, opts Options) *Service {
@@ -62,8 +70,17 @@ func NewService(db *gorm.DB, opts Options) *Service {
 	default:
 		service.provider = NewSandboxProvider()
 	}
+	capacity := opts.TileCacheCapacity
+	if capacity < 1 {
+		capacity = DefaultTileCacheEntries
+	}
+	service.tiles = NewTileCache(NewVolumeStore(opts.TilesRoot), capacity)
 	return service
 }
+
+// TileCache exposes the cache so an admin route can print its counters and an
+// overlay handler can probe its availability. It is never nil.
+func (s *Service) TileCache() *TileCache { return s.tiles }
 
 // Provider names the installed source so health and a summary can say which
 // machinery produced a figure. It is never inferred from SATELLITE_MODE.

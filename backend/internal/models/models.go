@@ -599,8 +599,13 @@ type ProjectNdviSummary struct {
 	Result             datatypes.JSON `gorm:"type:jsonb;not null" json:"result"`
 	ResultHash         string         `gorm:"type:text;not null" json:"resultHash"`
 	ProcessingVersion  string         `gorm:"type:text;not null" json:"processingVersion"`
-	ComputedAt         time.Time      `gorm:"not null" json:"computedAt"`
-	CreatedAt          time.Time      `json:"createdAt"`
+	// TileMinZoom and TileMaxZoom are the range the worker painted for this row. They
+	// are nil when no render ran (sandbox, no plots, or the worker refused), so a tile
+	// proxy that reads nil answers 410 instead of guessing a range.
+	TileMinZoom *int `json:"tileMinZoom,omitempty"`
+	TileMaxZoom *int `json:"tileMaxZoom,omitempty"`
+	ComputedAt  time.Time `gorm:"not null" json:"computedAt"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 // SatelliteRefreshJob is one queued compute. The database, not a map in memory, holds

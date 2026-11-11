@@ -783,7 +783,20 @@ fun PlantingActivityScreen(
             // ── Submit ────────────────────────────────────────────────────
             item {
                 BahariButton(
-                    onClick = viewModel::create,
+                    onClick = {
+                        viewModel.create(
+                            mapOf(
+                                "weather" to weatherCondition,
+                                "tide" to tideCondition,
+                                "soil" to soilCondition,
+                                "notes" to notes,
+                                "teamLead" to teamLead,
+                                "teamSize" to teamSize,
+                                "volunteers" to volunteers,
+                                "photoCount" to pendingPhotos.size.toString(),
+                            ),
+                        )
+                    },
                     variant = BahariButtonVariant.GREEN,
                     modifier = Modifier.fillMaxWidth(),
                     enabled = state.plotId.isNotBlank() &&

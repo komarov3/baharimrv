@@ -239,6 +239,12 @@ func (s *Service) runJob(ctx context.Context, job models.SatelliteRefreshJob) {
 	} else {
 		updates["status"] = JobComplete
 		updates["summary_id"] = summary.ID
+		// Best-effort tile render. A summary without tiles still stands on its
+		// number; the overlay omits tileBaseUrl and the proxy answers 410 until
+		// the next refresh paints pixels for the new scene.
+		if renderErr := s.RenderActiveScene(runCtx, job.ProjectID); renderErr != nil {
+			slog.Warn("satellite refresh did not paint tiles", "job", job.ID, "project", job.ProjectID, "error", renderErr)
+		}
 	}
 	if err := s.db.Model(&models.SatelliteRefreshJob{}).Where("id = ?", job.ID).Updates(updates).Error; err != nil {
 		// The computation happened but its outcome is not recorded. The reaper frees

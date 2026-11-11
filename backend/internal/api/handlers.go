@@ -224,6 +224,7 @@ type activityDetailView struct {
 	PeriodEnd          *time.Time            `json:"periodEnd,omitempty"`
 	Record             *monitoringRecordView `json:"record,omitempty"`
 	Provenance         *provView             `json:"provenance,omitempty"`
+	Measurements       map[string]any        `json:"measurements,omitempty"`
 }
 
 type monitoringRecordView struct {
@@ -300,6 +301,12 @@ func (r *router) activityDetail(c *gin.Context) {
 		ActivityType: activity.ActivityType, Status: activity.Status,
 		MethodologyVersion: activity.MethodologyVersion,
 		PeriodStart:        &activity.ReportingPeriodStart, PeriodEnd: &activity.ReportingPeriodEnd,
+	}
+	if len(activity.Measurements) > 0 {
+		var measurements map[string]any
+		if err := json.Unmarshal(activity.Measurements, &measurements); err == nil {
+			view.Measurements = measurements
+		}
 	}
 
 	// Load monitoring records. If the lookup fails the record stays nil.

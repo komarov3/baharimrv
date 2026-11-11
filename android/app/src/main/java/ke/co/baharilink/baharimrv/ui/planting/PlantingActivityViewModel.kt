@@ -94,7 +94,7 @@ class PlantingActivityViewModel @Inject constructor(
     fun setReportingPeriodEnd(value: String)   = _state.update { it.copy(reportingPeriodEnd = value) }
     fun setSeedlingsPlanted(value: String)     = _state.update { it.copy(seedlingsPlanted = value) }
 
-    fun create() {
+    fun create(measurements: Map<String, String> = emptyMap()) {
         val current = _state.value
         if (current.projectId.isBlank())          { _state.update { it.copy(error = "Select a project first") }; return }
         if (current.plotId.isBlank())             { _state.update { it.copy(error = "Select a plot") }; return }
@@ -114,6 +114,9 @@ class PlantingActivityViewModel @Inject constructor(
                         methodologyVersion = current.methodologyVersion,
                         reportingPeriodStart = current.reportingPeriodStart.ifBlank { null },
                         reportingPeriodEnd   = current.reportingPeriodEnd.ifBlank { null },
+                        measurements = (measurements + ("seedlingsPlanted" to current.seedlingsPlanted))
+                            .filterValues { it.isNotBlank() }
+                            .ifEmpty { null },
                     ),
                 )
                 _state.update {

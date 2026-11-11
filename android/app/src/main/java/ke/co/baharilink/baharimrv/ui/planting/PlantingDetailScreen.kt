@@ -227,6 +227,46 @@ private fun ActivityDetailContent(
             }
         }
 
+        // 1c. Optional planting details card
+        item {
+            val measurements = dto.measurements.orEmpty()
+            BahariCard {
+                Text(
+                    "Planting conditions & team",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (measurements.isEmpty()) {
+                    Text(
+                        "No optional details recorded for this activity.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    val labels = mapOf(
+                        "weather" to "Weather",
+                        "tide" to "Tide conditions",
+                        "soil" to "Soil / substrate",
+                        "notes" to "Additional notes",
+                        "teamLead" to "Team lead",
+                        "teamSize" to "Team size",
+                        "volunteers" to "Volunteers / community",
+                        "seedlingsPlanted" to "Planned seedlings",
+                        "photoCount" to "Photos captured",
+                    )
+                    measurements.toSortedMap().forEach { (key, value) ->
+                        val text = value?.toString()?.trim().orEmpty()
+                        if (text.isNotBlank()) {
+                            KeyValue(
+                                label = labels[key] ?: key.replaceFirstChar { it.uppercase() },
+                                value = text,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // 2. Monitoring record card
         item {
             val record = dto.record
