@@ -22,7 +22,9 @@ import (
 	"github.com/baharilink/baharimrv/internal/models"
 	"github.com/baharilink/baharimrv/internal/provenance"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 const testPassword = "Correct-Horse-1234"
@@ -154,6 +156,40 @@ func (f *fixture) register(role, local string) account {
 		"email": email, "password": testPassword,
 	}, http.StatusOK)
 	return account{id: created.str("user", "id"), email: email, token: login.str("sessionToken")}
+}
+
+// registerAdmin is the narrow path past the public register handler, which
+// refuses the admin role. Tests that need an operator bypass that check by
+// writing the user directly and logging in through the normal path.
+func (f *fixture) registerAdmin(local string) account {
+	f.t.Helper()
+	email := local + "@test.baharimrv.local"
+	hash, err := bcrypt.GenerateFromPassword([]byte(testPassword), 12)
+	if err != nil {
+		f.t.Fatalf("hash admin password: %v", err)
+	}
+	now := time.Now().UTC()
+	user := models.User{
+		ID: uuid.NewString(), Email: email, PasswordHash: string(hash),
+		DisplayName: local, Role: models.RoleAdmin, Status: models.IdentityActive,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	provision := models.IdentityProvision{
+		ID: uuid.NewString(), UserID: user.ID, State: models.IdentityActive,
+		Network: "iota:testnet", CreatedAt: now, UpdatedAt: now,
+	}
+	if err := f.app.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&user).Error; err != nil {
+			return err
+		}
+		return tx.Create(&provision).Error
+	}); err != nil {
+		f.t.Fatalf("seed admin: %v", err)
+	}
+	login := f.must(http.MethodPost, "/api/v1/auth/login", "", map[string]any{
+		"email": email, "password": testPassword,
+	}, http.StatusOK)
+	return account{id: user.ID, email: email, token: login.str("sessionToken")}
 }
 
 func (f *fixture) stepUp(token, action string) string {

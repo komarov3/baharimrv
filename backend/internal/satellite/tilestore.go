@@ -68,7 +68,14 @@ func (s *VolumeStore) Get(keyPrefix string, z, x, y int) ([]byte, error) {
 	if s == nil || s.root == "" {
 		return nil, ErrTileNotFound
 	}
-	if keyPrefix == "" || strings.ContainsAny(keyPrefix, `/\`) || strings.Contains(keyPrefix, "..") {
+	if keyPrefix == "" {
+		return nil, ErrTileNotFound
+	}
+	// The prefix and tile coordinates come from the worker's output and a
+	// client's request. The prefix is built as project_id + "/" + scene_id,
+	// which carries exactly one slash, and z, x, y are integers. Any backslash
+	// or ".." is hostile and is refused before any path is assembled.
+	if strings.ContainsAny(keyPrefix, `\`) || strings.Contains(keyPrefix, "..") {
 		return nil, fmt.Errorf("%q cannot name a tile prefix", keyPrefix)
 	}
 	rel := filepath.Join(keyPrefix, fmt.Sprintf("%d", z), fmt.Sprintf("%d", x), fmt.Sprintf("%d.png", y))
@@ -77,7 +84,8 @@ func (s *VolumeStore) Get(keyPrefix string, z, x, y int) ([]byte, error) {
 	// refactor that swaps the prefix or the worker's layout should fail loudly
 	// rather than read outside the volume.
 	cleanRoot := filepath.Clean(s.root)
-	if !strings.HasPrefix(filepath.Clean(path), cleanRoot+string(filepath.Separator)) && filepath.Clean(path) != cleanRoot {
+	cleanPath := filepath.Clean(path)
+	if cleanPath != cleanRoot && !strings.HasPrefix(cleanPath, cleanRoot+string(filepath.Separator)) {
 		return nil, fmt.Errorf("tile path %q escapes root", rel)
 	}
 	data, err := os.ReadFile(path)

@@ -74,6 +74,7 @@ func Build(cfg config.Config) (*App, error) {
 	imagery := satellite.NewService(db, satellite.Options{
 		Mode: cfg.SatelliteMode, Provider: cfg.SatelliteProvider,
 		WorkerURL: cfg.S2WorkerURL, WorkerToken: cfg.S2WorkerToken,
+		TilesRoot: cfg.SatelliteTilesRoot,
 	})
 	projects := mrv.NewService(db, identities, anchors, imagery, store)
 

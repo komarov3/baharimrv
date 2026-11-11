@@ -29,6 +29,10 @@ type Config struct {
 	SatelliteProvider  string
 	S2WorkerURL        string
 	S2WorkerToken      string
+	// SatelliteTilesRoot is the shared filesystem the s2-worker writes rendered
+	// PNGs into. Empty disables tile advertisement: the overlay omits
+	// tileBaseUrl and the proxy answers 410 for every tile request.
+	SatelliteTilesRoot string
 	RegistryMode       string
 	PaymentMode        string
 	EvidenceRoot       string
@@ -134,6 +138,7 @@ func Load() (Config, error) {
 		SatelliteProvider:   value("SATELLITE_PROVIDER", "sandbox"),
 		S2WorkerURL:         os.Getenv("S2_WORKER_URL"),
 		S2WorkerToken:       os.Getenv("S2_WORKER_TOKEN"),
+		SatelliteTilesRoot:  os.Getenv("SATELLITE_TILES_ROOT"),
 		RegistryMode:        value("REGISTRY_MODE", "sandbox"),
 		PaymentMode:         value("PAYMENT_MODE", "sandbox"),
 		EvidenceRoot:        value("EVIDENCE_ROOT", "data/evidence"),

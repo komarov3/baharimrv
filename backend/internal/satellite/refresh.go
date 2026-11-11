@@ -295,3 +295,40 @@ func (s *Service) reapStuckJobs(ctx context.Context) error {
 			"finished_at": now, "updated_at": now,
 		}).Error
 }
+
+// HealthJobs is the job-backlog snapshot the admin route prints. Every field
+// is a count so the operator can see whether the queue is draining without
+// reading individual rows.
+type HealthJobs struct {
+	Queued          int `json:"queued"`
+	Running         int `json:"running"`
+	Stuck           int `json:"stuck"`
+	FailedLastDay   int `json:"failedLastDay"`
+}
+
+// HealthJobs returns the backlog counts. A stuck job is a running one whose
+// started_at is older than stuckJobAfter, the same predicate the reaper uses,
+// so the admin sees exactly what the next sweep will free.
+func (s *Service) HealthJobs() (HealthJobs, error) {
+	var queued, running int64
+	if err := s.db.Model(&models.SatelliteRefreshJob{}).Where("status = ?", JobQueued).Count(&queued).Error; err != nil {
+		return HealthJobs{}, err
+	}
+	if err := s.db.Model(&models.SatelliteRefreshJob{}).Where("status = ?", JobRunning).Count(&running).Error; err != nil {
+		return HealthJobs{}, err
+	}
+	cutoff := s.now().UTC().Add(-stuckJobAfter)
+	var stuck int64
+	if err := s.db.Model(&models.SatelliteRefreshJob{}).
+		Where("status = ? AND started_at < ?", JobRunning, cutoff).Count(&stuck).Error; err != nil {
+		return HealthJobs{}, err
+	}
+	var failed int64
+	if err := s.db.Model(&models.SatelliteRefreshJob{}).
+		Where("status = ? AND finished_at > ?", JobFailed, s.now().UTC().Add(-24*time.Hour)).Count(&failed).Error; err != nil {
+		return HealthJobs{}, err
+	}
+	return HealthJobs{
+		Queued: int(queued), Running: int(running), Stuck: int(stuck), FailedLastDay: int(failed),
+	}, nil
+}

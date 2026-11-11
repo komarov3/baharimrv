@@ -153,6 +153,8 @@ func New(deps Dependencies) http.Handler {
 		session.GET("/projects/:id/satellite/change", r.projectSatelliteChange)
 		session.POST("/projects/:id/satellite/refresh", bodyLimit, r.projectSatelliteRefresh)
 		session.GET("/projects/:id/satellite/refreshes/:jobId", r.projectSatelliteRefreshStatus)
+		session.GET("/projects/:id/satellite/overlay", r.projectSatelliteOverlay)
+		session.GET("/projects/:id/satellite/tiles/:z/:x/:y", r.projectSatelliteTile)
 
 		session.GET("/documents/:id", r.downloadDocument)
 		session.POST("/sync/batch", bodyLimit, r.syncBatch)
@@ -190,6 +192,7 @@ func New(deps Dependencies) http.Handler {
 		session.GET("/proofs/:id/download", r.downloadProof)
 
 		session.GET("/admin/overview", r.requireAdmin, r.adminOverview)
+		session.GET("/admin/satellite/health", r.requireAdmin, r.adminSatelliteHealth)
 		session.GET("/admin/users", r.requireAdmin, r.adminUsers)
 		session.GET("/admin/identities", r.requireAdmin, r.adminIdentities)
 		session.GET("/admin/projects", r.requireAdmin, r.adminProjects)

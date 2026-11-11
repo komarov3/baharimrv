@@ -149,3 +149,101 @@ func TestSatelliteChangeAfterARefresh(t *testing.T) {
 		t.Errorf("adapterMode = %q, want sandbox in this build", mode)
 	}
 }
+
+// The overlay carries the same envelope for sandbox and live responses so the
+// client never branches on structure; a sandbox row drops tileBaseUrl and the
+// scene id rather than sending an empty string.
+func TestSatelliteOverlaySandboxShape(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+	outsider := f.register(models.RoleManager, "overlay-outsider")
+
+	// The refresh path produces a sandbox summary the overlay can read.
+	f.must(http.MethodPost, "/api/v1/projects/"+w.projectID+"/satellite/refresh", w.manager.token, nil, http.StatusAccepted)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := f.app.Satellite.ProcessRefreshJobs(ctx); err != nil {
+		t.Fatalf("process: %v", err)
+	}
+
+	overlay := f.must(http.MethodGet, "/api/v1/projects/"+w.projectID+"/satellite/overlay", w.manager.token, nil, http.StatusOK)
+	for _, key := range []string{"layer", "quality", "adapterMode", "legend", "cacheExpiresAt", "summaryId"} {
+		if _, ok := overlay.body[key]; !ok {
+			t.Errorf("overlay missing %s: %s", key, overlay.raw)
+		}
+	}
+	if mode, _ := overlay.body["adapterMode"].(string); mode != "sandbox" {
+		t.Errorf("adapterMode = %q, want sandbox", mode)
+	}
+	if _, ok := overlay.body["tileBaseUrl"]; ok {
+		t.Errorf("sandbox overlay must not advertise tileBaseUrl: %s", overlay.raw)
+	}
+	if scene, _ := overlay.body["sceneId"].(string); scene != "" {
+		t.Errorf("sandbox overlay must not name a scene: %s", overlay.raw)
+	}
+
+	f.must(http.MethodGet, "/api/v1/projects/"+w.projectID+"/satellite/overlay", outsider.token, nil, http.StatusForbidden)
+	f.must(http.MethodGet, "/api/v1/projects/"+w.projectID+"/satellite/overlay", "", nil, http.StatusUnauthorized)
+}
+
+// A project with no summary answers 404 rather than inventing an envelope,
+// so the client offers a refresh instead of drawing nothing.
+func TestSatelliteOverlayBeforeComputeIsRefused(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+
+	resp := f.must(http.MethodGet, "/api/v1/projects/"+w.projectID+"/satellite/overlay", w.manager.token, nil, http.StatusNotFound)
+	if code := resp.str("error", "code"); code != "satellite_summary_missing" {
+		t.Fatalf("expected satellite_summary_missing, got %q in %s", code, resp.raw)
+	}
+}
+
+// The tile proxy refuses every request the overlay could not have named: a
+// missing scene, a bad layer, and a zoom outside the worker's grid all answer
+// with typed 422s so the client can log them rather than guessing.
+func TestSatelliteTileProxyValidatesInputs(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+	base := "/api/v1/projects/" + w.projectID + "/satellite/tiles/14/9012/7234.png"
+
+	f.must(http.MethodGet, base, w.manager.token, nil, http.StatusUnprocessableEntity)
+	f.must(http.MethodGet, base+"?scene=SOME_SCENE", w.manager.token, nil, http.StatusUnprocessableEntity)
+	f.must(http.MethodGet, base+"?scene=SOME_SCENE&layer=other", w.manager.token, nil, http.StatusUnprocessableEntity)
+}
+
+// The tile proxy answers 410 when a caller names a scene the project has moved
+// past. The fixture is sandbox (no render ran), so every tile request for any
+// scene is "the project moved past that scene" from the proxy's point of view.
+func TestSatelliteTileProxySupersedesStaleScene(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+	f.must(http.MethodPost, "/api/v1/projects/"+w.projectID+"/satellite/refresh", w.manager.token, nil, http.StatusAccepted)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := f.app.Satellite.ProcessRefreshJobs(ctx); err != nil {
+		t.Fatalf("process: %v", err)
+	}
+
+	url := "/api/v1/projects/" + w.projectID + "/satellite/tiles/14/9012/7234.png?scene=STALE&layer=ndvi"
+	resp := f.must(http.MethodGet, url, w.manager.token, nil, http.StatusGone)
+	if code := resp.str("error", "code"); code != "satellite_scene_superseded" {
+		t.Fatalf("expected satellite_scene_superseded, got %q in %s", code, resp.raw)
+	}
+}
+
+// The admin route is admin-only and answers the shape the operator reads: a
+// provider name, the tile-store flag, the cache counters, and the job backlog.
+func TestAdminSatelliteHealthIsAdminOnly(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+
+	f.must(http.MethodGet, "/api/v1/admin/satellite/health", w.manager.token, nil, http.StatusForbidden)
+	f.must(http.MethodGet, "/api/v1/admin/satellite/health", "", nil, http.StatusUnauthorized)
+	admin := f.registerAdmin("satellite-admin")
+	view := f.must(http.MethodGet, "/api/v1/admin/satellite/health", admin.token, nil, http.StatusOK)
+	for _, key := range []string{"provider", "adapterMode", "tileStoreAvailable", "tileCache", "queuedJobs", "runningJobs"} {
+		if _, ok := view.body[key]; !ok {
+			t.Errorf("health missing %s: %s", key, view.raw)
+		}
+	}
+}

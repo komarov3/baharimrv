@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -749,6 +750,96 @@ func (r *router) projectSatelliteRefreshStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, view)
 }
 
+// projectSatelliteOverlay returns the addressing the map needs plus the
+// provenance the label needs. A sandbox or unavailable summary keeps the same
+// envelope so the client never branches on structure; only tileBaseUrl and the
+// scene id disappear when there are no pixels to paint.
+func (r *router) projectSatelliteOverlay(c *gin.Context) {
+	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), c.Param("id")); err != nil {
+		fail(c, err)
+		return
+	}
+	view, err := r.satellite.ProjectOverlay(c.Param("id"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
+// projectSatelliteTile is the authenticated proxy. A scene mismatch or a zoom
+// outside the summary's range is answered 410 so the client re-requests the
+// overlay rather than painting a gap. The scene is required in the query string
+// rather than inferred from the path, so a stale link cannot be served pixels
+// from a scene the client was never told about.
+func (r *router) projectSatelliteTile(c *gin.Context) {
+	projectID := c.Param("id")
+	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), projectID); err != nil {
+		fail(c, err)
+		return
+	}
+	scene := c.Query("scene")
+	layer := c.Query("layer")
+	if scene == "" || layer != "ndvi" {
+		fail(c, domain.Invalid("scene and layer=ndvi are required"))
+		return
+	}
+	z, errZ := strconv.Atoi(c.Param("z"))
+	x, errX := strconv.Atoi(c.Param("x"))
+	// The slippy-map convention puts ".png" on the URL. Gin's wildcard captures
+	// the whole final segment, so strip the suffix before parsing the integer.
+	yParam := strings.TrimSuffix(c.Param("y"), ".png")
+	y, errY := strconv.Atoi(yParam)
+	if errZ != nil || errX != nil || errY != nil {
+		fail(c, domain.Invalid("tile coordinates must be integers"))
+		return
+	}
+	// The guard rails come from the slippy-map grid itself. Below 8 there is
+	// nothing project-sized to see; above 16 a single project's tiles could be
+	// walked as a global dump, so both ends are refused before the store is
+	// consulted.
+	if z < 8 || z > 16 || x < 0 || y < 0 {
+		fail(c, domain.Invalid("tile zoom must be between 8 and 16"))
+		return
+	}
+	tile, err := r.satellite.ReadTile(projectID, scene, z, x, y)
+	if err != nil {
+		if errors.Is(err, satellite.ErrSceneSuperseded) || errors.Is(err, satellite.ErrTileNotFound) {
+			c.Header("Cache-Control", "no-store")
+		}
+		fail(c, err)
+		return
+	}
+	c.Header("Cache-Control", "private, max-age=3600")
+	c.Header("ETag", tile.ETag)
+	c.Data(http.StatusOK, "image/png", tile.PNG)
+}
+
+// adminSatelliteHealth is the operator's view of the imagery path. It mirrors
+// router.go's /health shape but carries the project data /health is forbidden
+// to name: which discovery sources answered, whether the tile store is
+// reachable, how the cache is faring, and whether jobs are stuck.
+func (r *router) adminSatelliteHealth(c *gin.Context) {
+	provider := r.satellite.Provider()
+	stats := r.satellite.TileCache().Stats()
+	jobs, err := r.satellite.HealthJobs()
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"status":              "ok",
+		"provider":            provider.Name(),
+		"adapterMode":         r.satellite.Mode(),
+		"tileStoreAvailable":  r.satellite.TileCache().Available(),
+		"tileCache":           stats,
+		"queuedJobs":          jobs.Queued,
+		"runningJobs":         jobs.Running,
+		"stuckJobs":           jobs.Stuck,
+		"failedJobsLastDay":   jobs.FailedLastDay,
+	})
+}
+
 func (r *router) listMonitors(c *gin.Context) {
 	items, err := r.projects.Monitors()
 	if err != nil {
@@ -837,6 +928,8 @@ func classify(err error) (int, string) {
 		return http.StatusNotFound, "satellite_summary_missing"
 	case errors.Is(err, satellite.ErrProviderFailed):
 		return http.StatusBadGateway, "satellite_provider_failed"
+	case errors.Is(err, satellite.ErrSceneSuperseded), errors.Is(err, satellite.ErrTileNotFound):
+		return http.StatusGone, "satellite_scene_superseded"
 	default:
 		return 0, ""
 	}
