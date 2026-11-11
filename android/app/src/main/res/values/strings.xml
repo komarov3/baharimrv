@@ -1,4 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BahariMRV</string>
+    <string name="common_back">Back</string>
+    <string name="common_retry">Retry</string>
+
+    <!-- Satellite monitoring screen. Legend labels mirror the server's stop
+         keys so a palette change is one server commit and one string update. -->
+    <string name="satellite_title">Satellite monitoring</string>
+    <string name="satellite_loading_passes">Loading satellite passes…</string>
+    <string name="satellite_loading_change">Loading NDVI change…</string>
+    <string name="satellite_acquired_label">Acquired %1$s</string>
+    <string name="satellite_marker_no_ndvi">NDVI unavailable for this plot</string>
+    <string name="satellite_sandbox_title">Sandbox mode</string>
+    <string name="satellite_sandbox_body">Live Sentinel-2 imagery is not configured. The figures below are synthetic; they corroborate the pipeline but do not represent a real scene over this project.</string>
+    <string name="satellite_adapter_sandbox">sandbox</string>
+    <string name="satellite_last_pass_title">Latest acquisition</string>
+    <string name="satellite_last_pass_meta">%1$s • Cloud %2$s%%</string>
+    <string name="satellite_cloud_label">Cloud %1$d%%</string>
+    <string name="satellite_change_title">NDVI change</string>
+    <string name="satellite_change_mean_ndvi">Mean NDVI</string>
+    <string name="satellite_change_baseline">Baseline mean</string>
+    <string name="satellite_change_delta">Change</string>
+    <string name="satellite_change_coverage">Coverage</string>
+    <string name="satellite_change_coverage_value">%1$d%% over %2$d plots</string>
+    <string name="satellite_partial_title">Partial coverage</string>
+    <string name="satellite_partial_body">Below 60%% of the project plots were measured in this scene. Treat the headline figure as indicative; a clearer pass will sharpen it.</string>
+    <string name="satellite_acquisitions_title">Acquisitions</string>
+    <string name="satellite_acquisitions_empty_title">No acquisitions yet</string>
+    <string name="satellite_acquisitions_empty_detail">Once a Sentinel-2 scene is matched to this project, each pass is listed here with its cloud cover and adapter mode.</string>
+    <string name="satellite_refresh_action">Check for new imagery</string>
+    <string name="satellite_refresh_running">Checking for new imagery…</string>
+    <string name="satellite_legend_bare">Bare surface</string>
+    <string name="satellite_legend_very_low">Very low cover</string>
+    <string name="satellite_legend_low">Low vegetation</string>
+    <string name="satellite_legend_moderate">Moderate vegetation</string>
+    <string name="satellite_legend_dense">Dense vegetation</string>
+    <string name="satellite_legend_generic">NDVI band</string>
 </resources>

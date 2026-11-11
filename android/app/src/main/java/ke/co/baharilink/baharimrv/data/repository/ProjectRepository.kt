@@ -38,6 +38,18 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
         api.satellitePasses(projectId, mission).items
     suspend fun satelliteLatest(projectId: String, mission: String) =
         api.satelliteLatest(projectId, mission).pass
+    suspend fun satelliteOverlay(projectId: String) = api.satelliteOverlay(projectId)
+    suspend fun satelliteChange(projectId: String) = api.satelliteChange(projectId)
+    suspend fun satelliteRefresh(projectId: String) = api.satelliteRefresh(projectId)
+    suspend fun satelliteRefreshStatus(projectId: String, jobId: String) =
+        api.satelliteRefreshStatus(projectId, jobId)
+    suspend fun satelliteTile(
+        projectId: String,
+        z: Int,
+        x: Int,
+        y: Int,
+        scene: String,
+    ) = api.satelliteTile(projectId, z, x, y, "ndvi", scene)
     suspend fun monitors() = api.monitors().items
     suspend fun assignMonitor(projectId: String, plotId: String, monitorId: String?) =
         api.updatePlot(projectId, plotId, UpdatePlotRequest(assignedMonitorId = monitorId))

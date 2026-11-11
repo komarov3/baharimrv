@@ -77,7 +77,7 @@ private object Routes {
     const val PLANTING = "planting"
     const val PLANTING_CREATE = "planting/create"
     const val PLANTING_DETAIL = "planting/detail/{activityId}"
-    const val SATELLITE = "satellite"
+    const val SATELLITE = "satellite/{projectId}"
     const val CREDITS = "credits"
     const val WALLET = "wallet"
     const val PROFILE = "profile"
@@ -89,6 +89,7 @@ private object Routes {
 
     fun verification(activityId: String = "") = "verification?activityId=${Uri.encode(activityId)}"
     fun plantingDetail(activityId: String) = "planting/detail/${Uri.encode(activityId)}"
+    fun satellite(projectId: String) = "satellite/${Uri.encode(projectId)}"
 }
 
 private data class Destination(val route: String, val label: String, @DrawableRes val iconRes: Int)
@@ -172,7 +173,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onVerification = { navController.navigate(Routes.verification()) },
                             onProjects = { navController.navigate(Routes.PROJECTS) },
                             onPlanting = { navController.navigate(Routes.PLANTING) },
-                            onSatellite = { navController.navigate(Routes.SATELLITE) },
+                            onSatellite = { navController.navigate(Routes.satellite(selection)) },
                         )
                     }
                     composable(Routes.MODULE_ENTRY) {
@@ -209,10 +210,13 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable(Routes.SATELLITE) {
+                    composable(
+                        route = Routes.SATELLITE,
+                        arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
                         SatelliteMonitoringScreen(
                             onBack = { navController.popBackStack() },
-                            projectId = selection,
+                            projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
                         )
                     }
                     composable(Routes.PROJECTS) { backStackEntry -> ProjectsScreen(onProjectClick = { id -> navController.navigate(Routes.PROJECT_DETAIL.replace("{projectId}", id)) }) }

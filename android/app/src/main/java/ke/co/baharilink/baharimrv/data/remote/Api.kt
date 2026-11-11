@@ -669,11 +669,100 @@ data class SatellitePassDto(
     val coveragePct: Double = 0.0,
     val statusDetail: String? = null,
     val adapterMode: String? = null,
+    val processingVersion: String? = null,
+    val quality: String? = null,
 )
 
 data class SatellitePassesResponse(val items: List<SatellitePassDto> = emptyList())
 
 data class SatelliteLatestResponse(val pass: SatellitePassDto? = null)
+
+/**
+ * Envelope the map screen needs to request tiles and label them. A deployment
+ * without tiles omits [tileBaseUrl] and [sceneId] rather than sending a second
+ * shape the client has to branch on, so a single DTO covers sandbox and live.
+ */
+data class SatelliteOverlayDto(
+    val tileBaseUrl: String? = null,
+    val layer: String = "ndvi",
+    val sceneId: String? = null,
+    val mission: String = "S2",
+    val acquiredAt: String? = null,
+    val cloudCoverPct: Double? = null,
+    val quality: String = "unavailable",
+    val adapterMode: String = "sandbox",
+    val provider: String? = null,
+    val discoverySource: String? = null,
+    val processingVersion: String? = null,
+    val bbox: SatelliteBBoxDto? = null,
+    val zoomRange: SatelliteZoomRangeDto? = null,
+    val legend: List<SatelliteLegendStopDto> = emptyList(),
+    val cacheExpiresAt: String? = null,
+    val summaryId: String? = null,
+)
+
+data class SatelliteBBoxDto(
+    val minLat: Double = 0.0,
+    val minLon: Double = 0.0,
+    val maxLat: Double = 0.0,
+    val maxLon: Double = 0.0,
+)
+
+data class SatelliteZoomRangeDto(val min: Int = 0, val max: Int = 0)
+
+data class SatelliteLegendStopDto(
+    val min: Double = 0.0,
+    val max: Double = 0.0,
+    val color: String = "#9E9E9E",
+    val labelKey: String = "",
+)
+
+/**
+ * Project-level NDVI change headline. `meanNdvi` and `changeAbs` stay nullable
+ * so a sandbox figure with no baseline or a project without plots deserializes
+ * without inventing zeros.
+ */
+data class NdviChangeDto(
+    val summaryId: String? = null,
+    val meanNdvi: Double? = null,
+    val baselineMeanNdvi: Double? = null,
+    val changeAbs: Double? = null,
+    val changePct: Double? = null,
+    val periodStart: String? = null,
+    val periodEnd: String? = null,
+    val currentSceneId: String? = null,
+    val baselineSceneId: String? = null,
+    val currentAcquiredAt: String? = null,
+    val coveragePct: Double = 0.0,
+    val plotCount: Int = 0,
+    val quality: String = "unavailable",
+    val adapterMode: String = "sandbox",
+    val provider: String? = null,
+    val processingVersion: String? = null,
+    val resultHash: String? = null,
+    val computedAt: String? = null,
+    val anchor: NdviChangeAnchorDto? = null,
+)
+
+data class NdviChangeAnchorDto(
+    val state: String? = null,
+    val chainMode: String? = null,
+    val transactionHash: String? = null,
+)
+
+/**
+ * One refresh job. `status` is one of queued/running/complete/failed/cancelled;
+ * on `complete` the [summaryId] is populated, on `failed` the [error] carries
+ * the server's stable sentence rather than a worker-specific trace.
+ */
+data class SatelliteRefreshDto(
+    val jobId: String = "",
+    val status: String = "queued",
+    val summaryId: String? = null,
+    val error: String? = null,
+    val startedAt: String? = null,
+    val finishedAt: String? = null,
+)
 
 
 data class WeatherDto(
@@ -834,6 +923,32 @@ interface BahariMrvApi {
         @Path("id") projectId: String,
         @Query("mission") mission: String,
     ): SatelliteLatestResponse
+
+    @GET("api/v1/projects/{id}/satellite/overlay")
+    suspend fun satelliteOverlay(@Path("id") projectId: String): SatelliteOverlayDto
+
+    @GET("api/v1/projects/{id}/satellite/change")
+    suspend fun satelliteChange(@Path("id") projectId: String): NdviChangeDto
+
+    @POST("api/v1/projects/{id}/satellite/refresh")
+    suspend fun satelliteRefresh(@Path("id") projectId: String): SatelliteRefreshDto
+
+    @GET("api/v1/projects/{id}/satellite/refreshes/{jobId}")
+    suspend fun satelliteRefreshStatus(
+        @Path("id") projectId: String,
+        @Path("jobId") jobId: String,
+    ): SatelliteRefreshDto
+
+    @Streaming
+    @GET("api/v1/projects/{id}/satellite/tiles/{z}/{x}/{y}")
+    suspend fun satelliteTile(
+        @Path("id") projectId: String,
+        @Path("z") z: Int,
+        @Path("x") x: Int,
+        @Path("y") y: Int,
+        @Query("layer") layer: String,
+        @Query("scene") scene: String,
+    ): ResponseBody
 
 
 

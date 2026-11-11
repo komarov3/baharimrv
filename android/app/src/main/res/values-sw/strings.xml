@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_back">Rudi</string>
+    <string name="common_retry">Jaribu tena</string>
+
+    <string name="satellite_title">Ufuatiliaji wa setilaiti</string>
+    <string name="satellite_loading_passes">Inapakia picha za setilaiti…</string>
+    <string name="satellite_loading_change">Inapakia mabadiliko ya NDVI…</string>
+    <string name="satellite_acquired_label">Ilichukuliwa %1$s</string>
+    <string name="satellite_marker_no_ndvi">NDVI haipatikani kwa ploti hii</string>
+    <string name="satellite_sandbox_title">Hali ya majaribio</string>
+    <string name="satellite_sandbox_body">Picha halisi za Sentinel-2 hazijawekwa. Takwimu hapa chini ni za majaribio tu; zinaonyesha mfumo unavyofanya kazi lakini hazitokani na picha halisi ya mradi huu.</string>
+    <string name="satellite_adapter_sandbox">majaribio</string>
+    <string name="satellite_last_pass_title">Picha ya hivi karibuni</string>
+    <string name="satellite_last_pass_meta">%1$s • Mawingu %2$s%%</string>
+    <string name="satellite_cloud_label">Mawingu %1$d%%</string>
+    <string name="satellite_change_title">Mabadiliko ya NDVI</string>
+    <string name="satellite_change_mean_ndvi">Wastani wa NDVI</string>
+    <string name="satellite_change_baseline">Wastani wa msingi</string>
+    <string name="satellite_change_delta">Mabadiliko</string>
+    <string name="satellite_change_coverage">Ufunikaji</string>
+    <string name="satellite_change_coverage_value">%1$d%% kwenye ploti %2$d</string>
+    <string name="satellite_partial_title">Ufunikaji usiokamilika</string>
+    <string name="satellite_partial_body">Chini ya 60%% ya ploti za mradi zimepimwa kwenye picha hii. Chukulia takwimu kama mwongozo; picha angavu zaidi itaiboresha.</string>
+    <string name="satellite_acquisitions_title">Picha zilizokusanywa</string>
+    <string name="satellite_acquisitions_empty_title">Hakuna picha bado</string>
+    <string name="satellite_acquisitions_empty_detail">Picha ya Sentinel-2 inapolinganishwa na mradi huu, kila picha itaorodheshwa hapa ikiwa na kiwango cha mawingu na hali ya kichakato.</string>
+    <string name="satellite_refresh_action">Tafuta picha mpya</string>
+    <string name="satellite_refresh_running">Inatafuta picha mpya…</string>
+    <string name="satellite_legend_bare">Uso wa udongo</string>
+    <string name="satellite_legend_very_low">Ufunikaji mdogo sana</string>
+    <string name="satellite_legend_low">Mimea michache</string>
+    <string name="satellite_legend_moderate">Mimea ya wastani</string>
+    <string name="satellite_legend_dense">Mimea minene</string>
+    <string name="satellite_legend_generic">Kipimo cha NDVI</string>
+</resources>
