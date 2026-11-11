@@ -150,6 +150,9 @@ func New(deps Dependencies) http.Handler {
 		session.POST("/projects/:id/plots", bodyLimit, r.addPlot)
 		session.GET("/projects/:id/satellite/passes", r.projectSatellitePasses)
 		session.GET("/projects/:id/satellite/latest", r.projectSatelliteLatest)
+		session.GET("/projects/:id/satellite/change", r.projectSatelliteChange)
+		session.POST("/projects/:id/satellite/refresh", bodyLimit, r.projectSatelliteRefresh)
+		session.GET("/projects/:id/satellite/refreshes/:jobId", r.projectSatelliteRefreshStatus)
 
 		session.GET("/documents/:id", r.downloadDocument)
 		session.POST("/sync/batch", bodyLimit, r.syncBatch)

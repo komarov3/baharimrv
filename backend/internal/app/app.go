@@ -30,11 +30,13 @@ import (
 )
 
 // App is the assembled API plus the pieces a caller needs to drive it: the shared
-// database handle and the evidence content store.
+// database handle, the evidence content store, and the satellite service, whose
+// refresh queue the caller owns.
 type App struct {
-	Handler  http.Handler
-	DB       *gorm.DB
-	Evidence *evidence.Store
+	Handler   http.Handler
+	DB        *gorm.DB
+	Evidence  *evidence.Store
+	Satellite *satellite.Service
 }
 
 // Build wires every adapter, service and route from cfg. Chain, satellite,
@@ -118,7 +120,7 @@ func Build(cfg config.Config) (*App, error) {
 			Jahazi:      jahaziService,
 			JahaziChain: jahaziChain,
 		}),
-		DB: db, Evidence: store,
+		DB: db, Evidence: store, Satellite: imagery,
 	}, nil
 }
 

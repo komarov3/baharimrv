@@ -363,17 +363,25 @@ Sandbox or unconfigured responses keep the same envelope so the client never has
   "periodEnd": "2026-11-10T00:00:00Z",
   "currentSceneId": "S2A_MSIL2A_20261029T080351...",
   "baselineSceneId": "S2B_MSIL2A_20251101T081222...",
+  "currentAcquiredAt": "2026-10-29T08:03:51Z",
   "coveragePct": 91.2,
   "plotCount": 14,
   "quality": "complete",
   "adapterMode": "live",
+  "provider": "opendata-s2",
+  "processingVersion": "ndvi/s2-l2a-opendata/1",
   "resultHash": "sha256:...",
   "anchor": { "state": "anchored", "transactionReference": "...", "chainMode": "testnet" },
   "computedAt": "2026-11-10T05:12:44Z"
 }
 ```
 
-`POST .../satellite/refresh` returns `202` with `{"jobId":"...","status":"queued"}` and `409` with `{"jobId":"...","status":"running"}` when a job is already open, using the `ON CONFLICT` path on the partial index. Rate limit to 6 requests per project per hour. `GET .../refreshes/:jobId` returns `{"jobId","status","summaryId","error","startedAt","finishedAt"}` and never the worker's or a catalog's raw error text.
+`currentAcquiredAt`, `provider` and `processingVersion` are present so the client can label the scene and the arithmetic that produced the number, as section 11 requires. Absent figures stay `null` rather than becoming zero, because NDVI 0.0 is a real reading for bare substrate. `anchor` is not returned until phase 5 writes one, because the client must not be told a commitment was anchored when nothing was submitted.
+```
+
+`POST .../satellite/refresh` returns `202` with the job envelope on success, `409` with the open job's envelope when one is already running, and `429 satellite_refresh_rate_limited` when the project has already queued six refreshes in the last hour. The lock is the partial unique index, so two devices tapping refresh cannot stack jobs on a worker sized for two. The rate limit counts rows inserted, not taps: a tap answered by a 409 never reaches the worker and so is not what the limit is protecting.
+
+`GET .../refreshes/:jobId` returns the same envelope and never the worker's or a catalog's raw error text.
 
 `GET .../tiles/{z}/{x}/{y}.png` requires the `layer` and `scene` query parameters and matches `scene` against the project's active summary. It returns `404` for coordinates outside the AOI bbox, `410` when the requested scene has been superseded by a newer computation or its tiles were evicted from the store, so the client re-requests `overlay` instead of painting a gap, and `200` with PNG bytes otherwise, plus `Cache-Control: private, max-age=3600` and an `ETag`. Reject `z` above 16 or below 8 to stop a single project's tiles being walked as a global dump. Because the address carries the scene identifier, a client can never be served pixels from a scene it was not told about, and a stale cache entry is impossible by construction rather than by TTL discipline.
 
@@ -382,11 +390,13 @@ Sandbox or unconfigured responses keep the same envelope so the client never has
 | Situation | HTTP | code |
 |---|---|---|
 | No plots on the project, so no AOI | 200 with `quality: "unavailable"` | n/a |
-| Provider seam not configured in live mode | 503 | `satellite_provider_unavailable` |
+| No summary computed yet, so the client should offer a refresh | 404 | `satellite_summary_missing` |
+| Provider not configured, or catalogs answered with nothing usable | 200 with `quality: "unavailable"` | n/a |
 | Worker call failed or timed out | 502 | `satellite_provider_failed`, retried by the job, never written as a pass |
 | Tile requested for a superseded or evicted scene | 410 | `satellite_scene_superseded` |
 | Another project's tile requested | 403 | `forbidden` |
 | All scenes in the window over cloud threshold | 200 with `quality: "cloudy"` | n/a |
+| More than six refreshes queued for one project in the last hour | 429 | `satellite_refresh_rate_limited` |
 
 ---
 
@@ -457,7 +467,7 @@ type Provider interface {
 
 7. Tile proxy handler in `internal/api`: authorize, load the project's active summary, compare the `scene` query parameter against the scene recorded on that summary, validate `z` against the summary's zoom range, then read the object-store key `{project_id}/{scene_id}/{z}/{x}/{y}.png` the worker wrote. Keep a bounded in-memory LRU keyed by project plus scene plus tile so a pan across a small AOI does not hit the store per tile. On a scene mismatch or a missing key, serve `410` and queue a re-render rather than erroring at the user, and never fall back to rendering another scene's pixels.
 
-8. Dashboard: keep `NDVIState` at [mrv/project.go:75](backend/internal/mrv/project.go#L75) and add `ChangePct`, `Quality`, `CoveragePct`, `AdapterMode`, `SceneId`. The `latestNDVI` loop at [project.go:409](backend/internal/mrv/project.go#L409) currently picks the maximum NDVI across activities as the headline value, which is a cherry-pick rather than a project figure; drive the headline from `project_ndvi_summaries` instead.
+8. Dashboard: extend `NDVIState` at [mrv/project.go:75](backend/internal/mrv/project.go#L75) with `MeanNDVI`, `ChangePct`, `Quality`, `CoveragePct`, `AdapterMode`, `SceneId` and `Provider`. Drive the headline from `ProjectChange` rather than the per-activity cherry-pick at [project.go:409](backend/internal/mrv/project.go#L409): the old loop picked the maximum NDVI across activities, which could be honest about each plot and wrong about the project. Per-plot `view.NDVI` stays derived from `satellite.Latest(activity.ID)`, because a manager looking at one marker still needs to see what that marker read.
 
 ---
 
@@ -610,6 +620,9 @@ Backend:
 2. AOI unit tests: a 0.5 ha plot at latitude -3.6 produces a side near 71 m, cells overlap into one geometry when two plots sit 40 m apart, and a project with no plots yields `quality: "unavailable"` with no worker call.
 3. Provider contract tests against recorded s2-worker fixtures: `backend/internal/satellite/provider_test.go` runs against `testdata/`, which `services/s2-worker/tests/record_route_fixtures.py` writes out of the same `job.py` functions the routes call, so the seam is checked against the service rather than against a description of it. The golden figures arrive intact, the granule search sends a full-timestamp upper bound and the baseline asks for the same window one year earlier, the cells and the scene reference come back to `/v1/stats` unchanged, the quality of a figure is the worse of the two answers, a typed `unavailable` becomes the empty state with no measurement attempted, and every other failure, a busy queue or a wrong token included, is an error rather than a period with no imagery. The catalog-level cases, STAC timeout, both catalogs empty, an item whose COG URL 404s so the job fails over to the other source, belong to the worker's route tests, because that is where the catalogs are read.
 4. Authorization tests: tenant A cannot fetch tenant B's tiles, an unauthenticated tile request is rejected, zoom outside 8 to 16 is rejected, and a tile request naming a scene that is not the project's active one returns `410`.
+5. Summary computation tests: a sandbox figure is labelled synthetic with no acquired time, no scene id and no invented granule; a re-run an hour later with the same measurement writes a new row with the same hash so the old commitment survives; a current scene measured at 41 percent coverage produces a `partial` row rather than `complete`; a missing baseline does not hide the measured current mean; a zero baseline publishes no percentage; a provider fault writes no row and answers the stable `ErrProviderFailed`; a project with no plots answers a stored `unavailable` row with `plot_count = 0` and no worker call; an unknown project is refused rather than orphaned; the latest computation is read by period end then computed_at then id.
+6. Refresh queue tests: one job is the single-flight lock, a second tap answers with the open job's view, the worker runs the computation and records the summary id, a provider fault retries `jobAttempts` times then writes `failed` with the stable sentence rather than the worker's own text, an orphan job (project gone) fails with the stable refusal, a dead process's running job is reaped at `stuckJobAfter` and the lock is freed, a job inside its own timeout is not reaped, and a cancelled context stops the loop without leaving a half-finished pass.
+7. Handler integration tests against the assembled graph: `GET /projects/:id/satellite/change` answers `404 satellite_summary_missing` before any refresh, `POST /projects/:id/satellite/refresh` is manager-only, the 202 body carries the queued job id and a 409 answers with the same id when a job is already open, `GET /projects/:id/satellite/refreshes/:jobId` is scoped to its project, and after a refresh the change response carries the project-level envelope.
 5. Handler tests asserting `adapter_mode` is `sandbox` whenever `SATELLITE_PROVIDER` is unset.
 
 Worker: 189 fixture-driven tests with no network in CI. The arithmetic and job layers cover the AOI cells, band reads and retries, NDVI and the class mask, the two-tier cloud ladder, the coverage screen, the palette, tile rendering, and the STAC sources; the route layer (`tests/test_app.py`, 44 tests) covers the bearer check, every typed error code in section 8, the concurrency cap, the palette refusal, a key prefix that is not one project and one scene, a band URL on an unlisted host, and the render-to-purge round trip. Two golden fixtures pin the output: one stats response (289 pixels, mean 0.837 on `S2C_37MER_20261105_1_L2A`) and one PNG per palette version, compared byte for byte rather than by loose pixel similarity, since a palette change is a version bump and not a rounding difference. The ceiling tests assert `partial` rather than a full-coverage result. The class table gets its own test: a recorded STAC item and its raster histogram must agree with the `s2:*_percentage` metadata for two granules, one under the cloud ceiling and one over it, so a silent renumbering upstream fails a build instead of poisoning an anchored figure.

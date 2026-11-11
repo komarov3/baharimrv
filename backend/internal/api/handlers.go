@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/baharilink/baharimrv/internal/mrv"
 	"github.com/baharilink/baharimrv/internal/proof"
 	"github.com/baharilink/baharimrv/internal/provenance"
+	"github.com/baharilink/baharimrv/internal/satellite"
 	"github.com/gin-gonic/gin"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -679,6 +681,67 @@ func (r *router) listActivities(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
+func (r *router) projectSatelliteChange(c *gin.Context) {
+	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), c.Param("id")); err != nil {
+		fail(c, err)
+		return
+	}
+	view, err := r.satellite.ProjectChange(c.Param("id"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
+func (r *router) projectSatelliteRefresh(c *gin.Context) {
+	projectID := c.Param("id")
+	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), projectID); err != nil {
+		fail(c, err)
+		return
+	}
+	if err := r.projects.AssertProjectManager(c.GetString("user_id"), projectID); err != nil {
+		fail(c, err)
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	// Reason is optional: an empty body is accepted and keeps the body at its zero
+	// value. A malformed body is still refused so the client sees a real error.
+	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
+		fail(c, domain.Invalid("the request body is invalid"))
+		return
+	}
+	body.Reason = strings.TrimSpace(body.Reason)
+	if len(body.Reason) > 200 {
+		body.Reason = body.Reason[:200]
+	}
+	view, queued, err := r.satellite.QueueRefresh(projectID, c.GetString("user_id"), body.Reason)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	if queued {
+		c.JSON(http.StatusAccepted, view)
+		return
+	}
+	c.JSON(http.StatusConflict, view)
+}
+
+func (r *router) projectSatelliteRefreshStatus(c *gin.Context) {
+	if err := r.projects.AssertProjectAccess(c.GetString("user_id"), c.Param("id")); err != nil {
+		fail(c, err)
+		return
+	}
+	view, err := r.satellite.RefreshJob(c.Param("id"), c.Param("jobId"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, view)
+}
+
 func (r *router) listMonitors(c *gin.Context) {
 	items, err := r.projects.Monitors()
 	if err != nil {
@@ -763,6 +826,10 @@ func classify(err error) (int, string) {
 		return http.StatusNotFound, "evidence_unavailable"
 	case errors.Is(err, market.ErrUnavailable), errors.Is(err, provenance.ErrNotRetryable):
 		return http.StatusServiceUnavailable, "adapter_unavailable"
+	case errors.Is(err, satellite.ErrSummaryMissing):
+		return http.StatusNotFound, "satellite_summary_missing"
+	case errors.Is(err, satellite.ErrProviderFailed):
+		return http.StatusBadGateway, "satellite_provider_failed"
 	default:
 		return 0, ""
 	}

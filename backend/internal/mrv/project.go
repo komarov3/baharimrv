@@ -13,6 +13,7 @@ import (
 	"github.com/baharilink/baharimrv/internal/models"
 	"github.com/baharilink/baharimrv/internal/money"
 	"github.com/baharilink/baharimrv/internal/provenance"
+	"github.com/baharilink/baharimrv/internal/satellite"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/datatypes"
@@ -76,6 +77,35 @@ type NDVIState struct {
 	Status     string     `json:"status"`
 	Source     string     `json:"source,omitempty"`
 	AcquiredAt *time.Time `json:"acquiredAt,omitempty"`
+	// Fields below are only present when Status is "available" or "pending". They
+	// describe the project-level figure from project_ndvi_summaries rather than the
+	// per-activity cherry-pick the old headline used. When no summary has been
+	// computed yet (status unavailable), they stay nil.
+	MeanNDVI    *float64 `json:"meanNdvi,omitempty"`
+	ChangePct   *float64 `json:"changePct,omitempty"`
+	Quality     string   `json:"quality,omitempty"`
+	CoveragePct float64  `json:"coveragePct,omitempty"`
+	AdapterMode string   `json:"adapterMode,omitempty"`
+	SceneID     string   `json:"sceneId,omitempty"`
+	Provider    string   `json:"provider,omitempty"`
+}
+
+// ndviStatusFromQuality turns the satellite quality vocabulary into a dashboard
+// status. "complete" and "cloudy" are still a number a manager can act on; "partial"
+// and "synthetic" both read as pending until the figure improves; "unavailable" is
+// the honest "nothing is here". The mapping is closed to new vocabulary: an unknown
+// quality becomes unavailable rather than available.
+func ndviStatusFromQuality(quality string) string {
+	switch quality {
+	case "complete", "cloudy":
+		return "available"
+	case "partial", "synthetic":
+		return "pending"
+	case "unavailable":
+		return "unavailable"
+	default:
+		return "unavailable"
+	}
 }
 
 type Dashboard struct {
@@ -128,6 +158,32 @@ func (s *Service) AssertProjectAccess(userID, projectID string) error {
 		}
 	}
 	return ErrForbidden
+}
+
+// AssertProjectManager refuses anyone who is not an admin or the project's manager. It
+// is narrower than AssertProjectAccess, which also allows monitors and verifiers, and
+// it is what a write that changes project state (a refresh, a new plot, a rename) has
+// to check before it acts.
+func (s *Service) AssertProjectManager(userID, projectID string) error {
+	var user models.User
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		return ErrForbidden
+	}
+	if user.Role == models.RoleAdmin {
+		return nil
+	}
+	if user.Role != models.RoleManager {
+		return ErrForbidden
+	}
+	var managed int64
+	if err := s.db.Model(&models.ConservationProject{}).
+		Where("id = ? AND manager_id = ?", projectID, userID).Count(&managed).Error; err != nil {
+		return ErrForbidden
+	}
+	if managed == 0 {
+		return ErrForbidden
+	}
+	return nil
 }
 
 // ProjectsForUser lists what the signed-in account may open on the dashboard.
@@ -417,6 +473,10 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 			view.ActivityType = activity.ActivityType
 			view.Status = plotEvidenceState(activity)
 			view.ChainState = s.chainState(activity.ID)
+			// Per-plot NDVI stays derived from the activity's own corroboration: a
+			// manager looking at one marker still sees what the latest read for that
+			// marker said. The headline below is now the project figure, not the
+			// maximum of these.
 			if summary, ok := s.satellite.Latest(activity.ID); ok && summary.Status == "complete" {
 				value := summary.MeanNDVI
 				view.NDVI = &value
@@ -430,12 +490,39 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 		}
 		dashboard.Plots = append(dashboard.Plots, view)
 	}
-	if latestNDVI != nil {
-		dashboard.NDVI = NDVIState{Status: "available", Source: ndviSource, AcquiredAt: ndviAt}
-	} else if s.satellite.Mode() == "live" {
-		dashboard.NDVI = NDVIState{Status: "pending"}
+	// Drive the headline from the project figure rather than the loudest plot. The
+	// cherry-pick here was the one piece of arithmetic that could be honest about
+	// each plot and wrong about the project.
+	if change, err := s.satellite.ProjectChange(projectID); err == nil {
+		source := change.Provider
+		if source == "" {
+			source = "satellite"
+		}
+		dashboard.NDVI = NDVIState{
+			Status:      ndviStatusFromQuality(change.Quality),
+			Source:      source,
+			AcquiredAt:  change.CurrentAcquiredAt,
+			MeanNDVI:    change.MeanNDVI,
+			ChangePct:   change.ChangePct,
+			Quality:     change.Quality,
+			CoveragePct: change.CoveragePct,
+			AdapterMode: change.AdapterMode,
+			SceneID:     change.CurrentSceneID,
+			Provider:    change.Provider,
+		}
+	} else if errors.Is(err, satellite.ErrSummaryMissing) {
+		// No computation yet: fall back to the per-activity answer, which at least
+		// knows the sandbox has been attached, and keep the live/sandbox distinction
+		// honest.
+		if latestNDVI != nil {
+			dashboard.NDVI = NDVIState{Status: "available", Source: ndviSource, AcquiredAt: ndviAt}
+		} else if s.satellite.Mode() == "live" {
+			dashboard.NDVI = NDVIState{Status: "pending"}
+		} else {
+			dashboard.NDVI = NDVIState{Status: "unavailable", Source: "No corroboration attached"}
+		}
 	} else {
-		dashboard.NDVI = NDVIState{Status: "unavailable", Source: "No corroboration attached"}
+		return Dashboard{}, err
 	}
 
 	restored, restoredState, err := s.areaRestored(plots, activityByPlot)
@@ -1004,24 +1091,26 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 
 // CreateActivity opens a reporting-period activity on a plot.
 type ActivityInput struct {
-	ProjectID            string     `json:"projectId"`
-	PlotID               string     `json:"plotId"`
-	ActivityType         string     `json:"activityType"`
-	MethodologyVersion   string     `json:"methodologyVersion"`
-	ReportingPeriodStart *time.Time `json:"reportingPeriodStart"`
-	ReportingPeriodEnd   *time.Time `json:"reportingPeriodEnd"`
+	ProjectID            string         `json:"projectId"`
+	PlotID               string         `json:"plotId"`
+	ActivityType         string         `json:"activityType"`
+	MethodologyVersion   string         `json:"methodologyVersion"`
+	ReportingPeriodStart *time.Time     `json:"reportingPeriodStart"`
+	ReportingPeriodEnd   *time.Time     `json:"reportingPeriodEnd"`
+	Measurements         map[string]any `json:"measurements"`
 }
 
 // UnmarshalJSON accepts reporting periods as either full RFC3339 timestamps or
 // plain YYYY-MM-DD dates, since the web and mobile clients submit date inputs.
 func (i *ActivityInput) UnmarshalJSON(data []byte) error {
 	type raw struct {
-		ProjectID            string  `json:"projectId"`
-		PlotID               string  `json:"plotId"`
-		ActivityType         string  `json:"activityType"`
-		MethodologyVersion   string  `json:"methodologyVersion"`
-		ReportingPeriodStart *string `json:"reportingPeriodStart"`
-		ReportingPeriodEnd   *string `json:"reportingPeriodEnd"`
+		ProjectID            string         `json:"projectId"`
+		PlotID               string         `json:"plotId"`
+		ActivityType         string         `json:"activityType"`
+		MethodologyVersion   string         `json:"methodologyVersion"`
+		ReportingPeriodStart *string        `json:"reportingPeriodStart"`
+		ReportingPeriodEnd   *string        `json:"reportingPeriodEnd"`
+		Measurements         map[string]any `json:"measurements"`
 	}
 	var r raw
 	if err := json.Unmarshal(data, &r); err != nil {
@@ -1031,6 +1120,7 @@ func (i *ActivityInput) UnmarshalJSON(data []byte) error {
 	i.PlotID = r.PlotID
 	i.ActivityType = r.ActivityType
 	i.MethodologyVersion = r.MethodologyVersion
+	i.Measurements = r.Measurements
 	if r.ReportingPeriodStart != nil && strings.TrimSpace(*r.ReportingPeriodStart) != "" {
 		t, err := parseActivityDate(*r.ReportingPeriodStart)
 		if err != nil {
@@ -1046,6 +1136,17 @@ func (i *ActivityInput) UnmarshalJSON(data []byte) error {
 		i.ReportingPeriodEnd = &t
 	}
 	return nil
+}
+
+func marshalMeasurements(values map[string]any) datatypes.JSON {
+	if len(values) == 0 {
+		return datatypes.JSON([]byte(`{}`))
+	}
+	body, err := json.Marshal(values)
+	if err != nil {
+		return datatypes.JSON([]byte(`{}`))
+	}
+	return datatypes.JSON(body)
 }
 
 func parseActivityDate(value string) (time.Time, error) {
@@ -1102,7 +1203,7 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 		ID: uuid.NewString(), ProjectID: project.ID, PlotID: plot.ID, ManagerID: project.ManagerID,
 		ActivityType: input.ActivityType, Status: models.ActivityDraft,
 		ReportingPeriodStart: start, ReportingPeriodEnd: end,
-		MethodologyVersion: input.MethodologyVersion, Measurements: datatypes.JSON([]byte(`{}`)),
+		MethodologyVersion: input.MethodologyVersion, Measurements: marshalMeasurements(input.Measurements),
 		CreatedAt: now, UpdatedAt: now,
 	}
 	if activity.ManagerID == "" {

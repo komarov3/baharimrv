@@ -44,6 +44,12 @@ func run() error {
 
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+	// The refresh loop drains queued imagery computations and stops when the server
+	// does. A cancelled context abandons a live computation, which the reaper handles
+	// on the next start.
+	background, stopBackground := context.WithCancel(context.Background())
+	defer stopBackground()
+	go built.Satellite.RunRefreshLoop(background)
 	serveErrors := make(chan error, 1)
 	go func() {
 		slog.Info("baharimrv api listening", "address", server.Addr, "environment", cfg.Environment,
