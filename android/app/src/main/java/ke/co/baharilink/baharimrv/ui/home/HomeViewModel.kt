@@ -6,11 +6,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import ke.co.baharilink.baharimrv.data.local.ProjectSelectionStore
 import ke.co.baharilink.baharimrv.data.remote.DashboardDto
+import ke.co.baharilink.baharimrv.data.remote.NdviChangeDto
 import ke.co.baharilink.baharimrv.data.remote.ProjectsResponse
 import ke.co.baharilink.baharimrv.data.remote.WalletDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
 import ke.co.baharilink.baharimrv.ui.components.LoadState
 import ke.co.baharilink.baharimrv.ui.components.readableMessage
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -21,6 +24,7 @@ data class HomeUiState(
     val projectId: String = "",
     val dashboard: LoadState<DashboardDto>? = null,
     val wallet: LoadState<WalletDto>? = null,
+    val satelliteChange: LoadState<NdviChangeDto?> = LoadState.Success(null),
     val choosing: Boolean = false,
 )
 
@@ -52,7 +56,7 @@ class HomeViewModel @Inject constructor(
     fun cancelChoosing() = _state.update { it.copy(choosing = false) }
 
     fun selectProject(id: String) {
-        _state.update { it.copy(projectId = id, choosing = false, dashboard = null, wallet = null) }
+        _state.update { it.copy(projectId = id, choosing = false, dashboard = null, wallet = null, satelliteChange = LoadState.Success(null)) }
         load()
     }
 
@@ -78,7 +82,22 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             selection.select(id)
             try {
-                _state.update { it.copy(dashboard = LoadState.Success(repository.dashboard(id))) }
+                coroutineScope {
+                    val dashboardDeferred = async { runCatching { repository.dashboard(id) } }
+                    val changeDeferred = async { runCatching { repository.satelliteChange(id) } }
+                    val dashboardResult = dashboardDeferred.await()
+                    val changeResult = changeDeferred.await()
+                    dashboardResult.onSuccess { dashboard ->
+                        _state.update {
+                            it.copy(
+                                dashboard = LoadState.Success(dashboard),
+                                satelliteChange = LoadState.Success(changeResult.getOrNull()),
+                            )
+                        }
+                    }.onFailure { error ->
+                        _state.update { it.copy(dashboard = LoadState.Error(error.readableMessage())) }
+                    }
+                }
             } catch (error: Exception) {
                 _state.update { it.copy(dashboard = LoadState.Error(error.readableMessage())) }
             }

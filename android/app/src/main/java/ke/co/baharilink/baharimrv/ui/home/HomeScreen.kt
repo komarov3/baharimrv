@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -51,6 +52,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.AlertDto
 import ke.co.baharilink.baharimrv.data.remote.DashboardDto
 import ke.co.baharilink.baharimrv.data.remote.MetricDto
+import ke.co.baharilink.baharimrv.data.remote.NdviChangeDto
+import ke.co.baharilink.baharimrv.data.remote.NdviDto
 import ke.co.baharilink.baharimrv.data.remote.PlotDto
 import ke.co.baharilink.baharimrv.data.remote.ProjectRowDto
 import ke.co.baharilink.baharimrv.data.remote.WalletDto
@@ -106,6 +109,7 @@ fun HomeScreen(
             item {
                 DashboardContent(
                     dashboard = dashboard,
+                    satelliteChange = state.satelliteChange,
                     wallet = state.wallet,
                     onRetryWallet = viewModel::loadWallet,
                     onFieldVisit = onFieldVisit,
@@ -217,6 +221,7 @@ private fun ProjectRow(row: ProjectRowDto, onSelect: () -> Unit) {
 @Composable
 private fun DashboardContent(
     dashboard: DashboardDto,
+    satelliteChange: LoadState<NdviChangeDto?>,
     wallet: LoadState<WalletDto>?,
     onRetryWallet: () -> Unit,
     onFieldVisit: () -> Unit,
@@ -226,17 +231,11 @@ private fun DashboardContent(
     onSatellite: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        dashboard.ndvi?.let {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                StatusChip("NDVI: ${it.status}", tone = stateTone(it.status))
-                listOfNotNull(it.source, it.acquiredAt?.let(::formatInstant))
-                    .joinToString(" · ")
-                    .takeIf(String::isNotBlank)
-                    ?.let { detail ->
-                        Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-            }
-        }
+        SatelliteHeadline(
+            change = (satelliteChange as? LoadState.Success)?.data,
+            legacyNdvi = dashboard.ndvi,
+            onOpenSatellite = { onSatellite(dashboard.project.id) },
+        )
         ProjectMap(dashboard.plots)
 
         if (dashboard.metrics.isEmpty()) {
@@ -383,6 +382,114 @@ private fun MetricCard(metric: MetricDto, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Replaces the placeholder NDVI line the dashboard used to carry. A real
+ * change figure from `/satellite/change` drives the headline; the legacy
+ * [NdviDto] on the dashboard is the fall-back for deployments that have
+ * not run a refresh yet. The card never presents a sandbox number as
+ * live — adapter mode is always visible and a partial coverage figure is
+ * labelled partial.
+ */
+@Composable
+private fun SatelliteHeadline(
+    change: NdviChangeDto?,
+    legacyNdvi: NdviDto?,
+    onOpenSatellite: () -> Unit,
+) {
+    val hasChange = change != null && change.quality != "unavailable"
+    val isSandbox = change?.adapterMode.equals("sandbox", ignoreCase = true) ||
+        (change == null && legacyNdvi != null)
+    val liveChange = change?.takeIf { hasChange }
+    LedgerCard(contentPadding = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Satellite NDVI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            StatusChip(
+                text = when {
+                    liveChange != null -> liveChange.adapterMode ?: "live"
+                    isSandbox -> "sandbox"
+                    else -> "no imagery"
+                },
+                tone = if (isSandbox && liveChange == null) ChipTone.WARNING else stateTone(change?.adapterMode ?: "sandbox"),
+            )
+        }
+        when {
+            liveChange != null -> {
+                Spacer(Modifier.height(8.dp))
+                liveChange.meanNdvi?.let {
+                    KeyValue("Mean NDVI", "%.3f".format(it))
+                }
+                liveChange.baselineMeanNdvi?.let {
+                    KeyValue("Baseline mean", "%.3f".format(it))
+                }
+                liveChange.changeAbs?.let { delta ->
+                    val sign = if (delta >= 0) "+" else ""
+                    val tone = when {
+                        delta > 0.02 -> Color(0xFF059669)
+                        delta < -0.02 -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurface
+                    }
+                    KeyValue("Change", "$sign${"%.3f".format(delta)}", valueColor = tone)
+                }
+                KeyValue(
+                    "Coverage",
+                    "${liveChange.coveragePct.toInt()}% over ${liveChange.plotCount} plots",
+                )
+                if (liveChange.coveragePct < 60.0 && liveChange.plotCount > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "Partial coverage. Treat the headline figure as indicative until a clearer pass sharpens it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
+                liveChange.currentAcquiredAt?.let { acquired ->
+                    Text(
+                        "Scene acquired ${formatInstant(acquired)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                liveChange.resultHash?.let {
+                    Text(
+                        "Result hash: ${it.take(12)}…",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            legacyNdvi != null -> {
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StatusChip("NDVI: ${legacyNdvi.status}", tone = stateTone(legacyNdvi.status))
+                    listOfNotNull(legacyNdvi.source, legacyNdvi.acquiredAt?.let(::formatInstant))
+                        .joinToString(" · ")
+                        .takeIf(String::isNotBlank)
+                        ?.let { detail ->
+                            Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                }
+                Text(
+                    "Tap Satellite below to compute the project-level change figure.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            else -> {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "No imagery computed yet. Tap Satellite below to start a refresh.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onOpenSatellite, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+            Text("Open satellite screen")
+        }
+    }
+}
+
 @Composable
 private fun ProjectMap(plots: List<PlotDto>) {
     Column(
@@ -393,7 +500,7 @@ private fun ProjectMap(plots: List<PlotDto>) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Map · plots & NDVI overlay", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+            Text("Project plots", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
             Text("${plots.size} plots", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (plots.isEmpty()) {
