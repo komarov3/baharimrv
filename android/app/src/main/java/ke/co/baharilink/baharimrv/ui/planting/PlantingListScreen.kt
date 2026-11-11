@@ -1,6 +1,8 @@
 package ke.co.baharilink.baharimrv.ui.planting
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Forest
 import androidx.compose.material.icons.filled.Nature
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -26,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.text.font.FontWeight
@@ -97,56 +103,126 @@ fun PlantingListScreen(
                             subtitle = "Open · due · completed",
                         )
                     }
-                    items(items) { activity ->
+                    items(items, key = { it.id }) { activity ->
                         BahariCard(
                             highlighted = activity.status.equals("open", ignoreCase = true),
                             onClick = { onActivityClick(activity.id) },
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Icon(Icons.Default.Nature, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    // "Gazi Bay · P-14" style header from PL2
-                                    val projectPart = if (activity.plotId.isNotBlank())
-                                        activity.plotId else activity.id.take(8)
+                                // Leading status-aware icon
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(
+                                            color = when {
+                                                activity.status.equals("complete", ignoreCase = true) -> Color(0xFF059669).copy(alpha = 0.12f)
+                                                activity.status.equals("open", ignoreCase = true) -> Color(0xFFD97706).copy(alpha = 0.12f)
+                                                else -> MaterialTheme.colorScheme.surfaceVariant
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Default.Forest,
+                                        contentDescription = null,
+                                        tint = when {
+                                            activity.status.equals("complete", ignoreCase = true) -> Color(0xFF059669)
+                                            activity.status.equals("open", ignoreCase = true) -> Color(0xFFD97706)
+                                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = if (activity.plotId.isNotBlank()) activity.plotId else "Activity ${activity.id.take(8)}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        StatusChip(
+                                            text = activity.status.replaceFirstChar { it.uppercase() },
+                                            tone = when {
+                                                activity.status.equals("complete", ignoreCase = true) -> ChipTone.POSITIVE
+                                                activity.status.equals("open", ignoreCase = true) -> ChipTone.WARNING
+                                                activity.status.equals("due", ignoreCase = true) -> ChipTone.ERROR
+                                                else -> ChipTone.NEUTRAL
+                                            },
+                                        )
+                                    }
+
                                     Text(
-                                        text = projectPart,
-                                        style = MaterialTheme.typography.titleSmall,
+                                        text = activity.activityType.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+
+                                    val period = when {
+                                        !activity.periodStart.isNullOrBlank() && !activity.periodEnd.isNullOrBlank() ->
+                                            "${activity.periodStart} → ${activity.periodEnd}"
+                                        !activity.periodStart.isNullOrBlank() -> activity.periodStart!!
+                                        !activity.periodEnd.isNullOrBlank() -> activity.periodEnd!!
+                                        else -> null
+                                    }
+                                    period?.let {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Event,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                text = it,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+
+                                    activity.methodologyVersion?.takeIf { it.isNotBlank() }?.let { mv ->
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Science,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Text(
+                                                text = "Methodology $mv",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+
+                                    Text(
+                                        text = "ID ${activity.id}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                     )
-                                    // "Planting · 280 seedlings · R. mucronata" row
-                                    Text(
-                                        text = buildString {
-                                            append(activity.activityType.replaceFirstChar { it.uppercase() })
-                                            if (activity.periodStart != null && activity.periodEnd != null) {
-                                                append(" · ${activity.periodStart} – ${activity.periodEnd}")
-                                            }
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
                                 }
-                                StatusChip(
-                                    text = activity.status.capitalize(),
-                                    tone = when {
-                                        activity.status.equals("complete", ignoreCase = true) -> ChipTone.POSITIVE
-                                        activity.status.equals("open", ignoreCase = true) -> ChipTone.WARNING
-                                        activity.status.equals("due", ignoreCase = true) -> ChipTone.ERROR
-                                        else -> ChipTone.NEUTRAL
-                                    },
-                                )
-                            }
-                            // Methodology version if available
-                            activity.methodologyVersion?.let { mv ->
-                                Text(
-                                    "Methodology: $mv",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
                             }
                         }
                     }

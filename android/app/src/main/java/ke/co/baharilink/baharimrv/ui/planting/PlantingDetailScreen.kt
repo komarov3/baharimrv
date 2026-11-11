@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Forest
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +51,8 @@ import ke.co.baharilink.baharimrv.data.remote.ActivityDetailDto
 import ke.co.baharilink.baharimrv.ui.components.BahariButton
 import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
 import ke.co.baharilink.baharimrv.ui.components.BahariCard
+import ke.co.baharilink.baharimrv.ui.components.StatusChip
+import ke.co.baharilink.baharimrv.ui.components.ChipTone
 import ke.co.baharilink.baharimrv.ui.components.BahariDashedBox
 import ke.co.baharilink.baharimrv.ui.components.ContextHeader
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
@@ -132,12 +137,61 @@ private fun ActivityDetailContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Context header
+        // 1. Hero header
         item {
-            ContextHeader(
-                title = dto.activityType.replaceFirstChar { it.uppercase() },
-                subtitle = "${dto.plotId} · ${dto.status}",
-            )
+            BahariCard(highlighted = dto.status.equals("open", ignoreCase = true)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(
+                                color = when {
+                                    dto.status.equals("complete", ignoreCase = true) -> Color(0xFF059669).copy(alpha = 0.14f)
+                                    dto.status.equals("open", ignoreCase = true) -> Color(0xFFD97706).copy(alpha = 0.14f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Default.Forest,
+                            contentDescription = null,
+                            tint = when {
+                                dto.status.equals("complete", ignoreCase = true) -> Color(0xFF059669)
+                                dto.status.equals("open", ignoreCase = true) -> Color(0xFFD97706)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = dto.activityType.replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            text = "Plot ${dto.plotId}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        StatusChip(
+                            text = dto.status.replaceFirstChar { it.uppercase() },
+                            tone = when {
+                                dto.status.equals("complete", ignoreCase = true) -> ChipTone.POSITIVE
+                                dto.status.equals("open", ignoreCase = true) -> ChipTone.WARNING
+                                dto.status.equals("due", ignoreCase = true) -> ChipTone.ERROR
+                                else -> ChipTone.NEUTRAL
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         // 1b. Activity details card (immutable summary of the collected form)
@@ -193,9 +247,6 @@ private fun ActivityDetailContent(
                     KeyValue(label = "Average height (m)", value = record.averageHeightMetres.ifBlank { "—" })
                     KeyValue(label = "Species", value = record.species.ifBlank { "Unspecified" })
                     KeyValue(label = "Methodology version", value = record.methodologyVersion.ifBlank { "—" })
-                    KeyValue(label = "GPS latitude", value = record.latitude.toString())
-                    KeyValue(label = "GPS longitude", value = record.longitude.toString())
-                    KeyValue(label = "GPS accuracy (m)", value = record.gpsAccuracyMeters.toString())
                     KeyValue(
                         label = "Device captured at",
                         value = record.deviceTimestamp?.takeIf { it.isNotBlank() } ?: "—",
@@ -214,6 +265,40 @@ private fun ActivityDetailContent(
             }
         }
 
+        // 2b. Location card
+        item {
+            val record = dto.record
+            BahariCard {
+                Text(
+                    "Field location",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (record != null) {
+                    KeyValue(label = "Latitude", value = record.latitude.toString())
+                    KeyValue(label = "Longitude", value = record.longitude.toString())
+                    KeyValue(label = "GPS accuracy", value = "${record.gpsAccuracyMeters} m")
+                    val context = LocalContext.current
+                    BahariButton(
+                        onClick = {
+                            val uri = Uri.parse("geo:${record.latitude},${record.longitude}?q=${record.latitude},${record.longitude}(Planting activity)")
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        },
+                        variant = BahariButtonVariant.OUTLINED,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Open in maps")
+                    }
+                } else {
+                    Text(
+                        "No GPS location recorded yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         // 3. Evidence photo card
         item {
             val evidence = dto.record?.evidence.orEmpty()
@@ -226,7 +311,7 @@ private fun ActivityDetailContent(
                         fontWeight = FontWeight.SemiBold,
                     )
                     BahariDashedBox(
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
                     ) {
                         when (imageState) {
                             is LoadState.Success -> Image(
