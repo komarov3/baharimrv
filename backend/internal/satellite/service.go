@@ -53,9 +53,7 @@ type Options struct {
 	Provider    string
 	WorkerURL   string
 	WorkerToken string
-	// TilesRoot is the shared filesystem root the worker writes rendered PNGs
-	// into. Empty means no tiles are advertised and the overlay omits
-	// tileBaseUrl, so the client never asks for pixels the proxy cannot serve.
+	// An explicit local root takes precedence over authenticated worker reads.
 	TilesRoot string
 	// TileCacheCapacity defaults to DefaultTileCacheEntries when zero. A test
 	// can shrink it to drive the eviction path without a large render.
@@ -74,7 +72,11 @@ func NewService(db *gorm.DB, opts Options) *Service {
 	if capacity < 1 {
 		capacity = DefaultTileCacheEntries
 	}
-	service.tiles = NewTileCache(NewVolumeStore(opts.TilesRoot), capacity)
+	var store TileStore = NewVolumeStore(opts.TilesRoot)
+	if !store.Available() && opts.Provider == ProviderOpenData {
+		store = NewWorkerTileStore(opts.WorkerURL, opts.WorkerToken)
+	}
+	service.tiles = NewTileCache(store, capacity)
 	return service
 }
 

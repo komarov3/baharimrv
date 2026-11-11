@@ -3,8 +3,11 @@ package satellite
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,13 +23,13 @@ import (
 func seedSummary(t *testing.T, service *Service, projectID, sceneID, mode string, minZoom, maxZoom *int) models.ProjectNdviSummary {
 	t.Helper()
 	payload := map[string]any{
-		"project_id":     projectID,
-		"framing_bbox":   []float64{39.18, -3.71, 39.36, -3.55},
-		"current":        map[string]any{"scene_id": sceneID, "discovery_source": "copernicus-stac", "bands": map[string]string{"red": "r.tif", "nir": "n.tif", "scl": "s.tif"}},
-		"quality":        QualityComplete,
-		"adapter_mode":   mode,
-		"provider":       ProviderOpenData,
-		"class_table":    "msk-0509/1",
+		"project_id":      projectID,
+		"framing_bbox":    []float64{39.18, -3.71, 39.36, -3.55},
+		"current":         map[string]any{"scene_id": sceneID, "discovery_source": "copernicus-stac", "bands": map[string]string{"red": "r.tif", "nir": "n.tif", "scl": "s.tif"}},
+		"quality":         QualityComplete,
+		"adapter_mode":    mode,
+		"provider":        ProviderOpenData,
+		"class_table":     "msk-0509/1",
 		"palette_version": "ndvi-5band/1",
 	}
 	_, canonical, err := canon.Hash(payload)
@@ -56,9 +59,57 @@ func seedSummary(t *testing.T, service *Service, projectID, sceneID, mode string
 // forcing a two-line dance around a local.
 func intPtr(v int) *int { return &v }
 
-// A sandbox row advertises nothing to paint, so the overlay drops tileBaseUrl
-// and the scene id rather than sending an empty string the client has to
-// special-case.
+func TestRemoteTileReaderPreservesOverlaySceneAndCacheContract(t *testing.T) {
+	fixture, projectID := summaryFixture(t, nil)
+	want := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+	var calls atomic.Int32
+	worker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.URL.Path != "/v1/tiles/"+projectID+"/S2_REMOTE/14/9012/7234.png" ||
+			r.Header.Get("Authorization") != "Bearer worker-test-token" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(want)
+	}))
+	defer worker.Close()
+	service := NewService(fixture.db, Options{Provider: ProviderOpenData, WorkerURL: worker.URL, WorkerToken: "worker-test-token"})
+	seedSummary(t, service, projectID, "S2_REMOTE", ModeLive, intPtr(13), intPtr(15))
+	view, err := service.ProjectOverlay(projectID)
+	if err != nil || view.TileBaseURL != "/api/v1/projects/"+projectID+"/satellite/tiles" {
+		t.Fatalf("remote overlay = %+v, %v", view, err)
+	}
+	if _, err := service.ReadTile(projectID, "S2_OLD", 14, 9012, 7234); !errors.Is(err, ErrSceneSuperseded) {
+		t.Fatalf("stale scene error = %v", err)
+	}
+	if _, err := service.ReadTile(projectID, "S2_REMOTE", 16, 9012, 7234); !errors.Is(err, ErrSceneSuperseded) {
+		t.Fatalf("unrendered zoom error = %v", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("refused scene or zoom reached worker")
+	}
+	for i := 0; i < 2; i++ {
+		tile, err := service.ReadTile(projectID, "S2_REMOTE", 14, 9012, 7234)
+		if err != nil || string(tile.PNG) != string(want) || tile.ETag != tileETag(want) {
+			t.Fatalf("remote tile = %+v, %v", tile, err)
+		}
+	}
+	if calls.Load() != 1 || service.tiles.Stats().Hits != 1 {
+		t.Fatal("remote tile cache contract failed")
+	}
+}
+
+func TestConfiguredRemoteReaderDoesNotAdvertiseUnrenderedTiles(t *testing.T) {
+	fixture, projectID := summaryFixture(t, nil)
+	service := NewService(fixture.db, Options{Provider: ProviderOpenData, WorkerURL: "http://worker:9000", WorkerToken: "token"})
+	seedSummary(t, service, projectID, "S2_NOT_RENDERED", ModeLive, nil, nil)
+	view, err := service.ProjectOverlay(projectID)
+	if err != nil || view.TileBaseURL != "" || view.ZoomRange != nil {
+		t.Fatalf("unrendered overlay advertised tiles: %+v, %v", view, err)
+	}
+}
+
 func TestOverlaySandboxOmitsTileAddress(t *testing.T) {
 	service, projectID := summaryFixture(t, nil)
 	seedSummary(t, service, projectID, "sandbox-scene", ModeSandbox, nil, nil)

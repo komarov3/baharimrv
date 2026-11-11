@@ -1,4 +1,4 @@
-"""The s2-worker HTTP surface: five routes, no project state, no authorization.
+"""The s2-worker HTTP surface: six routes, no project state.
 
 Everything here is a thin envelope around `job.py`, plus the two things that only
 belong at the edge: the bearer check and the concurrency cap. The worker is the
@@ -22,7 +22,7 @@ from typing import Any, Iterator
 
 from fastapi import Depends, FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from . import cogs, job, ndvi, palette, stac, store as store_module
@@ -302,6 +302,27 @@ def create_app(settings: Settings | None = None, tile_store: Any = None,
             except store_module.StoreUnavailable as exc:
                 raise worker.fail(exc) from exc
         return result
+
+    @app.get("/v1/tiles/{project_id}/{scene_id}/{z}/{x}/{y}.png",
+             dependencies=[Depends(authorize)])
+    def read_tile(request: Request, project_id: str, scene_id: str, z: int, x: int, y: int) -> Response:
+        # The router's '$' regex also matches before a trailing newline.
+        if not request.scope["path"].endswith(".png"):
+            raise WorkerError(400, "bad_request", "tile path must end with .png")
+        if not (job.ZOOM_MIN <= z <= job.ZOOM_MAX):
+            raise WorkerError(400, "bad_request",
+                              f"zoom must stay inside {job.ZOOM_MIN} to {job.ZOOM_MAX}")
+        if not (0 <= x < 2**z and 0 <= y < 2**z):
+            raise WorkerError(400, "bad_request", "tile coordinates are outside the zoom bounds")
+        try:
+            key = store_module.check_tile_key(f"{project_id}/{scene_id}/{z}/{x}/{y}.png")
+            payload = worker.store.get(key)
+        except store_module.TileNotFound as exc:
+            raise WorkerError(404, "unavailable", "tile not found") from exc
+        except (store_module.BadKey, store_module.StoreUnavailable) as exc:
+            raise worker.fail(exc) from exc
+        return Response(content=payload, media_type=store_module.CONTENT_TYPE,
+                        headers={"Cache-Control": "no-store"})
 
     @app.delete("/v1/tiles", dependencies=[Depends(authorize)])
     def purge(request: PurgeRequest) -> dict:

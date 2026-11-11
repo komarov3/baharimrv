@@ -12,6 +12,7 @@ import os
 import pathlib
 import re
 import tempfile
+from contextlib import closing
 
 # {project_id}/{scene_id}/{z}/{x}/{y}.png  -- see SATELLITE_NDVI_SPEC.md 8 rule 7.
 # The zoom group is the spec's 8-16 clamp written into the key shape, so a key
@@ -27,24 +28,29 @@ KEY_PREFIX = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}"
 
 CONTENT_TYPE = "image/png"
 CACHE_CONTROL = "public, max-age=31536000, immutable"
+MAX_TILE_BYTES = 1 << 20
 
 
 class BadKey(ValueError):
-    """The caller asked for a path this store will not write."""
+    """The caller asked for a path this store will not access."""
+
+
+class TileNotFound(Exception):
+    """The requested tile does not exist."""
 
 
 class StoreUnavailable(RuntimeError):
-    """The tile store could not be reached or written."""
+    """The tile store could not be reached, read or written."""
 
 
 def check_tile_key(key: str) -> str:
-    if not TILE_KEY.match(key):
+    if not TILE_KEY.fullmatch(key):
         raise BadKey(f"{key!r} is not a {{project}}/{{scene}}/{{z}}/{{x}}/{{y}}.png key")
     return key
 
 
 def check_prefix(prefix: str) -> str:
-    if not KEY_PREFIX.match(prefix):
+    if not KEY_PREFIX.fullmatch(prefix):
         raise BadKey(f"{prefix!r} is not a {{project}}/{{scene}} prefix")
     return prefix
 
@@ -79,6 +85,24 @@ class VolumeStore:
                     os.unlink(temp_name)
         except OSError as exc:
             raise StoreUnavailable(f"{path}: {exc}") from exc
+
+    def get(self, key: str) -> bytes:
+        check_tile_key(key)
+        try:
+            root = self.root.resolve()
+            path = (root / key).resolve()
+            if not path.is_relative_to(root):
+                raise BadKey("tile path escapes store root")
+            with path.open("rb") as tile:
+                payload = tile.read(MAX_TILE_BYTES + 1)
+        except FileNotFoundError as exc:
+            raise TileNotFound("tile not found") from exc
+        except (OSError, RuntimeError) as exc:
+            # resolve() can raise RuntimeError for a symlink loop on Python 3.12.
+            raise StoreUnavailable("tile could not be read") from exc
+        if len(payload) > MAX_TILE_BYTES:
+            raise StoreUnavailable("tile exceeds size limit")
+        return payload
 
     def delete_prefix(self, prefix: str) -> int:
         check_prefix(prefix)
@@ -143,6 +167,27 @@ class S3Store:
                                    ContentType=CONTENT_TYPE, CacheControl=CACHE_CONTROL)
         except Exception as exc:  # boto3 raises a dozen unrelated exception types
             raise StoreUnavailable(f"{self.bucket}/{key}: {exc}") from exc
+
+    def get(self, key: str) -> bytes:
+        check_tile_key(key)
+        from botocore.exceptions import ClientError
+
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=key)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") in {"NoSuchKey", "NotFound", "404"}:
+                raise TileNotFound("tile not found") from exc
+            raise StoreUnavailable("tile could not be read") from exc
+        except Exception as exc:
+            raise StoreUnavailable("tile could not be read") from exc
+        try:
+            with closing(response["Body"]) as body:
+                payload = body.read(MAX_TILE_BYTES + 1)
+        except Exception as exc:
+            raise StoreUnavailable("tile could not be read") from exc
+        if len(payload) > MAX_TILE_BYTES:
+            raise StoreUnavailable("tile exceeds size limit")
+        return payload
 
     def delete_prefix(self, prefix: str) -> int:
         check_prefix(prefix)

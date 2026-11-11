@@ -26,6 +26,13 @@ class MemoryStore:
         store_module.check_tile_key(key)
         self.objects[key] = payload
 
+    def get(self, key: str) -> bytes:
+        store_module.check_tile_key(key)
+        try:
+            return self.objects[key]
+        except KeyError as exc:
+            raise store_module.TileNotFound("tile not found") from exc
+
     def delete_prefix(self, prefix):
         purged = sum(1 for key in self.objects if key.startswith(f"{prefix}/"))
         self.objects = {k: v for k, v in self.objects.items() if not k.startswith(f"{prefix}/")}
@@ -48,6 +55,9 @@ class BrokenStore:
         self.message = message
 
     def put(self, key, payload):
+        raise store_module.StoreUnavailable(self.message)
+
+    def get(self, key: str) -> bytes:
         raise store_module.StoreUnavailable(self.message)
 
     def delete_prefix(self, prefix):

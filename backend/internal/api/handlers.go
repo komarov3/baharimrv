@@ -798,8 +798,8 @@ func (r *router) projectSatelliteTile(c *gin.Context) {
 	// nothing project-sized to see; above 16 a single project's tiles could be
 	// walked as a global dump, so both ends are refused before the store is
 	// consulted.
-	if z < 8 || z > 16 || x < 0 || y < 0 {
-		fail(c, domain.Invalid("tile zoom must be between 8 and 16"))
+	if z < 8 || z > 16 || x < 0 || y < 0 || x >= 1<<z || y >= 1<<z {
+		fail(c, domain.Invalid("tile zoom must be between 8 and 16 with coordinates inside its grid"))
 		return
 	}
 	tile, err := r.satellite.ReadTile(projectID, scene, z, x, y)

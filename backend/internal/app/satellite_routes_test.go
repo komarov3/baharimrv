@@ -198,9 +198,15 @@ func TestSatelliteOverlayBeforeComputeIsRefused(t *testing.T) {
 	}
 }
 
-// The tile proxy refuses every request the overlay could not have named: a
-// missing scene, a bad layer, and a zoom outside the worker's grid all answer
-// with typed 422s so the client can log them rather than guessing.
+func TestSatelliteTileProxyEnforcesProjectAccess(t *testing.T) {
+	f := newFixture(t)
+	w := f.newWork()
+	outsider := f.register(models.RoleManager, "tile-outsider")
+	path := "/api/v1/projects/" + w.projectID + "/satellite/tiles/14/9012/7234.png?scene=S2_SCENE&layer=ndvi"
+	f.must(http.MethodGet, path, "", nil, http.StatusUnauthorized)
+	f.must(http.MethodGet, path, outsider.token, nil, http.StatusForbidden)
+}
+
 func TestSatelliteTileProxyValidatesInputs(t *testing.T) {
 	f := newFixture(t)
 	w := f.newWork()
@@ -209,6 +215,10 @@ func TestSatelliteTileProxyValidatesInputs(t *testing.T) {
 	f.must(http.MethodGet, base, w.manager.token, nil, http.StatusUnprocessableEntity)
 	f.must(http.MethodGet, base+"?scene=SOME_SCENE", w.manager.token, nil, http.StatusUnprocessableEntity)
 	f.must(http.MethodGet, base+"?scene=SOME_SCENE&layer=other", w.manager.token, nil, http.StatusUnprocessableEntity)
+	for _, coordinates := range []string{"7/0/0", "17/0/0", "14/-1/0", "14/0/-1", "14/16384/0", "14/0/16384"} {
+		path := "/api/v1/projects/" + w.projectID + "/satellite/tiles/" + coordinates + ".png?scene=SOME_SCENE&layer=ndvi"
+		f.must(http.MethodGet, path, w.manager.token, nil, http.StatusUnprocessableEntity)
+	}
 }
 
 // The tile proxy answers 410 when a caller names a scene the project has moved

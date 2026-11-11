@@ -1,4 +1,4 @@
-"""The HTTP contract of SATELLITE_NDVI_SPEC.md 8: five routes, one error shape.
+"""The HTTP contract of SATELLITE_NDVI_SPEC.md 8: six routes, one error shape.
 
 The Go API is the only caller, and it branches on `error` rather than parsing a
 message, so what these tests hold the service to is the closed code list and the
@@ -16,13 +16,17 @@ would be a hang rather than a clean failure.
 
 from __future__ import annotations
 
+import socket
+from unittest.mock import Mock
+
 import numpy as np
 import pytest
 import rasterio
+import uvicorn
 from fastapi.testclient import TestClient
 from rasterio.windows import Window
 
-from s2_worker import aoi, cogs, job, ndvi, palette, stac
+from s2_worker import aoi, cogs, job, ndvi, palette, stac, store as store_module
 from s2_worker.app import MAX_CELLS, create_app
 from s2_worker.config import Settings
 from fakes import BrokenStore, MemoryStore, StubSource, scene_with_pixels
@@ -31,6 +35,46 @@ TOKEN = "worker-test-token"
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
 KILIFI = (-3.6400, 39.8360)
 CELL = scene_with_pixels("S2C_37MER_20261105_1_L2A")
+
+
+def test_main_refuses_empty_token(monkeypatch, capsys):
+    from s2_worker.__main__ import main
+
+    monkeypatch.setenv("S2_WORKER_TOKEN", "")
+    monkeypatch.setattr(uvicorn.Server, "run", lambda *args, **kwargs: pytest.fail("server started"))
+    assert main() == 1
+    assert "S2_WORKER_TOKEN is unset" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("host", [None, "0.0.0.0", "::"])
+def test_main_listener_accepts_health_and_private_connections(monkeypatch, tmp_path, host):
+    from s2_worker.__main__ import main
+
+    if host == "::" and not socket.has_dualstack_ipv6():
+        pytest.skip("dual-stack sockets are unavailable")
+    monkeypatch.setenv("S2_WORKER_TOKEN", TOKEN)
+    monkeypatch.setenv("TILE_STORE_ROOT", str(tmp_path))
+    monkeypatch.setenv("PORT", "0")
+    if host is None:
+        monkeypatch.delenv("HOST", raising=False)
+    else:
+        monkeypatch.setenv("HOST", host)
+    listeners = []
+
+    def run(server, sockets):
+        listeners.extend(sockets)
+        listener = sockets[0]
+        port = listener.getsockname()[1]
+        addresses = ["127.0.0.1", "::1"] if host == "::" else ["127.0.0.1"]
+        for address in addresses:
+            with socket.create_connection((address, port), timeout=1):
+                accepted, _ = listener.accept()
+                accepted.close()
+
+    monkeypatch.setattr(uvicorn.Server, "run", run)
+    assert main() == 0
+    assert len(listeners) == 1
+    assert listeners[0].fileno() == -1
 
 
 @pytest.fixture(autouse=True)
@@ -438,6 +482,119 @@ def test_a_store_that_cannot_be_written_is_a_503_and_health_says_degraded(painte
                            headers=AUTH)
     assert purge.status_code == 503
     assert purge.json()["error"] == "store_unavailable"
+
+
+# --- GET /v1/tiles/{project}/{scene}/{z}/{x}/{y}.png ---------------------------
+
+
+@pytest.mark.parametrize("key", [
+    "p/s/8/0/0.png",
+    "p/s/8/255/255.png",
+    "proj-1/S2C_37MER_20261105_1_L2A/14/10005/8357.png",
+    "project_1.v2/scene:1/16/65535/65535.png",
+])
+def test_tile_read_returns_exact_png_bytes_and_no_store_headers(key):
+    tile_store = Mock(wraps=MemoryStore())
+    payload = b"\x89PNG\r\n\x1a\n" + bytes(range(256))
+    tile_store.put(key, payload)
+    client, _, _ = build_client(store=tile_store)
+    response = client.get(f"/v1/tiles/{key}", headers=AUTH, follow_redirects=False)
+    assert response.status_code == 200
+    assert response.content == payload
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "no-store"
+    assert "location" not in response.headers
+    tile_store.get.assert_called_once_with(key)
+
+
+@pytest.mark.parametrize("token,headers", [
+    (TOKEN, {}),
+    (TOKEN, {"Authorization": "Bearer wrong-token"}),
+    ("", AUTH),
+    ("", {"Authorization": "Bearer "}),
+])
+@pytest.mark.parametrize("key", ["p/s/14/1/1.png", "p/s/17/1/1.png", "p%20bad/s/14/1/1.png"])
+def test_tile_read_authentication_precedes_validation_and_all_store_access(token, headers, key):
+    tile_store = Mock(wraps=MemoryStore())
+    client, _, _ = build_client(store=tile_store, token=token)
+    response = client.get(f"/v1/tiles/{key}", headers=headers, follow_redirects=False)
+    assert response.status_code == 401
+    assert response.json() == {"error": "unauthorized", "detail": "missing or wrong bearer token",
+                               "notes": []}
+    assert "location" not in response.headers
+    assert tile_store.mock_calls == []
+
+
+def test_missing_tile_returns_typed_404():
+    client, _, _ = build_client()
+    response = client.get("/v1/tiles/p/missing/14/1/1.png", headers=AUTH)
+    assert response.status_code == 404
+    assert response.json() == {"error": "unavailable", "detail": "tile not found", "notes": []}
+
+
+def test_tile_store_failure_returns_503_and_is_recorded_by_worker():
+    client, worker, _ = build_client(store=BrokenStore("tile could not be read"))
+    response = client.get("/v1/tiles/p/s/14/1/1.png", headers=AUTH)
+    assert response.status_code == 503
+    assert response.json() == {"error": "store_unavailable", "detail": "tile could not be read",
+                               "notes": []}
+    assert "store_unavailable: tile could not be read" in worker.last_error
+
+
+def test_tile_read_volume_failure_does_not_expose_filesystem_path(tmp_path):
+    root = tmp_path / "private-root"
+    root.write_bytes(b"not a directory")
+    client, worker, _ = build_client(store=store_module.VolumeStore(root))
+    response = client.get("/v1/tiles/p/s/14/1/1.png", headers=AUTH)
+    assert response.status_code == 503
+    assert response.json()["error"] == "store_unavailable"
+    assert str(root) not in response.text
+    assert str(root) not in worker.last_error
+
+
+def test_tile_read_handles_bad_key_from_store():
+    tile_store = Mock(wraps=MemoryStore())
+    tile_store.get.side_effect = store_module.BadKey("tile path escapes store root")
+    client, _, _ = build_client(store=tile_store)
+    response = client.get("/v1/tiles/p/s/14/1/1.png", headers=AUTH)
+    assert response.status_code == 400
+    assert response.json()["error"] == "bad_request"
+
+
+@pytest.mark.parametrize("key", [
+    "p/s/7/0/0.png", "p/s/17/0/0.png", "p/s/-1/0/0.png", "p/s/999999/0/0.png",
+    "p/s/8/-1/0.png", "p/s/8/0/-1.png", "p/s/8/256/0.png", "p/s/8/0/256.png",
+    "p/s/16/65536/0.png", "p/s/16/0/65536.png",
+    "p/s/zoom/0/0.png", "p/s/14/x/0.png", "p/s/14/0/y.png", "p/s/14/1.5/0.png",
+    "p%20bad/s/14/0/0.png", "p/s%20bad/14/0/0.png",
+    "p%0a/s/14/0/0.png", "p/s%0a/14/0/0.png",
+    "p" * 65 + "/s/14/0/0.png", "p/" + "s" * 129 + "/14/0/0.png",
+    "%2e%2e/s/14/0/0.png", "p/%2e%2e/14/0/0.png",
+    "p%5cother/s/14/0/0.png", "p/s%5cother/14/0/0.png",
+    "p/s/14/0/0.png%0a",
+])
+def test_invalid_tile_keys_and_coordinates_are_400_before_store_access(key):
+    tile_store = Mock(wraps=MemoryStore())
+    client, _, _ = build_client(store=tile_store)
+    response = client.get(f"/v1/tiles/{key}", headers=AUTH, follow_redirects=False)
+    assert response.status_code == 400
+    assert response.json()["error"] == "bad_request"
+    assert tile_store.mock_calls == []
+
+
+@pytest.mark.parametrize("key", [
+    "p%2fother/s/14/0/0.png", "p/s%2fother/14/0/0.png",
+    "p/%2e%2e%2fsecret/14/0/0.png", "%2fetc/passwd",
+    "p/s/14/0/0.jpg", "p/s/14/0/0.png/extra", "p/%252f/14/0/0.png",
+])
+def test_paths_outside_tile_route_never_access_store_or_redirect(key):
+    # Decoded slashes create extra segments, so these do not match a tile route.
+    tile_store = Mock(wraps=MemoryStore())
+    client, _, _ = build_client(store=tile_store)
+    response = client.get(f"/v1/tiles/{key}", headers=AUTH, follow_redirects=False)
+    assert response.status_code == 404
+    assert "location" not in response.headers
+    assert tile_store.mock_calls == []
 
 
 # --- the cap, and the shape of every failure ----------------------------------

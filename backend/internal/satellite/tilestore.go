@@ -1,21 +1,19 @@
-// Tile storage. The worker writes rendered PNGs into a shared volume at
-// `{root}/{project_id}/{scene_id}/{z}/{x}/{y}.png`, and this package reads them
-// back. The root is a deployment-time constant (a Fly volume in production, a
-// tmpfs on a developer's box); nothing here knows the address of a bucket or a
-// credential, so a caller that holds a scene identifier cannot reach anything
-// outside the prefix the API named.
-//
-// The store is a narrow read surface, not a general object client. The proxy
-// asks for one file at a time; an LRU in front of this keeps a pan across a
-// small AOI from hitting the volume per tile.
+// Tile storage reads worker-rendered PNGs over authenticated HTTP or a local shared volume.
 package satellite
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // ErrTileNotFound is the store's honest empty answer: no PNG at that address.
@@ -34,6 +32,88 @@ type TileStore interface {
 	// misconfigured store answers false and the overlay omits tileBaseUrl so the
 	// client never asks for pixels the proxy cannot serve.
 	Available() bool
+}
+
+const maxTileBytes = 1 << 20
+
+var workerTilePrefix = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}/[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+
+type WorkerTileStore struct {
+	baseURL string
+	token   string
+	client  *http.Client
+}
+
+func NewWorkerTileStore(baseURL, token string) *WorkerTileStore {
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	token = strings.TrimSpace(token)
+	endpoint, err := url.Parse(baseURL)
+	if err != nil || endpoint.Host == "" ||
+		(endpoint.Scheme != "http" && endpoint.Scheme != "https") ||
+		endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || token == "" {
+		return nil
+	}
+	return &WorkerTileStore{
+		baseURL: baseURL,
+		token:   token,
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
+	}
+}
+
+func (s *WorkerTileStore) Available() bool {
+	return s != nil && s.baseURL != "" && s.token != ""
+}
+
+func (s *WorkerTileStore) Get(keyPrefix string, z, x, y int) ([]byte, error) {
+	if !s.Available() {
+		return nil, ErrTileNotFound
+	}
+	if !workerTilePrefix.MatchString(keyPrefix) {
+		return nil, errors.New("invalid worker tile prefix")
+	}
+	if z < 8 || z > 16 || x < 0 || y < 0 || x >= 1<<z || y >= 1<<z {
+		return nil, errors.New("invalid worker tile coordinates")
+	}
+	parts := strings.SplitN(keyPrefix, "/", 2)
+	address := s.baseURL + "/v1/tiles/" + url.PathEscape(parts[0]) + "/" + url.PathEscape(parts[1]) +
+		fmt.Sprintf("/%d/%d/%d.png", z, x, y)
+	request, err := http.NewRequest(http.MethodGet, address, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build worker tile request: %w", err)
+	}
+	request.Header.Set("Authorization", "Bearer "+s.token)
+	request.Header.Set("Accept", "image/png")
+	response, err := s.client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("read worker tile: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return nil, ErrTileNotFound
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("worker tile returned HTTP %d", response.StatusCode)
+	}
+	mediaType, _, err := mime.ParseMediaType(response.Header.Get("Content-Type"))
+	if err != nil || mediaType != "image/png" {
+		return nil, errors.New("worker tile response is not image/png")
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, maxTileBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read worker tile body: %w", err)
+	}
+	if len(data) > maxTileBytes {
+		return nil, errors.New("worker tile exceeds size limit")
+	}
+	if !bytes.HasPrefix(data, []byte("\x89PNG\r\n\x1a\n")) {
+		return nil, errors.New("worker tile has an invalid PNG signature")
+	}
+	return data, nil
 }
 
 // VolumeStore reads PNGs from a filesystem root shared with the worker. The

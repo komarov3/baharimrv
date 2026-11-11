@@ -350,22 +350,22 @@ func ChangeViewOf(summary models.ProjectNdviSummary) ChangeView {
 // handle. Before it a cached envelope is still correct; after it the client
 // may ask again to see whether a newer scene has been ingested.
 type OverlayView struct {
-	TileBaseURL       string        `json:"tileBaseUrl,omitempty"`
-	Layer             string        `json:"layer"`
-	SceneID           string        `json:"sceneId,omitempty"`
-	Mission           string        `json:"mission"`
-	AcquiredAt        *time.Time    `json:"acquiredAt,omitempty"`
-	CloudCoverPct     *float64      `json:"cloudCoverPct,omitempty"`
-	Quality           string        `json:"quality"`
-	AdapterMode       string        `json:"adapterMode"`
-	Provider          string        `json:"provider"`
-	DiscoverySource   string        `json:"discoverySource,omitempty"`
-	ProcessingVersion string        `json:"processingVersion"`
-	BBox              *OverlayBBox  `json:"bbox,omitempty"`
-	ZoomRange         *ZoomRange    `json:"zoomRange,omitempty"`
-	Legend            []LegendStop  `json:"legend"`
-	CacheExpiresAt    time.Time     `json:"cacheExpiresAt"`
-	SummaryID         string        `json:"summaryId"`
+	TileBaseURL       string       `json:"tileBaseUrl,omitempty"`
+	Layer             string       `json:"layer"`
+	SceneID           string       `json:"sceneId,omitempty"`
+	Mission           string       `json:"mission"`
+	AcquiredAt        *time.Time   `json:"acquiredAt,omitempty"`
+	CloudCoverPct     *float64     `json:"cloudCoverPct,omitempty"`
+	Quality           string       `json:"quality"`
+	AdapterMode       string       `json:"adapterMode"`
+	Provider          string       `json:"provider"`
+	DiscoverySource   string       `json:"discoverySource,omitempty"`
+	ProcessingVersion string       `json:"processingVersion"`
+	BBox              *OverlayBBox `json:"bbox,omitempty"`
+	ZoomRange         *ZoomRange   `json:"zoomRange,omitempty"`
+	Legend            []LegendStop `json:"legend"`
+	CacheExpiresAt    time.Time    `json:"cacheExpiresAt"`
+	SummaryID         string       `json:"summaryId"`
 }
 
 // OverlayBBox is the framing bbox the worker was asked to render. The map
@@ -460,7 +460,7 @@ func (s *Service) ProjectOverlay(projectID string) (OverlayView, error) {
 	}
 	if summary.AdapterMode == ModeLive && summary.CurrentSceneID != "" {
 		view.SceneID = summary.CurrentSceneID
-		if s.tiles.Available() {
+		if s.tiles.Available() && summary.TileMinZoom != nil && summary.TileMaxZoom != nil {
 			view.TileBaseURL = fmt.Sprintf("/api/v1/projects/%s/satellite/tiles", summary.ProjectID)
 		}
 		if summary.TileMinZoom != nil && summary.TileMaxZoom != nil {
