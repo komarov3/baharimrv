@@ -229,6 +229,12 @@ type monitoringRecordView struct {
 	PlantedCount         int            `json:"plantedCount"`
 	AverageHeightMetres  string         `json:"averageHeightMetres"`
 	Species              string         `json:"species"`
+	Latitude             float64        `json:"latitude"`
+	Longitude            float64        `json:"longitude"`
+	GPSAccuracyMeters    float64        `json:"gpsAccuracyMeters"`
+	MethodologyVersion   string         `json:"methodologyVersion"`
+	DeviceTimestamp      time.Time      `json:"deviceTimestamp"`
+	ServerReceiptTime    time.Time      `json:"serverReceiptTime"`
 	Observations         string         `json:"observations,omitempty"`
 	AttestationStatement string         `json:"attestationStatement,omitempty"`
 	Evidence             []evidenceView `json:"evidence"`
@@ -302,6 +308,12 @@ func (r *router) activityDetail(c *gin.Context) {
 			PlantedCount:         rec.PlantedCount,
 			AverageHeightMetres:  rec.AverageHeightMetres,
 			Species:              firstSpecies(rec.Species),
+			Latitude:             rec.Latitude,
+			Longitude:            rec.Longitude,
+			GPSAccuracyMeters:    rec.GPSAccuracyMeters,
+			MethodologyVersion:   rec.MethodologyVersion,
+			DeviceTimestamp:      rec.DeviceTimestamp,
+			ServerReceiptTime:    rec.ServerReceiptTime,
 			AttestationStatement: rec.Attestation,
 		}
 		var evidenceObjects []models.EvidenceObject

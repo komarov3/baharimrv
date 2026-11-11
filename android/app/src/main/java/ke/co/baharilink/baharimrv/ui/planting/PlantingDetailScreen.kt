@@ -140,6 +140,39 @@ private fun ActivityDetailContent(
             )
         }
 
+        // 1b. Activity details card (immutable summary of the collected form)
+        item {
+            BahariCard {
+                Text(
+                    "Activity details",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                KeyValue(label = "Activity ID", value = dto.id, monospace = true)
+                KeyValue(label = "Project ID", value = dto.projectId, monospace = true)
+                KeyValue(label = "Plot ID", value = dto.plotId, monospace = true)
+                KeyValue(label = "Activity type", value = dto.activityType.replaceFirstChar { it.uppercase() })
+                KeyValue(label = "Status", value = dto.status.replaceFirstChar { it.uppercase() })
+                KeyValue(
+                    label = "Methodology version",
+                    value = dto.methodologyVersion?.takeIf { it.isNotBlank() } ?: "—",
+                )
+                KeyValue(
+                    label = "Reporting period",
+                    value = when {
+                        dto.periodStart.isNullOrBlank() && dto.periodEnd.isNullOrBlank() -> "—"
+                        dto.periodStart.isNullOrBlank() -> dto.periodEnd!!
+                        dto.periodEnd.isNullOrBlank() -> dto.periodStart!!
+                        else -> "${dto.periodStart} → ${dto.periodEnd}"
+                    },
+                )
+                KeyValue(
+                    label = "Seedlings planted",
+                    value = dto.record?.plantedCount?.toString() ?: "Not recorded yet",
+                )
+            }
+        }
+
         // 2. Monitoring record card
         item {
             val record = dto.record
@@ -157,8 +190,20 @@ private fun ActivityDetailContent(
                     )
                     KeyValue(label = "Alive count", value = record.aliveCount.toString())
                     KeyValue(label = "Planted count", value = record.plantedCount.toString())
-                    KeyValue(label = "Average height (m)", value = record.averageHeightMetres)
+                    KeyValue(label = "Average height (m)", value = record.averageHeightMetres.ifBlank { "—" })
                     KeyValue(label = "Species", value = record.species.ifBlank { "Unspecified" })
+                    KeyValue(label = "Methodology version", value = record.methodologyVersion.ifBlank { "—" })
+                    KeyValue(label = "GPS latitude", value = record.latitude.toString())
+                    KeyValue(label = "GPS longitude", value = record.longitude.toString())
+                    KeyValue(label = "GPS accuracy (m)", value = record.gpsAccuracyMeters.toString())
+                    KeyValue(
+                        label = "Device captured at",
+                        value = record.deviceTimestamp?.takeIf { it.isNotBlank() } ?: "—",
+                    )
+                    KeyValue(
+                        label = "Server receipt at",
+                        value = record.serverReceiptTime?.takeIf { it.isNotBlank() } ?: "—",
+                    )
                     KeyValue(
                         label = "Observations",
                         // The backend stores observations only in the content commitment,
