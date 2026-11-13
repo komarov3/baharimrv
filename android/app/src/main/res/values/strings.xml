@@ -7,8 +7,11 @@
     <!-- Satellite monitoring screen. Legend labels mirror the server's stop
          keys so a palette change is one server commit and one string update. -->
     <string name="satellite_title">Satellite monitoring</string>
+    <string name="satellite_loading_overlay">Loading satellite imagery…</string>
     <string name="satellite_loading_passes">Loading satellite passes…</string>
     <string name="satellite_loading_change">Loading NDVI change…</string>
+    <string name="satellite_missing_title">No imagery summary yet</string>
+    <string name="satellite_missing_body">No Sentinel-2 summary has been computed for this project. Use “Check for new imagery” below to request one.</string>
     <string name="satellite_acquired_label">Acquired %1$s</string>
     <string name="satellite_marker_no_ndvi">NDVI unavailable for this plot</string>
     <string name="satellite_sandbox_title">Sandbox mode</string>

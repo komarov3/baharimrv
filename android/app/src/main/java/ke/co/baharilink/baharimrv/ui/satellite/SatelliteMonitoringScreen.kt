@@ -63,7 +63,6 @@ import ke.co.baharilink.baharimrv.data.remote.NdviChangeDto
 import ke.co.baharilink.baharimrv.data.remote.SatelliteLegendStopDto
 import ke.co.baharilink.baharimrv.data.remote.SatelliteOverlayDto
 import ke.co.baharilink.baharimrv.data.remote.SatellitePassDto
-import ke.co.baharilink.baharimrv.data.remote.SatelliteRefreshDto
 import ke.co.baharilink.baharimrv.ui.components.BahariButton
 import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
 import ke.co.baharilink.baharimrv.ui.components.BahariCard
@@ -102,10 +101,9 @@ fun SatelliteMonitoringScreen(
             )
         },
     ) { padding ->
-        val overlay = (state.overlay as? LoadState.Success)?.data
+        val overlay = state.overlayData
         val change = (state.change as? LoadState.Success)?.data
-        val adapterMode = overlay?.adapterMode ?: "sandbox"
-        val isSandbox = adapterMode.equals("sandbox", ignoreCase = true)
+        val overlayError = (state.overlay as? LoadState.Error)?.message
         val tileProvider = remember(state.activeScene) { viewModel.tileProvider() }
 
         LazyColumn(
@@ -113,7 +111,7 @@ fun SatelliteMonitoringScreen(
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (BuildConfig.MAPS_CONFIGURED && overlay != null && !isSandbox) {
+            if (BuildConfig.MAPS_CONFIGURED && overlay != null && !state.isSandbox) {
                 item(key = "imagery") {
                     ImageryCard(
                         overlay = overlay,
@@ -123,23 +121,28 @@ fun SatelliteMonitoringScreen(
                 }
             }
 
-            if (overlay == null || isSandbox) {
-                item(key = "sandbox") {
-                    SandboxNotice(modifier = Modifier.padding(horizontal = 16.dp))
+            item(key = "overlay-status") {
+                when {
+                    state.overlay is LoadState.Loading -> LoadingState(stringResource(R.string.satellite_loading_overlay))
+                    overlayError != null -> ErrorState(message = overlayError, onRetry = viewModel::retry)
+                    state.summaryMissing -> MissingSummaryNotice(modifier = Modifier.padding(horizontal = 16.dp))
+                    state.isSandbox -> SandboxNotice(modifier = Modifier.padding(horizontal = 16.dp))
                 }
             }
 
-            item(key = "latest") {
-                when (val lp = state.latestPass) {
-                    is LoadState.Loading -> LoadingState(stringResource(R.string.satellite_loading_passes))
-                    is LoadState.Error -> ErrorState(message = lp.message, onRetry = viewModel::retry)
-                    is LoadState.Success -> {
-                        val pass = lp.data
-                        if (pass != null) {
-                            LastPassCard(
-                                pass = pass,
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                            )
+            if (state.latestPass !is LoadState.Error || overlayError == null) {
+                item(key = "latest") {
+                    when (val lp = state.latestPass) {
+                        is LoadState.Loading -> LoadingState(stringResource(R.string.satellite_loading_passes))
+                        is LoadState.Error -> ErrorState(message = lp.message, onRetry = viewModel::retry)
+                        is LoadState.Success -> {
+                            val pass = lp.data
+                            if (pass != null && state.canShowLegacyPass(pass)) {
+                                LastPassCard(
+                                    pass = pass,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -152,41 +155,58 @@ fun SatelliteMonitoringScreen(
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
+            } else if (state.change is LoadState.Error && overlayError == null) {
+                item(key = "change-error") {
+                    ErrorState(message = (state.change as LoadState.Error).message, onRetry = viewModel::retry)
+                }
             } else if (state.loading) {
                 item(key = "change-loading") {
                     LoadingState(stringResource(R.string.satellite_loading_change))
                 }
             }
 
-            item(key = "acquisitions-title") {
-                Text(
-                    stringResource(R.string.satellite_acquisitions_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-            }
-
-            val passList = (state.passes as? LoadState.Success)?.data ?: emptyList()
-            if (passList.isEmpty()) {
-                item(key = "acquisitions-empty") {
-                    EmptyState(
-                        title = stringResource(R.string.satellite_acquisitions_empty_title),
-                        detail = stringResource(R.string.satellite_acquisitions_empty_detail),
+            if (state.passes !is LoadState.Error || overlayError == null) {
+                item(key = "acquisitions-title") {
+                    Text(
+                        stringResource(R.string.satellite_acquisitions_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
                 }
-            } else {
-                items(passList, key = { it.id }) { pass ->
-                    AcquisitionRow(
-                        pass = pass,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                    )
+
+                when (val passState = state.passes) {
+                    is LoadState.Loading -> item(key = "acquisitions-loading") {
+                        LoadingState(stringResource(R.string.satellite_loading_passes))
+                    }
+                    is LoadState.Error -> item(key = "acquisitions-error") {
+                        ErrorState(message = passState.message, onRetry = viewModel::retry)
+                    }
+                    is LoadState.Success -> {
+                        val passList = passState.data.filter { state.canShowLegacyPass(it) }
+                        if (passList.isEmpty()) {
+                            item(key = "acquisitions-empty") {
+                                EmptyState(
+                                    title = stringResource(R.string.satellite_acquisitions_empty_title),
+                                    detail = stringResource(R.string.satellite_acquisitions_empty_detail),
+                                )
+                            }
+                        } else {
+                            items(passList, key = { it.id }) { pass ->
+                                AcquisitionRow(
+                                    pass = pass,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
             item(key = "refresh") {
                 RefreshAction(
-                    refreshJob = state.refreshJob,
+                    refreshing = state.refreshing,
+                    inFlight = state.refreshInFlight,
                     refreshError = state.refreshError,
                     onClick = viewModel::refresh,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -316,6 +336,19 @@ private fun LegendStrip(legend: List<SatelliteLegendStopDto>, modifier: Modifier
 }
 
 @Composable
+private fun MissingSummaryNotice(modifier: Modifier = Modifier) {
+    BahariCard(modifier = modifier) {
+        Text(stringResource(R.string.satellite_missing_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(R.string.satellite_missing_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun SandboxNotice(modifier: Modifier = Modifier) {
     BahariCard(modifier = modifier) {
         Text(stringResource(R.string.satellite_sandbox_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -340,7 +373,7 @@ private fun LastPassCard(pass: SatellitePassDto, modifier: Modifier = Modifier) 
             Icon(Icons.Default.Satellite, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(8.dp))
             Text(stringResource(R.string.satellite_last_pass_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            StatusChip(text = pass.adapterMode ?: "sandbox", tone = stateTone(pass.adapterMode ?: "sandbox"))
+            StatusChip(text = pass.adapterMode.orEmpty(), tone = stateTone(pass.adapterMode.orEmpty()))
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -443,7 +476,7 @@ private fun AcquisitionRow(pass: SatellitePassDto, modifier: Modifier = Modifier
                 )
             }
             Spacer(Modifier.size(8.dp))
-            StatusChip(text = pass.adapterMode ?: "sandbox", tone = stateTone(pass.adapterMode ?: "sandbox"))
+            StatusChip(text = pass.adapterMode.orEmpty(), tone = stateTone(pass.adapterMode.orEmpty()))
         }
         pass.acquiredAt?.let {
             Text(
@@ -457,19 +490,18 @@ private fun AcquisitionRow(pass: SatellitePassDto, modifier: Modifier = Modifier
 
 @Composable
 private fun RefreshAction(
-    refreshJob: SatelliteRefreshDto?,
+    refreshing: Boolean,
+    inFlight: Boolean,
     refreshError: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val inFlight = refreshJob != null && refreshJob.status != "complete" &&
-        refreshJob.status != "failed" && refreshJob.status != "cancelled"
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         BahariButton(
             onClick = onClick,
             variant = BahariButtonVariant.OUTLINED,
             modifier = Modifier.fillMaxWidth(),
-            enabled = !inFlight,
+            enabled = !refreshing,
         ) {
             Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.size(8.dp))

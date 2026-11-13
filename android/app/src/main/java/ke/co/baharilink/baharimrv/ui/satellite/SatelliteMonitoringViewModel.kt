@@ -5,8 +5,12 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import javax.inject.Named
+import com.google.gson.JsonParser
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
+import retrofit2.HttpException
 import ke.co.baharilink.baharimrv.BuildConfig
 import ke.co.baharilink.baharimrv.data.remote.DashboardDto
 import ke.co.baharilink.baharimrv.data.remote.NdviChangeDto
@@ -29,20 +33,90 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 
+sealed interface SatelliteSummary {
+    data object Missing : SatelliteSummary
+    data class Available(val overlay: SatelliteOverlayDto) : SatelliteSummary
+}
+
 data class SatelliteMonitoringUiState(
     val projectId: String = "",
-    val latestPass: LoadState<SatellitePassDto?> = LoadState.Success(null),
-    val passes: LoadState<List<SatellitePassDto>> = LoadState.Success(emptyList()),
+    val latestPass: LoadState<SatellitePassDto?> = LoadState.Loading,
+    val passes: LoadState<List<SatellitePassDto>> = LoadState.Loading,
     val dashboard: LoadState<DashboardDto> = LoadState.Loading,
-    val overlay: LoadState<SatelliteOverlayDto?> = LoadState.Success(null),
-    val change: LoadState<NdviChangeDto?> = LoadState.Success(null),
+    val overlay: LoadState<SatelliteSummary> = LoadState.Loading,
+    val change: LoadState<NdviChangeDto?> = LoadState.Loading,
     val refreshJob: SatelliteRefreshDto? = null,
     val refreshError: String? = null,
+    val refreshing: Boolean = false,
     val activeScene: String? = null,
     val cachedImagery: Boolean = false,
     val loading: Boolean = false,
-    val error: String? = null,
-)
+) {
+    val overlayData: SatelliteOverlayDto?
+        get() = ((overlay as? LoadState.Success)?.data as? SatelliteSummary.Available)?.overlay
+    val isSandbox: Boolean
+        get() = overlayData?.adapterMode.equals("sandbox", ignoreCase = true)
+    val summaryMissing: Boolean
+        get() = (overlay as? LoadState.Success)?.data == SatelliteSummary.Missing
+    val refreshInFlight: Boolean
+        get() = refreshing || refreshJob?.isInFlight == true
+
+    // Legacy endpoints use SATELLITE_MODE, independently of the summary provider.
+    // Never mix their synthetic (or unlabelled) rows into live/unknown imagery.
+    fun canShowLegacyPass(pass: SatellitePassDto): Boolean =
+        pass.adapterMode.equals("live", ignoreCase = true) ||
+            (isSandbox && pass.adapterMode.equals("sandbox", ignoreCase = true))
+}
+
+private val SatelliteRefreshDto.isInFlight: Boolean
+    get() = status !in setOf("complete", "failed", "cancelled")
+
+internal sealed interface SatelliteFailure {
+    data object SummaryMissing : SatelliteFailure
+    data class Error(val message: String) : SatelliteFailure
+}
+
+internal const val SATELLITE_RATE_LIMIT_MESSAGE =
+    "Too many imagery requests. Wait before trying again; the project refresh limit resets over the next hour."
+
+/** Only the documented client-safe error envelope is read, never raw response/worker text. */
+internal fun Throwable.satelliteFailure(): SatelliteFailure {
+    if (this is CancellationException) throw this
+    if (this !is HttpException) return SatelliteFailure.Error(readableMessage())
+    val envelope = runCatching {
+        response()?.errorBody()?.use { body ->
+            JsonParser.parseString(body.string()).asJsonObject.getAsJsonObject("error")
+        }
+    }.getOrNull()
+    val code = runCatching { envelope?.get("code")?.asString }.getOrNull()
+    if (code() == 404 && code == "satellite_summary_missing") return SatelliteFailure.SummaryMissing
+    if (code() == 429) {
+        val safeMessage = if (code == "satellite_refresh_rate_limited") {
+            runCatching { envelope?.get("message")?.asString }.getOrNull()
+                ?.trim()?.takeIf { it.isNotBlank() }
+        } else null
+        return SatelliteFailure.Error(safeMessage ?: SATELLITE_RATE_LIMIT_MESSAGE)
+    }
+    return SatelliteFailure.Error("Satellite data could not be loaded (HTTP ${code()}). Try again.")
+}
+
+private suspend fun <T> satelliteLoadState(
+    onMissing: (() -> T)? = null,
+    request: suspend () -> T,
+): LoadState<T> = try {
+    val value = request()
+    coroutineContext.ensureActive()
+    LoadState.Success(value)
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Exception) {
+    coroutineContext.ensureActive()
+    when (val failure = error.satelliteFailure()) {
+        SatelliteFailure.SummaryMissing -> onMissing?.let { LoadState.Success(it()) }
+            ?: LoadState.Error("No satellite summary is available yet. Check for new imagery.")
+        is SatelliteFailure.Error -> LoadState.Error(failure.message)
+    }
+}
 
 @HiltViewModel
 class SatelliteMonitoringViewModel @Inject constructor(
@@ -59,53 +133,60 @@ class SatelliteMonitoringViewModel @Inject constructor(
     @Volatile
     private var currentTileProvider: NdviTileProvider? = null
     private val supersedeLock = Mutex()
+    private var loadJob: Job? = null
     private var pollJob: Job? = null
 
     fun setProjectId(value: String) = _state.update { it.copy(projectId = value) }
 
-    /**
-     * Fetches overlay, change, latest pass, and passes in one coroutine. The
-     * screen only fails over if overlay itself fails; change and passes are
-     * best-effort so a partial backend state still draws the map.
-     */
     fun load(projectId: String, mission: String) {
-        _state.update { it.copy(projectId = projectId, loading = true, error = null) }
-        viewModelScope.launch {
-            try {
-                coroutineScope {
-                    val overlayDeferred = async { runCatching { repository.satelliteOverlay(projectId) } }
-                    val changeDeferred = async { runCatching { repository.satelliteChange(projectId) } }
-                    val latestDeferred = async { runCatching { repository.satelliteLatest(projectId, mission.ifBlank { "S2" }) } }
-                    val passesDeferred = async { runCatching { repository.satellitePasses(projectId, mission.ifBlank { "S2" }) } }
-                    val dashboardDeferred = async { runCatching { repository.dashboard(projectId) } }
-
-                    val overlayResult = overlayDeferred.await()
-                    val changeResult = changeDeferred.await()
-                    val latest = latestDeferred.await().getOrNull()
-                    val passes = passesDeferred.await().getOrDefault(emptyList())
-                    val dashboard = dashboardDeferred.await().getOrNull()
-
-                    overlayResult.onFailure { throwable ->
-                        _state.update {
-                            it.copy(loading = false, error = throwable.readableMessage())
-                        }
-                        return@coroutineScope
-                    }
-                    val overlay = overlayResult.getOrNull()
-                    _state.update {
-                        it.copy(
-                            loading = false,
-                            overlay = LoadState.Success(overlay),
-                            change = LoadState.Success(changeResult.getOrNull()),
-                            latestPass = LoadState.Success(latest),
-                            passes = LoadState.Success(passes),
-                            dashboard = dashboard?.let { d -> LoadState.Success(d) } ?: it.dashboard,
-                            activeScene = overlay?.sceneId ?: it.activeScene,
-                        )
+        loadJob?.cancel()
+        val previous = _state.value
+        val sameProject = previous.projectId == projectId
+        if (!sameProject) currentTileProvider = null
+        _state.update {
+            SatelliteMonitoringUiState(
+                projectId = projectId,
+                loading = true,
+                refreshJob = if (sameProject) previous.refreshJob else null,
+                refreshError = if (sameProject) previous.refreshError else null,
+                refreshing = sameProject && previous.refreshing,
+            )
+        }
+        loadJob = viewModelScope.launch {
+            val resolvedMission = mission.ifBlank { "S2" }
+            coroutineScope {
+                val overlayDeferred = async {
+                    satelliteLoadState<SatelliteSummary>(onMissing = { SatelliteSummary.Missing }) {
+                        SatelliteSummary.Available(repository.satelliteOverlay(projectId))
                     }
                 }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.readableMessage()) }
+                val changeDeferred = async {
+                    satelliteLoadState<NdviChangeDto?>(onMissing = { null }) { repository.satelliteChange(projectId) }
+                }
+                val latestDeferred = async {
+                    satelliteLoadState<SatellitePassDto?> { repository.satelliteLatest(projectId, resolvedMission) }
+                }
+                val passesDeferred = async {
+                    satelliteLoadState { repository.satellitePasses(projectId, resolvedMission) }
+                }
+                val dashboardDeferred = async {
+                    satelliteLoadState { repository.dashboard(projectId) }
+                }
+
+                val overlayState = overlayDeferred.await()
+                val scene = ((overlayState as? LoadState.Success)?.data as? SatelliteSummary.Available)?.overlay?.sceneId
+                coroutineContext.ensureActive()
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        overlay = overlayState,
+                        change = changeDeferred.await(),
+                        latestPass = latestDeferred.await(),
+                        passes = passesDeferred.await(),
+                        dashboard = dashboardDeferred.await(),
+                        activeScene = scene,
+                    )
+                }
             }
         }
     }
@@ -117,74 +198,101 @@ class SatelliteMonitoringViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Posts a refresh and polls the job status every 3 s up to a 90 s deadline.
-     * A second tap while a job is already open answers with the same job id
-     * (409), which we just adopt as the current one.
-     */
     fun refresh() {
-        val projectId = _state.value.projectId
-        if (projectId.isBlank()) return
+        val current = _state.value
+        val projectId = current.projectId
+        if (projectId.isBlank() || current.refreshing) return
         pollJob?.cancel()
-        _state.update { it.copy(refreshError = null) }
+        _state.update { it.copy(refreshError = null, refreshing = true) }
+        val openJob = current.refreshJob?.takeIf { it.isInFlight }
         pollJob = viewModelScope.launch {
-            val submitted = runCatching { repository.satelliteRefresh(projectId) }
-            if (submitted.isFailure) {
-                _state.update { it.copy(refreshError = submitted.exceptionOrNull()?.readableMessage()) }
-                return@launch
+            try {
+                if (openJob != null) {
+                    // Polling timed out earlier; resume the same job instead of spending another quota slot.
+                    pollUntilTerminal(projectId, openJob.jobId)
+                    return@launch
+                }
+                val initial = try {
+                    repository.satelliteRefresh(projectId)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    val message = when (val failure = error.satelliteFailure()) {
+                        SatelliteFailure.SummaryMissing -> "No satellite summary is available yet. Check for new imagery."
+                        is SatelliteFailure.Error -> failure.message
+                    }
+                    _state.update { it.copy(refreshError = message) }
+                    return@launch
+                }
+                _state.update { it.copy(refreshJob = initial) }
+                pollUntilTerminal(projectId, initial.jobId)
+            } finally {
+                _state.update { it.copy(refreshing = false) }
             }
-            val initial = submitted.getOrThrow()
-            _state.update { it.copy(refreshJob = initial) }
-            pollUntilTerminal(projectId, initial.jobId)
         }
     }
 
     private suspend fun pollUntilTerminal(projectId: String, jobId: String) {
         val deadline = System.currentTimeMillis() + REFRESH_DEADLINE_MS
+        var lastPollError: String? = null
         while (coroutineContext.isActive && System.currentTimeMillis() < deadline) {
             delay(REFRESH_POLL_INTERVAL_MS)
-            val view = runCatching { repository.satelliteRefreshStatus(projectId, jobId) }.getOrNull() ?: continue
+            val view = try {
+                repository.satelliteRefreshStatus(projectId, jobId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                lastPollError = (error.satelliteFailure() as? SatelliteFailure.Error)?.message
+                continue
+            }
+            lastPollError = null
             _state.update { it.copy(refreshJob = view) }
-            if (view.status == "complete" || view.status == "failed" || view.status == "cancelled") {
-                if (view.status == "complete") {
+            when (view.status) {
+                "complete" -> {
                     _state.update { it.copy(refreshError = null) }
                     load(projectId, "")
-                } else if (view.status == "failed") {
-                    _state.update { it.copy(refreshError = view.error ?: "The imagery refresh could not be completed") }
+                    return
                 }
-                return
+                "failed" -> {
+                    _state.update {
+                        it.copy(refreshError = view.error?.takeIf { text -> text.isNotBlank() }
+                            ?: "The imagery refresh could not be completed. Try again.")
+                    }
+                    return
+                }
+                "cancelled" -> return
             }
         }
         _state.update {
-            it.copy(refreshError = it.refreshError ?: "The imagery refresh is still running; open the screen again in a moment")
+            it.copy(
+                refreshError = it.refreshError ?: lastPollError
+                    ?: "The imagery refresh is still running. Tap again to keep checking its progress.",
+            )
         }
     }
 
-    /**
-     * Invoked by the tile provider on its binder thread when the server answers
-     * 410 — the scene this provider was built for is no longer the active
-     * one. Refetch the overlay once; the screen rebuilds the provider when
-     * `activeScene` changes.
-     */
     fun sceneSuperseded() {
         viewModelScope.launch {
             supersedeLock.withLock {
                 val projectId = _state.value.projectId
                 if (projectId.isBlank()) return@launch
-                val fresh = runCatching { repository.satelliteOverlay(projectId) }.getOrNull() ?: return@launch
-                _state.update { it.copy(overlay = LoadState.Success(fresh), activeScene = fresh.sceneId) }
+                val fresh = try {
+                    repository.satelliteOverlay(projectId)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    return@launch
+                }
+                if (_state.value.projectId != projectId) return@launch
+                _state.update {
+                    it.copy(overlay = LoadState.Success(SatelliteSummary.Available(fresh)), activeScene = fresh.sceneId)
+                }
             }
         }
     }
 
-    /**
-     * Build or reuse the tile provider for the current overlay. The provider
-     * is keyed on the active scene so camera moves or plot edits do not churn
-     * it; it is rebuilt only when [SatelliteMonitoringUiState.activeScene]
-     * changes.
-     */
     fun tileProvider(): NdviTileProvider? {
-        val overlay = (_state.value.overlay as? LoadState.Success)?.data ?: return null
+        val overlay = _state.value.overlayData ?: return null
         val scene = overlay.sceneId ?: return null
         currentTileProvider?.let { if (it.isForScene(scene)) return it }
         val provider = NdviTileProvider(
