@@ -162,6 +162,7 @@ data class NdviDto(
     val status: String,
     val source: String? = null,
     val acquiredAt: String? = null,
+    val adapterMode: String? = null,
 )
 
 /**

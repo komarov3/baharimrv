@@ -1,7 +1,5 @@
 package ke.co.baharilink.baharimrv.ui.satellite
 
-import com.google.android.gms.maps.model.Tile
-import com.google.android.gms.maps.model.TileProvider
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.exp
@@ -12,26 +10,24 @@ import okhttp3.Request
 import retrofit2.HttpException
 
 /**
- * Renders NDVI tiles over the map. `TileProvider.getTile` is invoked on a
- * binder thread inside the Maps SDK, so every operation here must be thread
- * safe and blocking. OkHttp's `execute()` is the synchronous entry point,
- * which is exactly what this surface needs.
+ * Fetches NDVI tile bytes for one (projectId, sceneId) pair through the app's
+ * authenticated OkHttp client. The renderer (osmdroid) calls [fetchTile] on its
+ * own tile-loader thread, so every operation here is blocking and thread safe;
+ * OkHttp's `execute()` is the synchronous entry point this surface needs.
  *
- * The provider is built for one (projectId, sceneId) pair. When the
- * server moves past that scene, every tile request answers 410 and the
- * provider asks the caller to refetch the overlay and rebuild with the new
- * scene. A tile that 404s or 410s returns [TileProvider.NO_TILE] so the basemap
- * shows through; a network failure returns [TileProvider.NO_TILE] too, because
- * [TileProvider.UNKNOWN_TILE] would cause the SDK to retry in a loop and
- * burn battery on a broken link.
+ * When the server moves past the scene this provider was built for, every tile
+ * request answers 410 and the provider asks the caller to refetch the overlay
+ * and rebuild with the new scene. A tile that 404s, 410s, falls outside the
+ * project bbox/zoom band, or fails on the network returns null so the basemap
+ * shows through rather than retrying in a loop on a broken link.
  */
 class NdviTileProvider(
     private val projectId: String,
     private val source: SatelliteOverlayDto,
-    private val baseUrl: String,
+    val baseUrl: String,
     private val tilesClient: OkHttpClient,
     private val onSceneSuperseded: () -> Unit,
-) : TileProvider {
+) {
 
     private val zoomRange = source.zoomRange
     private val bbox = source.bbox
@@ -39,39 +35,36 @@ class NdviTileProvider(
     private val tileBaseUrl = source.tileBaseUrl?.trimEnd('/')
 
     // A refetch has already been requested once for this provider instance.
-    // Guarding against a flood of 410s from the SDK firing the callback on
-    // every tile in the viewport.
+    // Guarding against a flood of 410s firing the callback on every tile in
+    // the viewport.
     @Volatile
     private var supersedeSignalled: Boolean = false
 
-    override fun getTile(x: Int, y: Int, zoom: Int): Tile {
-        if (tileBaseUrl.isNullOrBlank() || sceneId.isBlank()) return TileProvider.NO_TILE
+    /** PNG bytes for the slippy tile, or null when there is no NDVI to draw. */
+    fun fetchTile(x: Int, y: Int, zoom: Int): ByteArray? {
+        if (tileBaseUrl.isNullOrBlank() || sceneId.isBlank()) return null
         val range = zoomRange
-        if (range != null && (zoom < range.min || zoom > range.max)) return TileProvider.NO_TILE
-        if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) return TileProvider.NO_TILE
+        if (range != null && (zoom < range.min || zoom > range.max)) return null
+        if (zoom < MIN_ZOOM || zoom > MAX_ZOOM) return null
         val box = bbox
         if (box != null && !tileIntersects(x, y, zoom, box.minLat, box.minLon, box.maxLat, box.maxLon)) {
-            return TileProvider.NO_TILE
+            return null
         }
-        val url = "$tileBaseUrl/$zoom/$x/$y?layer=ndvi&scene=${urlEncode(sceneId)}"
+        val url = tileUrl(baseUrl, tileBaseUrl, zoom, x, y, sceneId) ?: return null
         val request = Request.Builder().url(url).build()
         return try {
             tilesClient.newCall(request).execute().use { response ->
                 when (response.code) {
-                    200 -> {
-                        val body = response.body?.bytes() ?: return TileProvider.NO_TILE
-                        Tile(TILE_SIZE, TILE_SIZE, body)
-                    }
+                    200 -> response.body?.bytes()
                     410 -> {
                         signalSuperseded()
-                        TileProvider.NO_TILE
+                        null
                     }
-                    404 -> TileProvider.NO_TILE
-                    else -> TileProvider.NO_TILE
+                    else -> null
                 }
             }
         } catch (_: Exception) {
-            TileProvider.NO_TILE
+            null
         }
     }
 
@@ -84,8 +77,8 @@ class NdviTileProvider(
         try {
             onSceneSuperseded()
         } catch (_: Exception) {
-            // The callback runs on a binder thread; never let its failure
-            // propagate into the Maps SDK.
+            // The callback runs on a tile-loader thread; never let its failure
+            // propagate into the renderer.
         }
     }
 
@@ -121,6 +114,18 @@ class NdviTileProvider(
         private fun tileLat(y: Int, n: Double): Double {
             val rad = PI * (1.0 - 2.0 * y / n)
             return Math.toDegrees(2.0 * atan(exp(rad)) - PI / 2.0)
+        }
+
+        /**
+         * The overlay returns a relative tile path, so it has to be joined to the API
+         * origin before OkHttp sees it. A relative URL is rejected outright, which
+         * would silently drop every tile and leave the basemap bare.
+         */
+        fun tileUrl(baseUrl: String, tileBaseUrl: String?, zoom: Int, x: Int, y: Int, sceneId: String): String? {
+            val path = tileBaseUrl?.trimEnd('/')?.takeIf { it.isNotBlank() } ?: return null
+            if (sceneId.isBlank()) return null
+            val origin = if (path.startsWith("http://") || path.startsWith("https://")) path else baseUrl.trimEnd('/') + path
+            return "$origin/$zoom/$x/$y?layer=ndvi&scene=${urlEncode(sceneId)}"
         }
 
         private fun urlEncode(value: String): String =

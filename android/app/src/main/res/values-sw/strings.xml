@@ -8,6 +8,7 @@
     <string name="satellite_loading_change">Inapakia mabadiliko ya NDVI…</string>
     <string name="satellite_acquired_label">Ilichukuliwa %1$s</string>
     <string name="satellite_marker_no_ndvi">NDVI haipatikani kwa ploti hii</string>
+    <string name="satellite_osm_attribution">© Wachangiaji wa OpenStreetMap</string>
     <string name="satellite_sandbox_title">Hali ya majaribio</string>
     <string name="satellite_sandbox_body">Picha halisi za Sentinel-2 hazijawekwa. Takwimu hapa chini ni za majaribio tu; zinaonyesha mfumo unavyofanya kazi lakini hazitokani na picha halisi ya mradi huu.</string>
     <string name="satellite_adapter_sandbox">majaribio</string>
@@ -25,6 +26,7 @@
     <string name="satellite_acquisitions_title">Picha zilizokusanywa</string>
     <string name="satellite_acquisitions_empty_title">Hakuna picha bado</string>
     <string name="satellite_acquisitions_empty_detail">Picha ya Sentinel-2 inapolinganishwa na mradi huu, kila picha itaorodheshwa hapa ikiwa na kiwango cha mawingu na hali ya kichakato.</string>
+    <string name="satellite_acquisition_baseline">Dirisha la msingi la kulinganisha</string>
     <string name="satellite_refresh_action">Tafuta picha mpya</string>
     <string name="satellite_refresh_running">Inatafuta picha mpya…</string>
     <string name="satellite_legend_bare">Uso wa udongo</string>

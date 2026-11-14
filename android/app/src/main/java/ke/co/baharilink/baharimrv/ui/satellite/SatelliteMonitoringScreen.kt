@@ -33,31 +33,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.LatLngBounds
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapType
-import com.google.maps.android.compose.MapUiSettings
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.TileOverlay
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberTileOverlayState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import ke.co.baharilink.baharimrv.BuildConfig
 import ke.co.baharilink.baharimrv.R
 import ke.co.baharilink.baharimrv.data.remote.NdviChangeDto
 import ke.co.baharilink.baharimrv.data.remote.SatelliteLegendStopDto
@@ -111,7 +106,7 @@ fun SatelliteMonitoringScreen(
             contentPadding = PaddingValues(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (BuildConfig.MAPS_CONFIGURED && overlay != null && !state.isSandbox) {
+            if (overlay != null && !state.isSandbox) {
                 item(key = "imagery") {
                     ImageryCard(
                         overlay = overlay,
@@ -183,7 +178,7 @@ fun SatelliteMonitoringScreen(
                         ErrorState(message = passState.message, onRetry = viewModel::retry)
                     }
                     is LoadState.Success -> {
-                        val passList = passState.data.filter { state.canShowLegacyPass(it) }
+                        val passList = viewModel.acquisitions().filter { state.canShowLegacyPass(it) }
                         if (passList.isEmpty()) {
                             item(key = "acquisitions-empty") {
                                 EmptyState(
@@ -222,64 +217,66 @@ private fun ImageryCard(
     markers: List<PlotMarker>,
     tileProvider: NdviTileProvider?,
 ) {
+    val context = LocalContext.current
     BahariCard(modifier = Modifier.padding(horizontal = 16.dp)) {
         val centre = remember(markers, overlay) {
-            markers.firstOrNull()?.let { LatLng(it.latitude, it.longitude) }
+            markers.firstOrNull()?.let { GeoPoint(it.latitude, it.longitude) }
                 ?: overlay.bbox?.let {
-                    LatLng((it.minLat + it.maxLat) / 2.0, (it.minLon + it.maxLon) / 2.0)
+                    GeoPoint((it.minLat + it.maxLat) / 2.0, (it.minLon + it.maxLon) / 2.0)
                 }
-                ?: LatLng(-4.05, 39.67)
-        }
-        val cameraPositionState = rememberCameraPositionState {
-            position = CameraPosition.fromLatLngZoom(centre, if (markers.isEmpty()) 12f else 14f)
+                ?: GeoPoint(-4.05, 39.67)
         }
         val bbox = overlay.bbox
-        LaunchedEffect(bbox, markers) {
-            if (cameraPositionState.position.target == centre && bbox != null) {
-                val bounds = LatLngBounds(
-                    LatLng(bbox.minLat, bbox.minLon),
-                    LatLng(bbox.maxLat, bbox.maxLon),
+        // Prefer the scene footprint: it keeps the camera inside the NDVI tile zoom
+        // range. Fall back to the plot points when there is no footprint yet.
+        val fitBox = remember(markers, bbox) {
+            when {
+                bbox != null -> BoundingBox(bbox.maxLat, bbox.maxLon, bbox.minLat, bbox.minLon)
+                markers.isEmpty() -> null
+                else -> BoundingBox(
+                    markers.maxOf { it.latitude }, markers.maxOf { it.longitude },
+                    markers.minOf { it.latitude }, markers.minOf { it.longitude },
                 )
-                runCatching {
-                    cameraPositionState.animate(
-                        CameraUpdateFactory.newLatLngBounds(bounds, 48.dp.value.toInt()),
-                    )
-                }
             }
         }
+        val noNdviLabel = stringResource(R.string.satellite_marker_no_ndvi)
         Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    mapType = MapType.HYBRID,
-                    isMyLocationEnabled = false,
-                    isTrafficEnabled = false,
-                ),
-                uiSettings = MapUiSettings(
-                    zoomControlsEnabled = false,
-                    scrollGesturesEnabled = true,
-                    zoomGesturesEnabled = true,
-                    rotationGesturesEnabled = false,
-                    myLocationButtonEnabled = false,
-                ),
-            ) {
-                if (tileProvider != null) {
-                    TileOverlay(
-                        state = rememberTileOverlayState(),
-                        tileProvider = tileProvider,
-                        transparency = 0.35f,
-                        zIndex = 2f,
-                    )
+            // Rebuild the map only when the scene (tileProvider) or the plots
+            // change, so panning and zooming are never reset by a recomposition.
+            key(tileProvider, markers) {
+                val mapView = remember {
+                    MapView(context).apply {
+                        setTileSource(TileSourceFactory.MAPNIK)
+                        setMultiTouchControls(true)
+                        setBuiltInZoomControls(false)
+                        setHorizontalMapRepetitionEnabled(false)
+                        setVerticalMapRepetitionEnabled(false)
+                        setMinZoomLevel(NdviTileProvider.MIN_ZOOM.toDouble())
+                        setMaxZoomLevel(NdviTileProvider.MAX_ZOOM.toDouble())
+                        controller.setZoom(if (markers.isEmpty()) 12.0 else 14.0)
+                        controller.setCenter(centre)
+                        if (tileProvider != null) {
+                            overlays.add(ndviTilesOverlay(context, tileProvider))
+                        }
+                        markers.forEach { plot ->
+                            val snippet = plot.ndvi?.let { ndviBandLabel(it) } ?: noNdviLabel
+                            overlays.add(ndviPlotMarker(this, plot, snippet))
+                        }
+                        if (fitBox != null) {
+                            addOnFirstLayoutListener { _, _, _, _, _ ->
+                                zoomToBoundingBox(fitBox, false, 48)
+                            }
+                        }
+                    }
                 }
-                markers.forEach { marker ->
-                    Marker(
-                        state = MarkerState(position = LatLng(marker.latitude, marker.longitude)),
-                        title = marker.label,
-                        snippet = marker.ndvi?.let { ndviBandLabel(marker.ndvi) }
-                            ?: stringResource(R.string.satellite_marker_no_ndvi),
-                    )
+                DisposableEffect(mapView) {
+                    mapView.onResume()
+                    onDispose {
+                        mapView.onPause()
+                        mapView.onDetach()
+                    }
                 }
+                AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize().clipToBounds())
             }
             StatusChip(
                 text = overlay.adapterMode,
@@ -303,6 +300,12 @@ private fun ImageryCard(
             LegendStrip(
                 legend = overlay.legend,
                 modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+            )
+            Text(
+                stringResource(R.string.satellite_osm_attribution),
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF1F2B3A),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
             )
         }
     }
@@ -477,6 +480,13 @@ private fun AcquisitionRow(pass: SatellitePassDto, modifier: Modifier = Modifier
             }
             Spacer(Modifier.size(8.dp))
             StatusChip(text = pass.adapterMode.orEmpty(), tone = stateTone(pass.adapterMode.orEmpty()))
+        }
+        if (pass.passType == "baseline") {
+            Text(
+                stringResource(R.string.satellite_acquisition_baseline),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         pass.acquiredAt?.let {
             Text(

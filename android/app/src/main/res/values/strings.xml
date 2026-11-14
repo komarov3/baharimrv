@@ -14,6 +14,7 @@
     <string name="satellite_missing_body">No Sentinel-2 summary has been computed for this project. Use “Check for new imagery” below to request one.</string>
     <string name="satellite_acquired_label">Acquired %1$s</string>
     <string name="satellite_marker_no_ndvi">NDVI unavailable for this plot</string>
+    <string name="satellite_osm_attribution">© OpenStreetMap contributors</string>
     <string name="satellite_sandbox_title">Sandbox mode</string>
     <string name="satellite_sandbox_body">Live Sentinel-2 imagery is not configured. The figures below are synthetic; they corroborate the pipeline but do not represent a real scene over this project.</string>
     <string name="satellite_adapter_sandbox">sandbox</string>
@@ -31,6 +32,7 @@
     <string name="satellite_acquisitions_title">Acquisitions</string>
     <string name="satellite_acquisitions_empty_title">No acquisitions yet</string>
     <string name="satellite_acquisitions_empty_detail">Once a Sentinel-2 scene is matched to this project, each pass is listed here with its cloud cover and adapter mode.</string>
+    <string name="satellite_acquisition_baseline">Baseline comparison window</string>
     <string name="satellite_refresh_action">Check for new imagery</string>
     <string name="satellite_refresh_running">Checking for new imagery…</string>
     <string name="satellite_legend_bare">Bare surface</string>

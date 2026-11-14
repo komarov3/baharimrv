@@ -27,10 +27,10 @@ JAHAZI_CLIENT_ID=baharimrv_android_client
 JAHAZI_REDIRECT_URI=baharimrv://auth/callback
 
 # ============================================================================
-# GOOGLE MAPS
+# MAPPING
 # ============================================================================
 
-# Google Maps API key for Android
-# Obtain from: https://console.cloud.google.com/google/maps-apis
-# Enable: Maps SDK for Android, Places API
-GOOGLE_MAPS_API_KEY=
+# No map API key is required. The satellite map renders OpenStreetMap raster
+# tiles through osmdroid, and NDVI tiles come from the authenticated backend
+# above. There is no Google Maps SDK, billing account, or Play Services
+# dependency for mapping.

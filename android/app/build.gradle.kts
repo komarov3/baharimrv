@@ -46,12 +46,10 @@ android {
         buildConfigField("String", "JAHAZI_CLIENT_ID", quoted(config("JAHAZI_CLIENT_ID")))
         buildConfigField("String", "JAHAZI_REDIRECT_URI", quoted(redirectUri))
         buildConfigField("boolean", "AUTH_CONFIGURED", authConfigured.toString())
-        buildConfigField("boolean", "MAPS_CONFIGURED", config("GOOGLE_MAPS_API_KEY").isNotBlank().toString())
 
         manifestPlaceholders["ssoScheme"] = redirectPart(URI::getScheme, "https")
         manifestPlaceholders["ssoHost"] = redirectPart(URI::getHost, "callback.invalid")
         manifestPlaceholders["ssoPath"] = redirectPart(URI::getPath, "/auth/callback")
-        manifestPlaceholders["googleMapsApiKey"] = config("GOOGLE_MAPS_API_KEY")
 
         ksp {
             arg("room.schemaLocation", "$projectDir/schemas")
@@ -118,11 +116,11 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-compose:4.4.1")
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

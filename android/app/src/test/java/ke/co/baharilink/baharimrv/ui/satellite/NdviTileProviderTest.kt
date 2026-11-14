@@ -2,6 +2,7 @@ package ke.co.baharilink.baharimrv.ui.satellite
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.PI
@@ -85,6 +86,59 @@ class NdviTileProviderTest {
                 x = 1234, y = 2345, zoom = 13,
                 minLat = -85.0, minLon = -180.0, maxLat = 85.0, maxLon = 180.0,
             ),
+        )
+    }
+
+    @Test
+    fun relativeTilePathIsJoinedToTheApiOrigin() {
+        // The overlay hands back a path, not an origin. OkHttp rejects a relative
+        // URL, so the join is what makes any tile load at all.
+        assertEquals(
+            "https://api.example.org/api/v1/projects/p1/satellite/tiles/14/9012/7234?layer=ndvi&scene=S2_SCENE",
+            NdviTileProvider.tileUrl(
+                baseUrl = "https://api.example.org",
+                tileBaseUrl = "/api/v1/projects/p1/satellite/tiles",
+                zoom = 14, x = 9012, y = 7234, sceneId = "S2_SCENE",
+            ),
+        )
+    }
+
+    @Test
+    fun trailingSlashesDoNotDoubleUp() {
+        assertEquals(
+            "https://api.example.org/api/v1/projects/p1/satellite/tiles/14/9012/7234?layer=ndvi&scene=S2_SCENE",
+            NdviTileProvider.tileUrl(
+                baseUrl = "https://api.example.org/",
+                tileBaseUrl = "/api/v1/projects/p1/satellite/tiles/",
+                zoom = 14, x = 9012, y = 7234, sceneId = "S2_SCENE",
+            ),
+        )
+    }
+
+    @Test
+    fun anAbsoluteTileBaseIsUsedAsIs() {
+        assertEquals(
+            "https://tiles.example.org/t/14/9012/7234?layer=ndvi&scene=S2_SCENE",
+            NdviTileProvider.tileUrl(
+                baseUrl = "https://api.example.org",
+                tileBaseUrl = "https://tiles.example.org/t",
+                zoom = 14, x = 9012, y = 7234, sceneId = "S2_SCENE",
+            ),
+        )
+    }
+
+    @Test
+    fun missingTileBaseOrSceneYieldsNoUrl() {
+        assertNull(NdviTileProvider.tileUrl("https://api.example.org", null, 14, 1, 2, "S2_SCENE"))
+        assertNull(NdviTileProvider.tileUrl("https://api.example.org", "  ", 14, 1, 2, "S2_SCENE"))
+        assertNull(NdviTileProvider.tileUrl("https://api.example.org", "/tiles", 14, 1, 2, ""))
+    }
+
+    @Test
+    fun sceneIdIsUrlEncoded() {
+        assertEquals(
+            "https://api.example.org/tiles/14/1/2?layer=ndvi&scene=S2+SCENE%2F1",
+            NdviTileProvider.tileUrl("https://api.example.org", "/tiles", 14, 1, 2, "S2 SCENE/1"),
         )
     }
 }

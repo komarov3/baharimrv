@@ -108,6 +108,22 @@ func ndviStatusFromQuality(quality string) string {
 	}
 }
 
+// singlePlotMarkerNDVI decides whether the project figure may be shown on a plot
+// marker. It may only when the project is exactly one plot, the summary measured
+// that one plot live, and the figure is available. A single-plot summary is that
+// plot's own measurement, so attributing it to the marker is honest. A multi-plot
+// aggregate or a sandbox synthetic is never one marker's measurement, so it stays
+// on the headline only and the marker keeps its per-activity answer.
+func singlePlotMarkerNDVI(change satellite.ChangeView, plotCount int, err error) *float64 {
+	if err != nil || plotCount != 1 || change.PlotCount != 1 ||
+		change.MeanNDVI == nil || change.AdapterMode != satellite.ModeLive ||
+		ndviStatusFromQuality(change.Quality) != "available" {
+		return nil
+	}
+	value := *change.MeanNDVI
+	return &value
+}
+
 type Dashboard struct {
 	Project DashboardProject `json:"project"`
 	Plots   []PlotView       `json:"plots"`
@@ -462,6 +478,11 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 	period := reportingPeriod(activities)
 	dashboard.Project.MethodologyPeriod = period
 
+	// The project figure is read once and reused: it drives the headline below and,
+	// for a single-plot project, the marker's own NDVI.
+	change, changeErr := s.satellite.ProjectChange(projectID)
+	projectPlotNDVI := singlePlotMarkerNDVI(change, len(plots), changeErr)
+
 	var latestNDVI *float64
 	var ndviSource string
 	var ndviAt *time.Time
@@ -488,12 +509,19 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 				}
 			}
 		}
+		// A single-plot live figure is this marker's measurement even before a
+		// per-activity corroboration exists, so the marker shows it rather than
+		// "Unavailable". Multi-plot and sandbox figures never reach a marker here.
+		if view.NDVI == nil && projectPlotNDVI != nil {
+			value := *projectPlotNDVI
+			view.NDVI = &value
+		}
 		dashboard.Plots = append(dashboard.Plots, view)
 	}
 	// Drive the headline from the project figure rather than the loudest plot. The
 	// cherry-pick here was the one piece of arithmetic that could be honest about
 	// each plot and wrong about the project.
-	if change, err := s.satellite.ProjectChange(projectID); err == nil {
+	if changeErr == nil {
 		source := change.Provider
 		if source == "" {
 			source = "satellite"
@@ -510,7 +538,7 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 			SceneID:     change.CurrentSceneID,
 			Provider:    change.Provider,
 		}
-	} else if errors.Is(err, satellite.ErrSummaryMissing) {
+	} else if errors.Is(changeErr, satellite.ErrSummaryMissing) {
 		// No computation yet: fall back to the per-activity answer, which at least
 		// knows the sandbox has been attached, and keep the live/sandbox distinction
 		// honest.
@@ -522,7 +550,7 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 			dashboard.NDVI = NDVIState{Status: "unavailable", Source: "No corroboration attached"}
 		}
 	} else {
-		return Dashboard{}, err
+		return Dashboard{}, changeErr
 	}
 
 	restored, restoredState, err := s.areaRestored(plots, activityByPlot)
@@ -898,7 +926,7 @@ func (s *Service) CreateProject(userID string, input ProjectInput, sandboxDemo b
 		ID: uuid.NewString(), Name: strings.TrimSpace(input.Name), ManagerID: userID,
 		MethodologyID: methodology.ID, Status: "active",
 		CommunityGroup: strings.TrimSpace(input.CommunityGroup), Species: strings.TrimSpace(input.Species),
-		ConservationType: normalizeConservationType(input.ConservationType),
+		ConservationType:  normalizeConservationType(input.ConservationType),
 		CommunityShareBPS: input.CommunityShareBPS,
 		SandboxDemo:       sandboxDemo, CreatedAt: now, UpdatedAt: now,
 	}
@@ -964,6 +992,7 @@ func (s *Service) Methodologies() ([]models.Methodology, error) {
 	}
 	return rows, nil
 }
+
 // Activities lists the reporting-period activities opened on a project.
 func (s *Service) Activities(projectID string) ([]models.ConservationActivity, error) {
 	var rows []models.ConservationActivity
@@ -1018,7 +1047,6 @@ func (s *Service) UpdatePlot(projectID, plotID, userID, assignedMonitorID string
 	}
 	return plot, nil
 }
-
 
 // AddPlot registers one more measured parcel on an existing project. Sites are
 // created on demand by name, the same rule CreateProject applies, so a manager

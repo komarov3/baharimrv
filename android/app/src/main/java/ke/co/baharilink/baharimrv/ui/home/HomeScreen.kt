@@ -1,9 +1,7 @@
 package ke.co.baharilink.baharimrv.ui.home
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,21 +30,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.AlertDto
@@ -74,6 +72,12 @@ import ke.co.baharilink.baharimrv.ui.components.dashedBorder
 import ke.co.baharilink.baharimrv.ui.components.formatAmount
 import ke.co.baharilink.baharimrv.ui.components.formatInstant
 import ke.co.baharilink.baharimrv.ui.components.stateTone
+import ke.co.baharilink.baharimrv.ui.satellite.PlotMarker
+import ke.co.baharilink.baharimrv.ui.satellite.ndviPlotMarker
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -383,6 +387,30 @@ private fun MetricCard(metric: MetricDto, modifier: Modifier = Modifier) {
 }
 
 /**
+ * The headline chip never calls a project "sandbox" just because no project
+ * summary exists yet. Sandbox is claimed only when the server reports a sandbox
+ * adapter mode; an uncomputed project reads "no imagery". Kept pure so the
+ * labelling rule can be unit tested without a Compose runtime.
+ */
+internal data class SatelliteHeadlineState(
+    val chipText: String,
+    val isSandbox: Boolean,
+    val liveChange: NdviChangeDto?,
+)
+
+internal fun satelliteHeadlineState(change: NdviChangeDto?, legacyNdvi: NdviDto?): SatelliteHeadlineState {
+    val liveChange = change?.takeIf { it.quality != "unavailable" }
+    val knownMode = change?.adapterMode ?: legacyNdvi?.adapterMode
+    val isSandbox = knownMode.equals("sandbox", ignoreCase = true)
+    val chipText = when {
+        liveChange != null -> liveChange.adapterMode ?: "live"
+        isSandbox -> "sandbox"
+        else -> "no imagery"
+    }
+    return SatelliteHeadlineState(chipText, isSandbox, liveChange)
+}
+
+/**
  * Replaces the placeholder NDVI line the dashboard used to carry. A real
  * change figure from `/satellite/change` drives the headline; the legacy
  * [NdviDto] on the dashboard is the fall-back for deployments that have
@@ -396,20 +424,19 @@ private fun SatelliteHeadline(
     legacyNdvi: NdviDto?,
     onOpenSatellite: () -> Unit,
 ) {
-    val hasChange = change != null && change.quality != "unavailable"
-    val isSandbox = change?.adapterMode.equals("sandbox", ignoreCase = true) ||
-        (change == null && legacyNdvi != null)
-    val liveChange = change?.takeIf { hasChange }
+    val headline = satelliteHeadlineState(change, legacyNdvi)
+    val isSandbox = headline.isSandbox
+    val liveChange = headline.liveChange
     LedgerCard(contentPadding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Satellite NDVI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             StatusChip(
-                text = when {
-                    liveChange != null -> liveChange.adapterMode ?: "live"
-                    isSandbox -> "sandbox"
-                    else -> "no imagery"
+                text = headline.chipText,
+                tone = when {
+                    liveChange != null -> stateTone(liveChange.adapterMode ?: "live")
+                    isSandbox -> ChipTone.WARNING
+                    else -> ChipTone.NEUTRAL
                 },
-                tone = if (isSandbox && liveChange == null) ChipTone.WARNING else stateTone(change?.adapterMode ?: "sandbox"),
             )
         }
         when {
@@ -508,32 +535,44 @@ private fun ProjectMap(plots: List<PlotDto>) {
             return@Column
         }
         var selected by remember { mutableStateOf<PlotDto?>(null) }
-        val density = LocalDensity.current
-        Canvas(
-            modifier = Modifier.fillMaxWidth().height(112.dp).background(MaterialTheme.colorScheme.surfaceVariant)
-                .pointerInput(plots) {
-                    detectTapGestures { tap ->
-                        val canvasSize = with(density) { size.toSize() }
-                        selected = plots.minByOrNull { plot -> (plotOffset(plot, plots, canvasSize) - tap).getDistance() }
-                            ?.takeIf { plot ->
-                                val distance = (plotOffset(plot, plots, canvasSize) - tap).getDistance()
-                                distance <= with(density) { 48.dp.toPx() }
-                            }
+        val context = LocalContext.current
+        key(plots) {
+            val mapView = remember {
+                MapView(context).apply {
+                    setTileSource(TileSourceFactory.MAPNIK)
+                    setMultiTouchControls(true)
+                    setBuiltInZoomControls(false)
+                    controller.setZoom(if (plots.size == 1) 15.0 else 13.0)
+                    controller.setCenter(GeoPoint(plots.first().latitude, plots.first().longitude))
+                    plots.forEach { plot ->
+                        val marker = ndviPlotMarker(
+                            this,
+                            PlotMarker(plot.id, plot.label, plot.latitude, plot.longitude, plot.ndvi),
+                            plot.ndvi?.let { "NDVI %.3f".format(it) } ?: "NDVI unavailable",
+                        )
+                        marker.setOnMarkerClickListener { _, _ ->
+                            selected = plot
+                            true
+                        }
+                        overlays.add(marker)
                     }
-                },
-        ) {
-            plots.forEach { plot ->
-                val point = plotOffset(plot, plots, size)
-                plot.ndvi?.let { value ->
-                    drawCircle(
-                        color = Color(0xFF059669).copy(alpha = (0.12f + value.toFloat().coerceIn(0f, 1f) * 0.3f)),
-                        radius = 30.dp.toPx(),
-                        center = point,
-                    )
+                    if (plots.size > 1) {
+                        val box = BoundingBox(
+                            plots.maxOf { it.latitude }, plots.maxOf { it.longitude },
+                            plots.minOf { it.latitude }, plots.minOf { it.longitude },
+                        )
+                        addOnFirstLayoutListener { _, _, _, _, _ -> zoomToBoundingBox(box, false, 48) }
+                    }
                 }
-                drawCircle(color = Color(0xFF12263B), radius = 7.dp.toPx(), center = point)
-                drawCircle(color = Color.White, radius = 3.dp.toPx(), center = point)
             }
+            DisposableEffect(mapView) {
+                mapView.onResume()
+                onDispose {
+                    mapView.onPause()
+                    mapView.onDetach()
+                }
+            }
+            AndroidView(factory = { mapView }, modifier = Modifier.fillMaxWidth().height(160.dp).clipToBounds())
         }
         Text("Tap a plot for returned NDVI, GPS, area and status.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         selected?.let { plot ->
@@ -546,19 +585,4 @@ private fun ProjectMap(plots: List<PlotDto>) {
             Text("Plot ID: ${plot.id}", style = MaterialTheme.typography.bodySmall)
         }
     }
-}
-
-private fun plotOffset(plot: PlotDto, plots: List<PlotDto>, size: Size): Offset {
-    if (plots.size == 1) return Offset(size.width / 2, size.height / 2)
-    val minLat = plots.minOf { it.latitude }
-    val maxLat = plots.maxOf { it.latitude }
-    val minLon = plots.minOf { it.longitude }
-    val maxLon = plots.maxOf { it.longitude }
-    val latRange = (maxLat - minLat).takeIf { it > 0 } ?: 1.0
-    val lonRange = (maxLon - minLon).takeIf { it > 0 } ?: 1.0
-    val padding = 28.0
-    return Offset(
-        x = (padding + ((plot.longitude - minLon) / lonRange) * (size.width - padding * 2)).toFloat(),
-        y = (size.height - padding - ((plot.latitude - minLat) / latRange) * (size.height - padding * 2)).toFloat(),
-    )
 }

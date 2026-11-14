@@ -71,6 +71,38 @@ data class SatelliteMonitoringUiState(
 private val SatelliteRefreshDto.isInFlight: Boolean
     get() = status !in setOf("complete", "failed", "cancelled")
 
+/**
+ * The acquisitions a live project actually matched: the summary's current scene and,
+ * when present, the year-earlier baseline. The legacy pass predictor only knows the
+ * sandbox seam, so under a live summary its synthetic rows are hidden and these are
+ * the only honest acquisitions to list. Every field comes from a server envelope.
+ */
+internal fun matchedSceneAcquisitions(
+    projectId: String,
+    overlay: SatelliteOverlayDto?,
+    change: NdviChangeDto?,
+): List<SatellitePassDto> {
+    if (overlay == null || !overlay.adapterMode.equals("live", ignoreCase = true)) return emptyList()
+    val current = overlay.sceneId?.takeIf { it.isNotBlank() } ?: return emptyList()
+    val rows = mutableListOf(
+        SatellitePassDto(
+            id = current, projectId = projectId, mission = overlay.mission, passType = "acquisition",
+            acquiredAt = overlay.acquiredAt, sceneId = current, cloudCoverPct = overlay.cloudCoverPct,
+            adapterMode = overlay.adapterMode, processingVersion = overlay.processingVersion, quality = overlay.quality,
+        ),
+    )
+    val baseline = change?.baselineSceneId?.takeIf { it.isNotBlank() && it != current }
+    if (baseline != null) {
+        rows.add(
+            SatellitePassDto(
+                id = baseline, projectId = projectId, mission = overlay.mission, passType = "baseline",
+                sceneId = baseline, adapterMode = overlay.adapterMode, processingVersion = change.processingVersion,
+            ),
+        )
+    }
+    return rows
+}
+
 internal sealed interface SatelliteFailure {
     data object SummaryMissing : SatelliteFailure
     data class Error(val message: String) : SatelliteFailure
@@ -317,6 +349,15 @@ class SatelliteMonitoringViewModel @Inject constructor(
                 ndvi = plot.ndvi,
             )
         } ?: emptyList()
+    }
+
+    fun acquisitions(): List<SatellitePassDto> {
+        val current = _state.value
+        val matched = matchedSceneAcquisitions(
+            current.projectId, current.overlayData, (current.change as? LoadState.Success)?.data,
+        )
+        if (matched.isNotEmpty()) return matched
+        return (current.passes as? LoadState.Success)?.data ?: emptyList()
     }
 
     companion object {
