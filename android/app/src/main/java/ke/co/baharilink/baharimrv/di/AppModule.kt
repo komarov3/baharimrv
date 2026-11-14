@@ -15,7 +15,10 @@ import javax.inject.Singleton
 import ke.co.baharilink.baharimrv.BuildConfig
 import ke.co.baharilink.baharimrv.data.local.BahariMrvDatabase
 import ke.co.baharilink.baharimrv.data.local.SecureSessionStore
+import ke.co.baharilink.baharimrv.data.local.SessionMetadataStore
 import ke.co.baharilink.baharimrv.data.remote.BahariMrvApi
+import ke.co.baharilink.baharimrv.data.remote.SessionAuthenticator
+import kotlinx.coroutines.runBlocking
 import okhttp3.Cache
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -27,6 +30,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 @InstallIn(SingletonComponent::class)
 object AppModule {
     private const val TILES_CLIENT = "tiles"
+    private const val REFRESH_API = "refresh"
     // 20 MB disk cache for satellite tiles. Spec section 10.2: recent zoom bands
     // survive offline, so the map degrades to cached imagery rather than a blank
     // pane when the link drops.
@@ -57,14 +61,52 @@ object AppModule {
         chain.proceed(request.build())
     }
 
+    /**
+     * The refresh endpoint rides its own bare client: no bearer interceptor and
+     * no authenticator, so a rejected grant surfaces as a 401 instead of
+     * recursing through another refresh attempt.
+     */
     @Provides
     @Singleton
-    fun okHttp(authInterceptor: Interceptor): OkHttpClient = OkHttpClient.Builder()
+    @Named(REFRESH_API)
+    fun refreshApi(): BahariMrvApi {
+        val client = OkHttpClient.Builder()
+            .protocols(listOf(Protocol.HTTP_1_1))
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(apiBaseUrl())
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(BahariMrvApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun sessionAuthenticator(
+        secureStore: SecureSessionStore,
+        metadataStore: SessionMetadataStore,
+        @Named(REFRESH_API) refreshApi: BahariMrvApi,
+    ): SessionAuthenticator = SessionAuthenticator(
+        tokens = secureStore,
+        refreshApi = refreshApi,
+        onSessionInvalid = {
+            secureStore.clearTokens()
+            runBlocking { metadataStore.clear() }
+        },
+    )
+
+    @Provides
+    @Singleton
+    fun okHttp(authInterceptor: Interceptor, authenticator: SessionAuthenticator): OkHttpClient = OkHttpClient.Builder()
         .protocols(listOf(Protocol.HTTP_1_1))  // HTTP/1.1 for Fly.io compatibility
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(45, TimeUnit.SECONDS)
         .writeTimeout(45, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
+        .authenticator(authenticator)
         .build()
 
     /**
@@ -78,6 +120,7 @@ object AppModule {
     fun tilesOkHttp(
         @ApplicationContext context: Context,
         authInterceptor: Interceptor,
+        authenticator: SessionAuthenticator,
     ): OkHttpClient {
         val cacheDir = File(context.cacheDir, "satellite-tiles").apply { mkdirs() }
         return OkHttpClient.Builder()
@@ -86,19 +129,24 @@ object AppModule {
             .readTimeout(60, TimeUnit.SECONDS)
             .cache(Cache(cacheDir, TILES_CACHE_BYTES))
             .addInterceptor(authInterceptor)
+            .authenticator(authenticator)
             .build()
     }
 
     @Provides
     @Singleton
     fun retrofit(client: OkHttpClient): Retrofit {
-        val configured = BuildConfig.API_BASE_URL.trim()
-        val baseUrl = if (configured.isBlank()) "https://configuration.invalid/" else configured
         return Retrofit.Builder()
-            .baseUrl(if (baseUrl.endsWith('/')) baseUrl else "$baseUrl/")
+            .baseUrl(apiBaseUrl())
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    private fun apiBaseUrl(): String {
+        val configured = BuildConfig.API_BASE_URL.trim()
+        val baseUrl = if (configured.isBlank()) "https://configuration.invalid/" else configured
+        return if (baseUrl.endsWith('/')) baseUrl else "$baseUrl/"
     }
 
     @Provides fun api(retrofit: Retrofit): BahariMrvApi = retrofit.create(BahariMrvApi::class.java)

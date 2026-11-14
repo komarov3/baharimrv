@@ -116,6 +116,17 @@ type LocalSession struct {
 	CreatedAt time.Time  `json:"-"`
 }
 
+// RefreshGrant is the long-lived half of a session: it only ever buys a new
+// LocalSession at /auth/refresh, rotates on use, and dies on reuse or logout.
+type RefreshGrant struct {
+	ID        string     `gorm:"type:uuid;primaryKey" json:"-"`
+	UserID    string     `gorm:"type:uuid;index;not null" json:"-"`
+	TokenHash string     `gorm:"uniqueIndex;not null" json:"-"`
+	ExpiresAt time.Time  `gorm:"index;not null" json:"-"`
+	RevokedAt *time.Time `json:"-"`
+	CreatedAt time.Time  `json:"-"`
+}
+
 type ExternalIdentity struct {
 	ID        string     `gorm:"type:uuid;primaryKey" json:"id"`
 	UserID    string     `gorm:"type:uuid;uniqueIndex:idx_external_user_issuer;not null" json:"userId"`

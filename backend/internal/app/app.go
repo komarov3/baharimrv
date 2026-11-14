@@ -78,7 +78,7 @@ func Build(cfg config.Config) (*App, error) {
 	})
 	projects := mrv.NewService(db, identities, anchors, imagery, store)
 
-	sessions := auth.NewService(db, identities, cfg.SessionTTL)
+	sessions := auth.NewService(db, identities, cfg.SessionTTL, cfg.RefreshTTL)
 	signer, err := auth.NewSigner(cfg.OIDCSigningKeyPEM, cfg.OIDCSigningKeyID)
 	if err != nil {
 		return nil, err

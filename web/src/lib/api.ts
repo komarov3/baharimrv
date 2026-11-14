@@ -71,13 +71,35 @@ function parseError(body: ErrorEnvelope | null, status: number, statusText: stri
   });
 }
 
+export interface SessionHandlers {
+  onRenewed: (session: AuthSession) => void;
+  onExpired: () => void;
+}
+
+// A 401 on these means bad credentials or a dead grant, never an expired
+// access token, so they must not trigger a refresh attempt.
+function isAuthEntry(path: string): boolean {
+  return path === '/auth/login' || path === '/auth/register' || path === '/auth/refresh' || path.startsWith('/auth/federation/');
+}
+
 export class ApiClient {
   private token?: string;
+  private refreshToken?: string;
+  private refreshInFlight?: Promise<boolean>;
+  private sessionHandlers?: SessionHandlers;
 
   constructor(private readonly baseUrl = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')) {}
 
   setToken(token?: string) {
     this.token = token;
+  }
+
+  setRefreshToken(token?: string) {
+    this.refreshToken = token;
+  }
+
+  setSessionHandlers(handlers?: SessionHandlers) {
+    this.sessionHandlers = handlers;
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -88,6 +110,17 @@ export class ApiClient {
     }
     headers.set('Accept', 'application/json');
 
+    const response = await this.fetchWithRefresh(path, init, headers);
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as ErrorEnvelope | null;
+      throw parseError(body, response.status, response.statusText);
+    }
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  }
+
+  // One retry after a successful refresh; a second 401 surfaces to the caller.
+  private async fetchWithRefresh(path: string, init: RequestInit, headers: Headers, retried = false): Promise<Response> {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${API_ROOT}${path}`, {
@@ -102,13 +135,56 @@ export class ApiClient {
         details: error,
       });
     }
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as ErrorEnvelope | null;
-      throw parseError(body, response.status, response.statusText);
+    if (!retried && response.status === 401 && this.refreshToken && !isAuthEntry(path)) {
+      if (await this.refreshOnce()) {
+        if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
+        return this.fetchWithRefresh(path, init, headers, true);
+      }
     }
-    if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
+    return response;
+  }
+
+  // Concurrent 401s share one rotation: the grant is single-use, so a second
+  // parallel refresh would present a spent grant and revoke the family.
+  private refreshOnce(): Promise<boolean> {
+    this.refreshInFlight ??= this.performRefresh().finally(() => {
+      this.refreshInFlight = undefined;
+    });
+    return this.refreshInFlight;
+  }
+
+  private async performRefresh(): Promise<boolean> {
+    const grant = this.refreshToken;
+    if (!grant) return false;
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${API_ROOT}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ refreshToken: grant }),
+        credentials: 'include',
+      });
+    } catch {
+      return false; // offline: keep the session, the next call can try again
+    }
+    if (response.status === 401 || response.status === 403) {
+      this.token = undefined;
+      this.refreshToken = undefined;
+      this.sessionHandlers?.onExpired();
+      return false;
+    }
+    if (!response.ok) return false;
+    const session = (await response.json().catch(() => null)) as AuthSession | null;
+    if (!session?.sessionToken) {
+      this.token = undefined;
+      this.refreshToken = undefined;
+      this.sessionHandlers?.onExpired();
+      return false;
+    }
+    this.token = session.sessionToken;
+    this.refreshToken = session.refreshToken;
+    this.sessionHandlers?.onRenewed(session);
+    return true;
   }
 
   private get<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -320,15 +396,11 @@ export class ApiClient {
   async downloadProof(proofId: string, format: ProofFormat): Promise<Blob> {
     const headers = new Headers();
     if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
-    let response: Response;
-    try {
-      response = await fetch(`${this.baseUrl}${API_ROOT}/proofs/${encodeURIComponent(proofId)}/download?format=${format}`, {
-        headers,
-        credentials: 'include',
-      });
-    } catch {
-      throw new ApiError('The proof download could not be reached. Check your connection and try again.', 0, { code: 'network_unavailable' });
-    }
+    const response = await this.fetchWithRefresh(
+      `/proofs/${encodeURIComponent(proofId)}/download?format=${format}`,
+      {},
+      headers,
+    );
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as ErrorEnvelope | null;
       throw parseError(body, response.status, response.statusText);

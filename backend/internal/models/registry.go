@@ -2,7 +2,7 @@ package models
 
 func All() []any {
 	return []any{
-		&User{}, &IdentityProvision{}, &KeyReference{}, &LocalSession{},
+		&User{}, &IdentityProvision{}, &KeyReference{}, &LocalSession{}, &RefreshGrant{},
 		&ExternalIdentity{}, &FederatedGrant{}, &OIDCClient{}, &OAuthGrant{}, &AuthorizationCode{}, &AccessToken{},
 		&Methodology{}, &ConservationProject{}, &Site{}, &Plot{}, &ConservationActivity{},
 		&MonitoringRecord{}, &EvidenceObject{}, &SatelliteObservation{}, &VerificationRequest{},

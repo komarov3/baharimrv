@@ -24,6 +24,7 @@ type Service struct {
 	db         *gorm.DB
 	identity   *identity.Service
 	sessionTTL time.Duration
+	refreshTTL time.Duration
 	now        func() time.Time
 }
 
@@ -32,11 +33,13 @@ type Result struct {
 	Identity          models.IdentityProvision `json:"identity"`
 	SessionToken      string                   `json:"sessionToken,omitempty"`
 	ExpiresAt         *time.Time               `json:"expiresAt,omitempty"`
+	RefreshToken      string                   `json:"refreshToken,omitempty"`
+	RefreshExpiresAt  *time.Time               `json:"refreshExpiresAt,omitempty"`
 	CapIssuanceFailed bool                     `json:"capIssuanceFailed,omitempty"`
 }
 
-func NewService(db *gorm.DB, identities *identity.Service, sessionTTL time.Duration) *Service {
-	return &Service{db: db, identity: identities, sessionTTL: sessionTTL, now: time.Now}
+func NewService(db *gorm.DB, identities *identity.Service, sessionTTL, refreshTTL time.Duration) *Service {
+	return &Service{db: db, identity: identities, sessionTTL: sessionTTL, refreshTTL: refreshTTL, now: time.Now}
 }
 
 func (s *Service) Register(ctx context.Context, email, password, displayName, phone, role string) (Result, error) {
@@ -104,6 +107,11 @@ func (s *Service) Register(ctx context.Context, email, password, displayName, ph
 		return result, sessionErr
 	}
 	result.SessionToken, result.ExpiresAt = token, &expires
+	refresh, refreshExpires, refreshErr := s.IssueRefresh(user.ID)
+	if refreshErr != nil {
+		return result, refreshErr
+	}
+	result.RefreshToken, result.RefreshExpiresAt = refresh, &refreshExpires
 	return result, nil
 }
 
@@ -150,10 +158,21 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{User: user, Identity: provision, SessionToken: token, ExpiresAt: &expires}, nil
+	refresh, refreshExpires, err := s.IssueRefresh(user.ID)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		User: user, Identity: provision, SessionToken: token, ExpiresAt: &expires,
+		RefreshToken: refresh, RefreshExpiresAt: &refreshExpires,
+	}, nil
 }
 
 func (s *Service) NewSession(userID string) (string, time.Time, error) {
+	return s.newSessionRow(s.db, userID)
+}
+
+func (s *Service) newSessionRow(tx *gorm.DB, userID string) (string, time.Time, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", time.Time{}, err
@@ -165,10 +184,87 @@ func (s *Service) NewSession(userID string) (string, time.Time, error) {
 		ID: uuid.NewString(), UserID: userID, TokenHash: tokenHash(token),
 		ExpiresAt: expires, CreatedAt: now,
 	}
-	if err := s.db.Create(&session).Error; err != nil {
+	if err := tx.Create(&session).Error; err != nil {
 		return "", time.Time{}, err
 	}
 	return token, expires, nil
+}
+
+// IssueRefresh mints the long-lived half of a session. Only the hash is stored.
+func (s *Service) IssueRefresh(userID string) (string, time.Time, error) {
+	return s.newRefreshRow(s.db, userID)
+}
+
+func (s *Service) newRefreshRow(tx *gorm.DB, userID string) (string, time.Time, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", time.Time{}, err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	now := s.now().UTC()
+	expires := now.Add(s.refreshTTL)
+	grant := models.RefreshGrant{
+		ID: uuid.NewString(), UserID: userID, TokenHash: tokenHash(token),
+		ExpiresAt: expires, CreatedAt: now,
+	}
+	if err := tx.Create(&grant).Error; err != nil {
+		return "", time.Time{}, err
+	}
+	return token, expires, nil
+}
+
+// Refresh rotates a refresh grant into a fresh session plus a fresh grant.
+// A revoked grant presented again is treated as theft: the whole family dies.
+func (s *Service) Refresh(raw string) (Result, error) {
+	if strings.TrimSpace(raw) == "" {
+		return Result{}, ErrInvalidCredentials
+	}
+	now := s.now().UTC()
+	var grant models.RefreshGrant
+	if err := s.db.Where("token_hash = ?", tokenHash(raw)).First(&grant).Error; err != nil {
+		return Result{}, ErrInvalidCredentials
+	}
+	if grant.RevokedAt != nil {
+		s.db.Model(&models.RefreshGrant{}).
+			Where("user_id = ? AND revoked_at IS NULL", grant.UserID).
+			Update("revoked_at", now)
+		return Result{}, ErrInvalidCredentials
+	}
+	if !now.Before(grant.ExpiresAt) {
+		return Result{}, ErrInvalidCredentials
+	}
+	var user models.User
+	if err := s.db.Where("id = ? AND status = ?", grant.UserID, models.IdentityActive).First(&user).Error; err != nil {
+		return Result{}, ErrInvalidCredentials
+	}
+	var token, refresh string
+	var expires, refreshExpires time.Time
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		rotated := tx.Model(&models.RefreshGrant{}).
+			Where("id = ? AND revoked_at IS NULL", grant.ID).
+			Update("revoked_at", now)
+		if rotated.Error != nil {
+			return rotated.Error
+		}
+		if rotated.RowsAffected != 1 {
+			return ErrInvalidCredentials
+		}
+		var err error
+		token, expires, err = s.newSessionRow(tx, user.ID)
+		if err != nil {
+			return err
+		}
+		refresh, refreshExpires, err = s.newRefreshRow(tx, user.ID)
+		return err
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	provision, _ := s.identity.ForUser(user.ID)
+	return Result{
+		User: user, Identity: provision, SessionToken: token, ExpiresAt: &expires,
+		RefreshToken: refresh, RefreshExpiresAt: &refreshExpires,
+	}, nil
 }
 
 func (s *Service) Authenticate(token string) (models.User, error) {
@@ -186,6 +282,14 @@ func (s *Service) Authenticate(token string) (models.User, error) {
 
 func (s *Service) Logout(token string) error {
 	now := s.now().UTC()
+	var session models.LocalSession
+	if err := s.db.Where("token_hash = ?", tokenHash(token)).First(&session).Error; err == nil {
+		if err := s.db.Model(&models.RefreshGrant{}).
+			Where("user_id = ? AND revoked_at IS NULL", session.UserID).
+			Update("revoked_at", now).Error; err != nil {
+			return err
+		}
+	}
 	return s.db.Model(&models.LocalSession{}).Where("token_hash = ? AND revoked_at IS NULL", tokenHash(token)).Update("revoked_at", now).Error
 }
 

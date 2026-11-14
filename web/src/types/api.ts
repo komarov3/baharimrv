@@ -62,6 +62,8 @@ export interface IdentityProvision {
 export interface AuthSession {
   sessionToken: string;
   expiresAt?: string;
+  refreshToken?: string;
+  refreshExpiresAt?: string;
   user: User;
   identity?: IdentityProvision;
 }

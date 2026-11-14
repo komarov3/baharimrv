@@ -37,6 +37,9 @@ class AuthRepository @Inject constructor(
     val session = metadataStore.session
     val isConfigured: Boolean = BuildConfig.AUTH_CONFIGURED
 
+    /** Synchronous check for surfaces that outlive the session, like toasts. */
+    fun hasLocalSession(): Boolean = secureStore.accessToken() != null
+
     suspend fun signInWithPassword(email: String, password: String) {
         val trimmed = email.trim()
         require(trimmed.contains('@') && trimmed.length > 3) { "Enter a valid email address" }
@@ -162,7 +165,7 @@ class AuthRepository @Inject constructor(
         secureStore.saveTokens(
             TokenSet(
                 accessToken = token,
-                refreshToken = null,
+                refreshToken = response.refreshToken,
                 expiresAtEpochMs = parseEpochMs(response.expiresAt),
             ),
         )

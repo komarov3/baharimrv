@@ -51,6 +51,7 @@ func newFixture(t *testing.T) *fixture {
 		CORSOrigins:         []string{"http://localhost:5173"},
 		PublicBaseURL:       "https://mrv.example.test",
 		SessionTTL:          time.Hour,
+		RefreshTTL:          7 * 24 * time.Hour,
 		KMSKEK:              kek,
 		ChainMode:           "sandbox",
 		IOTANetwork:         "testnet",

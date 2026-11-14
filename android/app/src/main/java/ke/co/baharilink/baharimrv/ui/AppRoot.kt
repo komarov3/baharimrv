@@ -27,6 +27,7 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,6 +52,7 @@ import androidx.navigation.navArgument
 import ke.co.baharilink.baharimrv.ui.auth.AuthScreen
 import ke.co.baharilink.baharimrv.ui.auth.AuthViewModel
 import ke.co.baharilink.baharimrv.ui.components.LoadingState
+import ke.co.baharilink.baharimrv.ui.components.LocalSessionActive
 import ke.co.baharilink.baharimrv.ui.components.OfflineBanner
 import ke.co.baharilink.baharimrv.ui.credits.CreditsScreen
 import ke.co.baharilink.baharimrv.ui.home.HomeScreen
@@ -126,10 +128,12 @@ fun AppRoot(
         }
     }
 
-    when {
-        session == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingState("Restoring secure session…") }
-        session?.isAuthenticated != true -> AuthScreen(authViewModel)
-        else -> AuthenticatedShell(online, authViewModel, shellViewModel)
+    CompositionLocalProvider(LocalSessionActive provides { authViewModel.hasLocalSession() }) {
+        when {
+            session == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingState("Restoring secure session…") }
+            session?.isAuthenticated != true -> AuthScreen(authViewModel)
+            else -> AuthenticatedShell(online, authViewModel, shellViewModel)
+        }
     }
 }
 

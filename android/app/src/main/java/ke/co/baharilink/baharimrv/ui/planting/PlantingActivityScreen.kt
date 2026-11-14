@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -75,10 +74,8 @@ fun PlantingActivityScreen(
     val state   by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(state.message, state.error) {
-        state.message?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-        state.error?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-    }
+    SessionAwareToast(state.message)
+    SessionAwareToast(state.error)
 
     var speciesExpanded      by remember { mutableStateOf(false) }
     var showStartDatePicker  by remember { mutableStateOf(false) }

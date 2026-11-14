@@ -37,6 +37,8 @@ class AuthViewModel @Inject constructor(private val repository: AuthRepository) 
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val configured: Boolean = repository.isConfigured
 
+    fun hasLocalSession(): Boolean = repository.hasLocalSession()
+
     private val _state = MutableStateFlow(AuthUiState())
     val state = _state.asStateFlow()
 

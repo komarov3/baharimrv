@@ -18,6 +18,7 @@ type Config struct {
 	CORSOrigins        []string
 	PublicBaseURL      string
 	SessionTTL         time.Duration
+	RefreshTTL         time.Duration
 	KMSKEK             []byte
 	ChainMode          string
 	IOTANetwork        string
@@ -124,6 +125,7 @@ func Load() (Config, error) {
 		CORSOrigins:        origins,
 		PublicBaseURL:      strings.TrimRight(publicURL, "/"),
 		SessionTTL:         duration("SESSION_TTL", time.Hour),
+		RefreshTTL:         duration("REFRESH_TTL", 7*24*time.Hour),
 		KMSKEK:             kek,
 		ChainMode:          chainMode,
 		IOTANetwork:        value("IOTA_NETWORK", "testnet"),

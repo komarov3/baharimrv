@@ -76,6 +76,21 @@ func (h *Handler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func (h *Handler) Refresh(c *gin.Context) {
+	var request struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	if !httpx.BindJSON(c, &request) {
+		return
+	}
+	result, err := h.service.Refresh(request.RefreshToken)
+	if err != nil {
+		httpx.Error(c, http.StatusUnauthorized, "invalid_refresh", "The session could not be renewed. Sign in again.")
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *Handler) Logout(c *gin.Context) {
 	if err := h.service.Logout(bearerToken(c)); err != nil {
 		httpx.Error(c, http.StatusInternalServerError, "logout_failed", "The session could not be revoked.")

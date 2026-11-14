@@ -49,7 +49,14 @@ func (s *FederationService) Login(ctx context.Context, rawIDToken, expectedNonce
 	if err != nil {
 		return Result{}, err
 	}
-	return Result{User: user, Identity: provision, SessionToken: token, ExpiresAt: &expires}, nil
+	refresh, refreshExpires, err := s.sessions.IssueRefresh(user.ID)
+	if err != nil {
+		return Result{}, err
+	}
+	return Result{
+		User: user, Identity: provision, SessionToken: token, ExpiresAt: &expires,
+		RefreshToken: refresh, RefreshExpiresAt: &refreshExpires,
+	}, nil
 }
 
 func (s *FederationService) createFederatedAccount(ctx context.Context, claims ExternalClaims) (models.ExternalIdentity, error) {

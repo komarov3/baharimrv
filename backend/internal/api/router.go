@@ -104,6 +104,7 @@ func New(deps Dependencies) http.Handler {
 
 	v1.POST("/auth/register", authLimit, bodyLimit, deps.AuthHandler.Register)
 	v1.POST("/auth/login", authLimit, bodyLimit, deps.AuthHandler.Login)
+	v1.POST("/auth/refresh", authLimit, bodyLimit, deps.AuthHandler.Refresh)
 	v1.POST("/auth/federation/exchange", authLimit, bodyLimit, deps.FederationHandler.Exchange)
 	v1.POST("/auth/federation/:issuer/exchange", authLimit, bodyLimit, deps.FederationHandler.Exchange)
 

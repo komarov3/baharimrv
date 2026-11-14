@@ -33,6 +33,13 @@ data class TokenSet(
     val expiresAtEpochMs: Long?,
 )
 
+/** The token half of the session, narrow enough for the OkHttp authenticator to fake in tests. */
+interface TokenStore {
+    fun accessToken(): String?
+    fun refreshToken(): String?
+    fun saveTokens(tokens: TokenSet)
+}
+
 data class PendingAuthorization(
     val state: String,
     val verifier: String,
@@ -41,7 +48,7 @@ data class PendingAuthorization(
 )
 
 @Singleton
-class SecureSessionStore @Inject constructor(@ApplicationContext context: Context) {
+class SecureSessionStore @Inject constructor(@ApplicationContext context: Context) : TokenStore {
     private val masterKey = MasterKey.Builder(context)
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
@@ -54,10 +61,10 @@ class SecureSessionStore @Inject constructor(@ApplicationContext context: Contex
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    fun accessToken(): String? = secrets.getString("access_token", null)
-    fun refreshToken(): String? = secrets.getString("refresh_token", null)
+    override fun accessToken(): String? = secrets.getString("access_token", null)
+    override fun refreshToken(): String? = secrets.getString("refresh_token", null)
 
-    fun saveTokens(tokens: TokenSet) {
+    override fun saveTokens(tokens: TokenSet) {
         secrets.edit()
             .putString("access_token", tokens.accessToken)
             .putString("refresh_token", tokens.refreshToken)

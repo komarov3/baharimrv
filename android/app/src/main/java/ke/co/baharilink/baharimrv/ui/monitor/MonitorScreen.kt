@@ -57,7 +57,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,7 +65,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +83,7 @@ import ke.co.baharilink.baharimrv.ui.components.ChipTone
 import ke.co.baharilink.baharimrv.ui.components.ContextHeader
 import ke.co.baharilink.baharimrv.ui.components.ExpandableSection
 import ke.co.baharilink.baharimrv.ui.components.MicroLabel
+import ke.co.baharilink.baharimrv.ui.components.SessionAwareToast
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
 import ke.co.baharilink.baharimrv.ui.components.dashedBorder
 import ke.co.baharilink.baharimrv.ui.components.stateTone
@@ -95,10 +94,8 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
     val state    by viewModel.state.collectAsStateWithLifecycle()
     val context  = LocalContext.current
 
-    LaunchedEffect(state.message, state.error) {
-        state.message?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-        state.error?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
-    }
+    SessionAwareToast(state.message)
+    SessionAwareToast(state.error)
     val recorder = remember { AudioRecorder(context) }
     var showPlotSheet  by remember { mutableStateOf(false) }
     var showPhotoMenu  by remember { mutableStateOf(false) }

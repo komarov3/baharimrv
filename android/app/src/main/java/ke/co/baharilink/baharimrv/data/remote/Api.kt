@@ -85,8 +85,12 @@ data class LoginResponse(
     val identity: ProvisionedIdentityDto,
     val sessionToken: String? = null,
     val expiresAt: String? = null,
+    val refreshToken: String? = null,
+    val refreshExpiresAt: String? = null,
     val message: String? = null,
 )
+
+data class RefreshRequest(val refreshToken: String)
 
 data class MeResponse(val user: AuthUserDto, val identity: ProvisionedIdentityDto)
 
@@ -884,6 +888,9 @@ interface BahariMrvApi {
 
     @POST("api/v1/auth/logout")
     suspend fun logout()
+
+    @POST("api/v1/auth/refresh")
+    suspend fun refresh(@Body request: RefreshRequest): LoginResponse
 
     @GET("api/v1/auth/me")
     suspend fun me(): MeResponse
