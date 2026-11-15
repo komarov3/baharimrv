@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.ui.components.BahariButton
@@ -40,6 +39,7 @@ import ke.co.baharilink.baharimrv.ui.components.BahariStatusPill
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
 import ke.co.baharilink.baharimrv.ui.components.ErrorState
 import ke.co.baharilink.baharimrv.ui.components.LoadingState
+import ke.co.baharilink.baharimrv.ui.theme.BahariGradients
 
 @Composable
 fun ModuleEntryScreen(
@@ -64,16 +64,15 @@ fun ModuleEntryScreen(
             } else {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                    shape = CircleShape,
+                    colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                    shape = MaterialTheme.shapes.extraLarge,
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(BahariGradients.hero)
                             .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Icon(
@@ -82,21 +81,21 @@ fun ModuleEntryScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                                .padding(12.dp),
+                                .background(Color.White.copy(alpha = 0.16f))
+                                .padding(14.dp),
                             tint = Color.White,
                         )
                         Text(
                             text = "Mikoko",
                             style = MaterialTheme.typography.displaySmall.copy(
                                 fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = Color.White,
                             ),
                         )
                         Text(
                             text = "Grow the coast. Verify the carbon. Share the value.",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f),
+                                color = Color.White.copy(alpha = 0.85f),
                             ),
                             textAlign = TextAlign.Center,
                         )
@@ -192,7 +191,7 @@ fun ModuleEntryScreen(
                                 ),
                             )
                             BahariStatusPill(
-                                text = session.role.capitalize(),
+                                text = session.role.replaceFirstChar { it.uppercase() },
                             )
                         }
                         BahariStatusPill(

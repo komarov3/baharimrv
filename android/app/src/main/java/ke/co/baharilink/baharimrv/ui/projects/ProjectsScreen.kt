@@ -4,12 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -30,12 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.CreatePlotRequestDto
+import ke.co.baharilink.baharimrv.ui.components.BahariCard
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
 import ke.co.baharilink.baharimrv.ui.components.ErrorState
+import ke.co.baharilink.baharimrv.ui.components.LedgerCard
 import ke.co.baharilink.baharimrv.ui.components.LoadState
-import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.SectionHeader
+import ke.co.baharilink.baharimrv.ui.components.SkeletonCard
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
+import ke.co.baharilink.baharimrv.ui.components.stateTone
 
 @Composable
 fun ProjectsScreen(
@@ -72,7 +76,9 @@ fun ProjectsScreen(
 
         item {
             when (val projects = state.projects) {
-                is LoadState.Loading -> LoadingState("Loading projects…")
+                is LoadState.Loading -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    repeat(2) { SkeletonCard() }
+                }
                 is LoadState.Error -> ErrorState(projects.message, onRetry = viewModel::load)
                 is LoadState.Success -> {
                     if (projects.data.isEmpty()) {
@@ -84,18 +90,16 @@ fun ProjectsScreen(
 
         val projects = (state.projects as? LoadState.Success)?.data ?: emptyList()
         items(projects) { project ->
-             Card(modifier = Modifier.fillMaxWidth().clickable { onProjectClick(project.id) }) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(project.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        StatusChip(project.status)
-                    }
-                    Text("Site: ${project.site ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                    Text("Species: ${project.species ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                    Text("Manager: ${project.managerName ?: "—"}", style = MaterialTheme.typography.bodySmall)
-                    if (project.sandboxDemo) {
-                        Text("Sandbox demo project", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
-                    }
+            BahariCard(onClick = { onProjectClick(project.id) }) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(project.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    StatusChip(project.status, tone = stateTone(project.status))
+                }
+                Text("Site: ${project.site ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Species: ${project.species ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Manager: ${project.managerName ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (project.sandboxDemo) {
+                    Text("Sandbox demo project", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
                 }
             }
         }
@@ -130,9 +134,9 @@ private fun CreateProjectForm(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Project name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = communityGroup, onValueChange = { communityGroup = it }, label = { Text("Community group") }, modifier = Modifier.fillMaxWidth())
+    LedgerCard {
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Project name") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = communityGroup, onValueChange = { communityGroup = it }, label = { Text("Community group") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
         var conservationExpanded by remember { mutableStateOf(false) }
         val conservationOptions = listOf("mangrove", "seagrass", "reef")
         ExposedDropdownMenuBox(
@@ -146,6 +150,7 @@ private fun CreateProjectForm(
                 label = { Text("Type of conservation") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = conservationExpanded) },
                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
+                shape = MaterialTheme.shapes.small,
             )
             ExposedDropdownMenu(expanded = conservationExpanded, onDismissRequest = { conservationExpanded = false }) {
                 conservationOptions.forEach { option ->
@@ -173,6 +178,7 @@ private fun CreateProjectForm(
                 label = { Text("Species") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = speciesExpanded) },
                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
+                shape = MaterialTheme.shapes.small,
             )
             ExposedDropdownMenu(expanded = speciesExpanded, onDismissRequest = { speciesExpanded = false }) {
                 speciesOptions.forEach { option ->
@@ -183,8 +189,8 @@ private fun CreateProjectForm(
                 }
             }
         }
-        OutlinedTextField(value = communityShare, onValueChange = { communityShare = it }, label = { Text("Community share (basis points)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = sites, onValueChange = { sites = it }, label = { Text("Sites (comma separated)") }, placeholder = { Text("e.g. Mikoko Park, Mtwapa Creek") }, supportingText = { Text("Enter one or more site names separated by commas; the first plot will use the first site.") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = communityShare, onValueChange = { communityShare = it }, label = { Text("Community share (basis points)") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = sites, onValueChange = { sites = it }, label = { Text("Sites (comma separated)") }, placeholder = { Text("e.g. Mikoko Park, Mtwapa Creek") }, supportingText = { Text("Enter one or more site names separated by commas; the first plot will use the first site.") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
         var methodologyExpanded by remember { mutableStateOf(false) }
         ExposedDropdownMenuBox(
             expanded = methodologyExpanded,
@@ -197,6 +203,7 @@ private fun CreateProjectForm(
                 label = { Text("Methodology") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = methodologyExpanded) },
                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, true).fillMaxWidth(),
+                shape = MaterialTheme.shapes.small,
             )
             ExposedDropdownMenu(expanded = methodologyExpanded, onDismissRequest = { methodologyExpanded = false }) {
                 state.methodologies.forEach { methodology ->
@@ -207,11 +214,11 @@ private fun CreateProjectForm(
                 }
             }
         }
-        OutlinedTextField(value = plotCode, onValueChange = { plotCode = it }, label = { Text("First plot code") }, placeholder = { Text("e.g. P1") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = plotSite, onValueChange = { plotSite = it }, label = { Text("First plot site name") }, placeholder = { Text("Defaults to first site above") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, placeholder = { Text("e.g. 2.5") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, placeholder = { Text("e.g. -4.0532") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, placeholder = { Text("e.g. 39.6741") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = plotCode, onValueChange = { plotCode = it }, label = { Text("First plot code") }, placeholder = { Text("e.g. P1") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = plotSite, onValueChange = { plotSite = it }, label = { Text("First plot site name") }, placeholder = { Text("Defaults to first site above") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, placeholder = { Text("e.g. 2.5") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, placeholder = { Text("e.g. -4.0532") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, placeholder = { Text("e.g. 39.6741") }, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
 
         Button(
             onClick = {
@@ -236,9 +243,14 @@ private fun CreateProjectForm(
                 )
             },
             enabled = !state.creating,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
         ) {
-            Text(if (state.creating) "Creating…" else "Create project")
+            if (state.creating) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                Text("Creating…", modifier = Modifier.padding(start = 8.dp))
+            } else {
+                Text("Create project")
+            }
         }
         if (state.createdProjectId != null) {
             TextButton(onClick = onDone) { Text("Done") }

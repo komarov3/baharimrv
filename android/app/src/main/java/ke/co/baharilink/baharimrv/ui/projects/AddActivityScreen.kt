@@ -3,6 +3,7 @@ package ke.co.baharilink.baharimrv.ui.projects
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
@@ -30,12 +31,12 @@ fun AddActivityScreen(
 
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("New activity", style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(value = plotId, onValueChange = { plotId = it }, label = { Text("Plot ID") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = activityType, onValueChange = { activityType = it }, label = { Text("Activity type") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = methodologyVersion, onValueChange = { methodologyVersion = it }, label = { Text("Methodology version") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("Reporting start (ISO-8601)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("Reporting end (ISO-8601)") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Save (wire to repository in next step)") }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+        OutlinedTextField(value = plotId, onValueChange = { plotId = it }, label = { Text("Plot ID") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = activityType, onValueChange = { activityType = it }, label = { Text("Activity type") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = methodologyVersion, onValueChange = { methodologyVersion = it }, label = { Text("Methodology version") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("Reporting start (ISO-8601)") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("Reporting end (ISO-8601)") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Save (wire to repository in next step)") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Back") }
     }
 }

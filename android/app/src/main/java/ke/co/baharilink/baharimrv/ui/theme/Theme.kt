@@ -51,10 +51,10 @@ val LightExtendedColors = ExtendedColorScheme(
     navyLight = Color(0xFF1F2B3C),
     navyCard = Color(0xFF12263B),
     offlineYellow = Color(0xFFFFD166),
-    paper = Color(0xFFF7FAFC),
-    wire = Color(0xFFB9C6D6),
-    skeleton = Color(0xFFDFE7F0),
-    skeletonDark = Color(0xFFC7D2E0),
+    paper = Color(0xFFF7FAF8),
+    wire = Color(0xFFB9C6BE),
+    skeleton = Color(0xFFDFE7E2),
+    skeletonDark = Color(0xFFC7D2CB),
 )
 
 val DarkExtendedColors = ExtendedColorScheme(
@@ -72,124 +72,126 @@ val DarkExtendedColors = ExtendedColorScheme(
     navyLight = Color(0xFF1E293B),
     navyCard = Color(0xFF1E293B),
     offlineYellow = Color(0xFFFFD166),
-    paper = Color(0xFF1E293B),
-    wire = Color(0xFF475569),
-    skeleton = Color(0xFF334155),
-    skeletonDark = Color(0xFF1E293B),
+    paper = Color(0xFF1A2420),
+    wire = Color(0xFF4A5A52),
+    skeleton = Color(0xFF2E3A34),
+    skeletonDark = Color(0xFF222E28),
 )
 
 val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }
 
-// Gradient definitions matching wireframe
+// Gradient definitions: deep forest anchors with emerald and teal light.
 object BahariGradients {
     val hero = Brush.linearGradient(
-        0.0f to Color(0xFF082F3F),
-        0.55f to Color(0xFF0E7490),
-        1.0f to Color(0xFF155E75)
+        0.0f to Color(0xFF022C22),
+        0.55f to Color(0xFF065F46),
+        1.0f to Color(0xFF0E7490)
     )
     val blueIdCard = Brush.linearGradient(
-        0.0f to Color(0xFF12263B),
+        0.0f to Color(0xFF0B1C2C),
         1.0f to Color(0xFF0E7490)
     )
     val walletCard = Brush.linearGradient(
-        0.0f to Color(0xFF12263B),
+        0.0f to Color(0xFF0B1C2C),
         1.0f to Color(0xFF1D4ED8)
     )
     val splash = Brush.linearGradient(
-        0.0f to Color(0xFF0E7490),
-        1.0f to Color(0xFF082F3F)
+        0.0f to Color(0xFF065F46),
+        1.0f to Color(0xFF022C22)
+    )
+    val emerald = Brush.linearGradient(
+        0.0f to Color(0xFF047857),
+        1.0f to Color(0xFF065F46)
     )
 }
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF059669),
+    primary = Color(0xFF047857),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE7F8F1),
-    onPrimaryContainer = Color(0xFF059669),
+    primaryContainer = Color(0xFFD1FAE5),
+    onPrimaryContainer = Color(0xFF064E3B),
     secondary = Color(0xFF2563EB),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE5EBF2),
-    onSecondaryContainer = Color(0xFF2563EB),
-    tertiary = Color(0xFFD97706),
+    secondaryContainer = Color(0xFFDBEAFE),
+    onSecondaryContainer = Color(0xFF1E40AF),
+    tertiary = Color(0xFFB45309),
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFDF4E4),
-    onTertiaryContainer = Color(0xFFD97706),
-    background = Color(0xFFE9EEF4),
-    onBackground = Color(0xFF152238),
+    tertiaryContainer = Color(0xFFFEF3C7),
+    onTertiaryContainer = Color(0xFF78350F),
+    background = Color(0xFFF2F6F3),
+    onBackground = Color(0xFF14201B),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF152238),
-    surfaceVariant = Color(0xFFE5EBF2),
-    onSurfaceVariant = Color(0xFF5B6B80),
-    outline = Color(0xFFD8E0EA),
-    outlineVariant = Color(0xFFE8EEF3),
+    onSurface = Color(0xFF14201B),
+    surfaceVariant = Color(0xFFE4EBE6),
+    onSurfaceVariant = Color(0xFF4A5A52),
+    outline = Color(0xFFCBD8D0),
+    outlineVariant = Color(0xFFE2EAE5),
     error = Color(0xFFDC2626),
     onError = Color.White,
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    // Material 3 ships purple-tinted defaults for the elevation containers; left in place they
-    // show through on nav bars, sheets and tonal buttons and clash with the ink-and-teal wireframe.
+    errorContainer = Color(0xFFFEE2E2),
+    onErrorContainer = Color(0xFF7F1D1D),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF7FAFC),
-    surfaceContainer = Color(0xFFE9EEF4),
-    surfaceContainerHigh = Color(0xFFE9EEF4),
-    surfaceContainerHighest = Color(0xFFE9EEF4),
-    surfaceBright = Color(0xFFFDFEFE),
-    surfaceDim = Color(0xFFD5DDE4),
-    inverseSurface = Color(0xFF152238),
-    inverseOnSurface = Color(0xFFEAF0F5),
-    inversePrimary = Color(0xFF71DBB9),
+    surfaceContainerLow = Color(0xFFF7FAF8),
+    surfaceContainer = Color(0xFFEDF2EF),
+    surfaceContainerHigh = Color(0xFFE4EBE7),
+    surfaceContainerHighest = Color(0xFFDBE5DF),
+    surfaceBright = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFD5DED8),
+    inverseSurface = Color(0xFF14201B),
+    inverseOnSurface = Color(0xFFECF3EF),
+    inversePrimary = Color(0xFF6EE7B7),
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF71DBB9),
-    onPrimary = Color(0xFF00382C),
-    primaryContainer = Color(0xFF075844),
-    onPrimaryContainer = Color(0xFFB8F4DE),
-    secondary = Color(0xFFAEC6FF),
-    onSecondary = Color(0xFF102F6B),
-    secondaryContainer = Color(0xFF273F74),
-    onSecondaryContainer = Color(0xFFDCE7FF),
-    tertiary = Color(0xFFF3B75F),
-    onTertiary = Color(0xFF452B00),
-    tertiaryContainer = Color(0xFF62420B),
-    onTertiaryContainer = Color(0xFFFFE2B0),
-    background = Color(0xFF101718),
-    onBackground = Color(0xFFDEE4E5),
-    surface = Color(0xFF151D1F),
-    onSurface = Color(0xFFDEE4E5),
-    surfaceVariant = Color(0xFF253033),
-    onSurfaceVariant = Color(0xFFBCC8CB),
-    outline = Color(0xFF536164),
-    outlineVariant = Color(0xFF354144),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
-    errorContainer = Color(0xFF93000A),
-    onErrorContainer = Color(0xFFFFDAD6),
-    surfaceContainerLowest = Color(0xFF080E0F),
-    surfaceContainerLow = Color(0xFF101718),
-    surfaceContainer = Color(0xFF151D1F),
-    surfaceContainerHigh = Color(0xFF1F282A),
-    surfaceContainerHighest = Color(0xFF2A3335),
-    surfaceBright = Color(0xFF313A3C),
-    surfaceDim = Color(0xFF080E0F),
-    inverseSurface = Color(0xFFDEE4E5),
-    inverseOnSurface = Color(0xFF1B2426),
-    inversePrimary = Color(0xFF059669),
+    primary = Color(0xFF6EE7B7),
+    onPrimary = Color(0xFF022C22),
+    primaryContainer = Color(0xFF065F46),
+    onPrimaryContainer = Color(0xFFA7F3D0),
+    secondary = Color(0xFF93C5FD),
+    onSecondary = Color(0xFF172554),
+    secondaryContainer = Color(0xFF1E40AF),
+    onSecondaryContainer = Color(0xFFDBEAFE),
+    tertiary = Color(0xFFFCD34D),
+    onTertiary = Color(0xFF451A03),
+    tertiaryContainer = Color(0xFF78350F),
+    onTertiaryContainer = Color(0xFFFDE68A),
+    background = Color(0xFF0C1210),
+    onBackground = Color(0xFFE3EBE6),
+    surface = Color(0xFF131B17),
+    onSurface = Color(0xFFE3EBE6),
+    surfaceVariant = Color(0xFF24302A),
+    onSurfaceVariant = Color(0xFFA8B8AF),
+    outline = Color(0xFF4A5A52),
+    outlineVariant = Color(0xFF2E3A34),
+    error = Color(0xFFFCA5A5),
+    onError = Color(0xFF450A0A),
+    errorContainer = Color(0xFF7F1D1D),
+    onErrorContainer = Color(0xFFFECACA),
+    surfaceContainerLowest = Color(0xFF080D0B),
+    surfaceContainerLow = Color(0xFF0C1210),
+    surfaceContainer = Color(0xFF131B17),
+    surfaceContainerHigh = Color(0xFF1A2420),
+    surfaceContainerHighest = Color(0xFF222E28),
+    surfaceBright = Color(0xFF2A3630),
+    surfaceDim = Color(0xFF080D0B),
+    inverseSurface = Color(0xFFE3EBE6),
+    inverseOnSurface = Color(0xFF131B17),
+    inversePrimary = Color(0xFF047857),
 )
 
 @Composable
 fun BahariMrvTheme(content: @Composable () -> Unit) {
     val extendedColors = if (isSystemInDarkTheme()) DarkExtendedColors else LightExtendedColors
-    
+
     MaterialTheme(
         colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
         typography = BahariTypography,
         shapes = Shapes(
-            extraSmall = RoundedCornerShape(6.dp),
-            small = RoundedCornerShape(8.dp),
-            medium = RoundedCornerShape(10.dp),
-            large = RoundedCornerShape(12.dp),
-            extraLarge = RoundedCornerShape(14.dp),
+            extraSmall = RoundedCornerShape(8.dp),
+            small = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(16.dp),
+            large = RoundedCornerShape(20.dp),
+            extraLarge = RoundedCornerShape(24.dp),
         ),
     ) {
         androidx.compose.runtime.CompositionLocalProvider(

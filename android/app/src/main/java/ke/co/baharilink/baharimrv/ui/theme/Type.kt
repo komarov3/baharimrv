@@ -5,149 +5,134 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
-// Wireframe-aligned typography matching exact specifications
+// Material 3 type scale: 16sp body, nothing functional below 11sp, weights carry hierarchy.
 val BahariTypography = Typography(
-    // Display - for hero headers and big numbers
-    displayLarge = TextStyle(  // Price value - 19sp (big number in wireframe)
+    displayLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 19.sp,
-        lineHeight = 24.sp,
-        letterSpacing = (-0.3).sp,
+        fontSize = 32.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.5).sp,
     ),
-    displayMedium = TextStyle(  // Section H2 - 24sp
+    displayMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.4).sp,
+    ),
+    displaySmall = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
-        lineHeight = 30.sp,
-        letterSpacing = (-0.4).sp,
-    ),
-    displaySmall = TextStyle(  // Big numbers - 19sp
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 19.sp,
-        lineHeight = 24.sp,
+        lineHeight = 32.sp,
         letterSpacing = (-0.3).sp,
     ),
-    
-    // Headlines - for card titles
-    headlineMedium = TextStyle(  // 13.5sp app bar title
+    headlineLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
-        fontSize = 13.5.sp,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        lineHeight = 28.sp,
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+    ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+    ),
+    titleMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+    ),
+    titleSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
         lineHeight = 18.sp,
-        letterSpacing = 0.sp,
     ),
-    headlineSmall = TextStyle(  // 12.5sp card title (Mikoko Park title)
+    bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 12.5.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.sp,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
     ),
-    
-    // Titles
-    titleLarge = TextStyle(  // 13sp card title
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
-        letterSpacing = 0.sp,
-    ),
-    titleMedium = TextStyle(  // 12sp medium labels
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.sp,
-    ),
-    titleSmall = TextStyle(  // 13sp (wireframe card title)
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 13.sp,
-        lineHeight = 17.sp,
-        letterSpacing = 0.sp,
-    ),
-    
-    // Body - standard text
-    bodyLarge = TextStyle(  // 14sp base body
+    bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        lineHeight = 21.sp,
-        letterSpacing = 0.sp,
+        lineHeight = 20.sp,
     ),
-    bodyMedium = TextStyle(  // 11.5sp caption
+    bodySmall = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
-        fontSize = 11.5.sp,
+        fontSize = 12.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.sp,
     ),
-    bodySmall = TextStyle(  // 10sp notes (wireframe subtitle)
+    labelLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 10.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 0.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
     ),
-    
-    // Labels - for UI chrome
-    labelLarge = TextStyle(  // 11sp button text
+    labelMedium = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
-        lineHeight = 15.sp,
-        letterSpacing = 0.sp,
-    ),
-    labelMedium = TextStyle(  // 10sp sub-text
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 10.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 0.sp,
-    ),
-    labelSmall = TextStyle(  // 9.5sp micro labels (ttl-xs, price label)
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 9.5.sp,
-        lineHeight = 13.sp,
-        letterSpacing = 0.08.em,
+        lineHeight = 16.sp,
+        letterSpacing = 0.1.sp,
     ),
 )
 
-// Additional wireframe-specific typography extensions
 val Typography.heroSubtitle: TextStyle
     @Composable get() = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        lineHeight = 22.sp,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
     )
 
 val Typography.pillText: TextStyle
     @Composable get() = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Bold,
-        fontSize = 9.sp,
-        lineHeight = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
     )
 
 val Typography.navText: TextStyle
     @Composable get() = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 8.5.sp,
-        lineHeight = 12.sp,
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
     )
 
 val Typography.annotationBadge: TextStyle
     @Composable get() = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 10.sp,
-        lineHeight = 10.sp,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp,
+        lineHeight = 12.sp,
     )

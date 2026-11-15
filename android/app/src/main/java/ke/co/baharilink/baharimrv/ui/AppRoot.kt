@@ -2,6 +2,10 @@ package ke.co.baharilink.baharimrv.ui
 
 import android.net.Uri
 import androidx.browser.customtabs.CustomTabsIntent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -32,18 +36,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.annotation.DrawableRes
 import ke.co.baharilink.baharimrv.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
+import androidx.navigation.NamedNavArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -171,7 +175,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                     startDestination = Routes.HOME,
                     modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
                 ) {
-                    composable(Routes.HOME) {
+                    bahariScreen(Routes.HOME) {
                         HomeScreen(
                             onFieldVisit = { navController.navigate(Routes.MONITOR) },
                             onVerification = { navController.navigate(Routes.verification()) },
@@ -180,14 +184,14 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onSatellite = { navController.navigate(Routes.satellite(selection)) },
                         )
                     }
-                    composable(Routes.MODULE_ENTRY) {
+                    bahariScreen(Routes.MODULE_ENTRY) {
                         ModuleEntryScreen(
                             onSignIn = { navController.navigate(Routes.HOME) },
                             onJoinMonitor = { navController.navigate(Routes.MONITOR) },
                         )
                     }
-                    composable(Routes.MONITOR) { MonitorScreen() }
-                    composable(Routes.PLANTING) {
+                    bahariScreen(Routes.MONITOR) { MonitorScreen() }
+                    bahariScreen(Routes.PLANTING) {
                         PlantingListScreen(
                             onBack = { navController.popBackStack() },
                             projectId = selection,
@@ -199,13 +203,13 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             },
                         )
                     }
-                    composable(Routes.PLANTING_CREATE) {
+                    bahariScreen(Routes.PLANTING_CREATE) {
                         PlantingActivityScreen(
                             onBack = { navController.popBackStack() },
                             projectId = selection,
                         )
                     }
-                    composable(
+                    bahariScreen(
                         route = Routes.PLANTING_DETAIL,
                         arguments = listOf(navArgument("activityId") { type = NavType.StringType }),
                     ) { backStackEntry ->
@@ -214,7 +218,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable(
+                    bahariScreen(
                         route = Routes.SATELLITE,
                         arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
                     ) { backStackEntry ->
@@ -223,8 +227,8 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
                         )
                     }
-                    composable(Routes.PROJECTS) { backStackEntry -> ProjectsScreen(onProjectClick = { id -> navController.navigate(Routes.PROJECT_DETAIL.replace("{projectId}", id)) }) }
-                    composable(
+                    bahariScreen(Routes.PROJECTS) { backStackEntry -> ProjectsScreen(onProjectClick = { id -> navController.navigate(Routes.PROJECT_DETAIL.replace("{projectId}", id)) }) }
+                    bahariScreen(
                         route = Routes.PROJECT_DETAIL,
                         arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
                     ) { backStackEntry ->
@@ -236,7 +240,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onManageMonitors = { navController.navigate(Routes.MANAGE_MONITORS.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty()).replace("{plotId}", "")) },
                         )
                     }
-                    composable(
+                    bahariScreen(
                         route = Routes.ADD_PLOT,
                         arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
                     ) { backStackEntry ->
@@ -246,7 +250,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onSaved = { navController.popBackStack() },
                         )
                     }
-                    composable(
+                    bahariScreen(
                         route = Routes.ADD_ACTIVITY,
                         arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
                     ) { backStackEntry ->
@@ -255,10 +259,10 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable(Routes.CREDITS) { CreditsScreen() }
-                    composable(Routes.WALLET) { WalletScreen() }
-                    composable(Routes.PROFILE) { ProfileScreen(authViewModel) }
-                    composable(
+                    bahariScreen(Routes.CREDITS) { CreditsScreen() }
+                    bahariScreen(Routes.WALLET) { WalletScreen() }
+                    bahariScreen(Routes.PROFILE) { ProfileScreen(authViewModel) }
+                    bahariScreen(
                         route = Routes.VERIFICATION,
                         arguments = listOf(navArgument("activityId") {
                             type = NavType.StringType
@@ -274,20 +278,20 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
 @Composable
 private fun AppNavigationBar(navController: NavController, currentRoute: String?) {
     Column {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline, thickness = 1.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp,
-            modifier = Modifier.height(54.dp)
+            modifier = Modifier.height(64.dp)
         ) {
             destinations.forEach { destination ->
                 val isSelected = currentRoute == destination.route
                 val iconColor = if (isSelected) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    Color(0xFF9AA8BA)
+                    MaterialTheme.colorScheme.onSurfaceVariant
                 }
-                
+
                 NavigationBarItem(
                     selected = isSelected,
                     onClick = { navigateTo(navController, destination.route) },
@@ -301,7 +305,7 @@ private fun AppNavigationBar(navController: NavController, currentRoute: String?
                     label = {
                         Text(
                             text = destination.label,
-                            fontSize = 8.5.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                             color = iconColor
                         )
@@ -309,9 +313,9 @@ private fun AppNavigationBar(navController: NavController, currentRoute: String?
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = Color.Transparent,
-                        unselectedIconColor = Color(0xFF9AA8BA),
-                        unselectedTextColor = Color(0xFF9AA8BA),
+                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                 )
             }
@@ -342,7 +346,7 @@ private fun AppNavigationRail(navController: NavController, currentRoute: String
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = Color.Transparent,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
@@ -358,3 +362,19 @@ private fun navigateTo(navController: NavController, route: String) {
         restoreState = true
     }
 }
+
+// One motion language for every destination: quick fade + short horizontal drift in,
+// faster fade out. Forward and back mirror each other so hierarchy stays legible.
+private fun NavGraphBuilder.bahariScreen(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable androidx.compose.animation.AnimatedContentScope.(androidx.navigation.NavBackStackEntry) -> Unit,
+) = composable(
+    route = route,
+    arguments = arguments,
+    enterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(220)) { it / 8 } },
+    exitTransition = { fadeOut(tween(150)) },
+    popEnterTransition = { fadeIn(tween(220)) + slideInHorizontally(tween(220)) { -it / 8 } },
+    popExitTransition = { fadeOut(tween(150)) },
+    content = content,
+)

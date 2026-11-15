@@ -151,10 +151,11 @@ fun AuthScreen(viewModel: AuthViewModel) {
             
             // Security notice
             Card(
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -202,29 +203,44 @@ fun AuthScreen(viewModel: AuthViewModel) {
 @Composable
 private fun AlertCard(message: String, isError: Boolean) {
     Card(
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = if (isError) 
-                MaterialTheme.colorScheme.errorContainer 
-            else 
+            containerColor = if (isError)
+                MaterialTheme.colorScheme.errorContainer
+            else
                 MaterialTheme.colorScheme.primaryContainer
         ),
         border = BorderStroke(
             1.dp,
-            if (isError) 
-                MaterialTheme.colorScheme.error 
-            else 
+            if (isError)
+                MaterialTheme.colorScheme.error
+            else
                 MaterialTheme.colorScheme.primary
         )
     ) {
-        Text(
-            message,
-            color = if (isError) 
-                MaterialTheme.colorScheme.onErrorContainer 
-            else 
-                MaterialTheme.colorScheme.onPrimaryContainer,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(16.dp)
-        )
+        Row(
+            modifier = Modifier.padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Icon(
+                imageVector = if (isError) Icons.Default.Info else Icons.Default.CheckCircle,
+                contentDescription = if (isError) "Error" else "Notice",
+                modifier = Modifier.size(20.dp),
+                tint = if (isError)
+                    MaterialTheme.colorScheme.onErrorContainer
+                else
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                message,
+                color = if (isError)
+                    MaterialTheme.colorScheme.onErrorContainer
+                else
+                    MaterialTheme.colorScheme.onPrimaryContainer,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 
@@ -232,11 +248,12 @@ private fun AlertCard(message: String, isError: Boolean) {
 private fun SignInForm(state: AuthUiState, viewModel: AuthViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
@@ -332,11 +349,12 @@ private fun SignInForm(state: AuthUiState, viewModel: AuthViewModel) {
 private fun RegisterForm(state: AuthUiState, viewModel: AuthViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(24.dp),
@@ -554,13 +572,13 @@ private fun RoleChip(label: String, selected: Boolean, onSelect: () -> Unit) {
     if (selected) {
         Button(
             onClick = onSelect,
-            modifier = Modifier.height(42.dp),
+            modifier = Modifier.height(48.dp),
             shape = MaterialTheme.shapes.small
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(label, fontWeight = FontWeight.SemiBold)
@@ -568,7 +586,7 @@ private fun RoleChip(label: String, selected: Boolean, onSelect: () -> Unit) {
     } else {
         OutlinedButton(
             onClick = onSelect,
-            modifier = Modifier.height(42.dp),
+            modifier = Modifier.height(48.dp),
             shape = MaterialTheme.shapes.small,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
         ) {

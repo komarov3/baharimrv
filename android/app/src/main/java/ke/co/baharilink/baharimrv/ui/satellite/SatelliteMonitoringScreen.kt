@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Satellite
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,7 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -276,7 +277,7 @@ private fun ImageryCard(
                         mapView.onDetach()
                     }
                 }
-                AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize().clipToBounds())
+                AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.small))
             }
             StatusChip(
                 text = overlay.adapterMode,
@@ -288,7 +289,7 @@ private fun ImageryCard(
                     modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
                     color = Color(0xCC000000),
                     contentColor = Color.White,
-                    shape = RoundedCornerShape(4.dp),
+                    shape = MaterialTheme.shapes.extraSmall,
                 ) {
                     Text(
                         stringResource(R.string.satellite_acquired_label, formatAcquiredDate(acquired)),
@@ -317,7 +318,7 @@ private fun LegendStrip(legend: List<SatelliteLegendStopDto>, modifier: Modifier
     Surface(
         modifier = modifier,
         color = Color(0xCCFFFFFF),
-        shape = RoundedCornerShape(6.dp),
+        shape = MaterialTheme.shapes.extraSmall,
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             legend.forEach { stop ->
@@ -457,7 +458,7 @@ private fun InlineNotice(title: String, body: String, modifier: Modifier = Modif
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        shape = RoundedCornerShape(8.dp),
+        shape = MaterialTheme.shapes.small,
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Text(title, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
@@ -513,7 +514,11 @@ private fun RefreshAction(
             modifier = Modifier.fillMaxWidth(),
             enabled = !refreshing,
         ) {
-            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+            if (inFlight) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+            }
             Spacer(Modifier.size(8.dp))
             Text(
                 if (inFlight) stringResource(R.string.satellite_refresh_running)

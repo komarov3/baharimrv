@@ -114,7 +114,9 @@ class PlantingActivityViewModel @Inject constructor(
                         methodologyVersion = current.methodologyVersion,
                         reportingPeriodStart = current.reportingPeriodStart.ifBlank { null },
                         reportingPeriodEnd   = current.reportingPeriodEnd.ifBlank { null },
-                        measurements = (measurements + ("seedlingsPlanted" to current.seedlingsPlanted))
+                        measurements = (measurements +
+                            ("seedlingsPlanted" to current.seedlingsPlanted) +
+                            ("species" to current.species))
                             .filterValues { it.isNotBlank() }
                             .ifEmpty { null },
                     ),

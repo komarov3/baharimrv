@@ -1,23 +1,23 @@
 package ke.co.baharilink.baharimrv.ui.projects
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -28,11 +28,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import ke.co.baharilink.baharimrv.data.remote.MonitorDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
+import ke.co.baharilink.baharimrv.ui.components.BahariCard
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
-import ke.co.baharilink.baharimrv.ui.components.ErrorState
 import ke.co.baharilink.baharimrv.ui.components.LoadState
 import ke.co.baharilink.baharimrv.ui.components.LoadingState
-import ke.co.baharilink.baharimrv.ui.components.SectionHeader
+import ke.co.baharilink.baharimrv.ui.components.StatusChip
+import ke.co.baharilink.baharimrv.ui.components.stateTone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -85,8 +86,10 @@ fun MonitorManagementScreen(
 
     LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onBack) { Text("Back") }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
                 Text("Manage monitors", style = MaterialTheme.typography.titleLarge)
             }
         }
@@ -102,15 +105,15 @@ fun MonitorManagementScreen(
         }
         val monitors = ((state.monitors as? LoadState.Success<*>)?.data as? List<MonitorDto>) ?: emptyList()
         items(monitors) { monitor ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(monitor.displayName, style = MaterialTheme.typography.titleSmall)
-                    Text(monitor.email, style = MaterialTheme.typography.bodySmall)
-                    Text("Status: ${monitor.status}", style = MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { viewModel.assign(projectId, plotId, monitor.id) }) { Text("Assign") }
-                        OutlinedButton(onClick = { viewModel.assign(projectId, plotId, null) }) { Text("Unassign") }
-                    }
+            BahariCard {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(monitor.displayName, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    StatusChip(monitor.status, tone = stateTone(monitor.status))
+                }
+                Text(monitor.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { viewModel.assign(projectId, plotId, monitor.id) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Assign") }
+                    OutlinedButton(onClick = { viewModel.assign(projectId, plotId, null) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Unassign") }
                 }
             }
         }

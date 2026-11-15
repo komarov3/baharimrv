@@ -1,6 +1,8 @@
 package ke.co.baharilink.baharimrv.ui.components
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -43,13 +46,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import java.io.IOException
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import ke.co.baharilink.baharimrv.data.remote.AmountDto
+import ke.co.baharilink.baharimrv.ui.theme.extendedColors
 import retrofit2.HttpException
 
 sealed interface LoadState<out T> {
@@ -62,10 +65,10 @@ sealed interface LoadState<out T> {
 fun StatusChip(text: String, modifier: Modifier = Modifier, tone: ChipTone = ChipTone.NEUTRAL) {
     val colors = MaterialTheme.colorScheme
     val (container, border, content) = when (tone) {
-        ChipTone.POSITIVE -> Triple(Color(0xFFE7F8F1), Color(0xFFB7E8D4), Color(0xFF059669))
-        ChipTone.WARNING -> Triple(Color(0xFFFDF3E3), Color(0xFFF2DDB3), Color(0xFFD97706))
+        ChipTone.POSITIVE -> Triple(colors.primaryContainer, colors.primary, colors.onPrimaryContainer)
+        ChipTone.WARNING -> Triple(colors.tertiaryContainer, colors.tertiary, colors.onTertiaryContainer)
         ChipTone.ERROR -> Triple(colors.errorContainer, colors.error, colors.onErrorContainer)
-        ChipTone.NEUTRAL -> Triple(Color(0xFFFFFFFF), Color(0xFFD8E0EA), Color(0xFF5B6B80))
+        ChipTone.NEUTRAL -> Triple(colors.surface, colors.outline, colors.onSurfaceVariant)
     }
     Surface(
         modifier = modifier,
@@ -76,9 +79,9 @@ fun StatusChip(text: String, modifier: Modifier = Modifier, tone: ChipTone = Chi
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+            style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }
 }
@@ -144,12 +147,12 @@ fun LedgerCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(7.dp), content = content)
+        Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
     }
 }
 
@@ -172,12 +175,12 @@ fun ContextHeader(
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         leading?.invoke()
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -192,16 +195,27 @@ fun ExpandableSection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
+    val chevronRotation by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(200),
+        label = "expandChevron",
+    )
     Column(Modifier.fillMaxWidth()) {
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Text(title, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             Icon(
                 Icons.Default.ExpandMore,
                 contentDescription = if (expanded) "Collapse $title" else "Expand $title",
-                modifier = Modifier.rotate(if (expanded) 180f else 0f),
+                modifier = Modifier.rotate(chevronRotation),
             )
         }
-        if (expanded) Column(verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.expandVertically(animationSpec = androidx.compose.animation.core.tween(200)) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.shrinkVertically(animationSpec = androidx.compose.animation.core.tween(150)) + androidx.compose.animation.fadeOut(),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        }
     }
 }
 
@@ -231,10 +245,21 @@ fun LoadingState(label: String = "Loading current data…") {
 @Composable
 fun EmptyState(title: String, detail: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
     LedgerCard {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        Text(detail, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (actionLabel != null && onAction != null) {
-            OutlinedButton(onClick = onAction, modifier = Modifier.height(48.dp)) { Text(actionLabel) }
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            if (actionLabel != null && onAction != null) {
+                OutlinedButton(onClick = onAction, modifier = Modifier.height(48.dp)) { Text(actionLabel) }
+            }
         }
     }
 }
@@ -243,7 +268,7 @@ fun EmptyState(title: String, detail: String, actionLabel: String? = null, onAct
 fun ErrorState(message: String, onRetry: (() -> Unit)? = null) {
     LedgerCard {
         Text("Couldn’t load current data", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-        Text(message, style = MaterialTheme.typography.bodyMedium)
+        Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (onRetry != null) Button(onClick = onRetry, modifier = Modifier.height(48.dp)) { Text("Retry") }
     }
 }
@@ -254,15 +279,48 @@ fun OfflineBanner() {
         Text(
             "Offline — field records stay on this device; server data may be out of date.",
             style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
         )
+    }
+}
+
+/**
+ * Shimmering placeholder block for loading content. Pulse stays subtle and loops
+ * at 900ms so a slow network reads as "working", not "stuck".
+ */
+@Composable
+fun ShimmerBox(modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.small) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.9f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = androidx.compose.animation.core.tween(900, easing = androidx.compose.animation.core.LinearEasing),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+        ),
+        label = "shimmerAlpha",
+    )
+    Box(
+        modifier = modifier
+            .background(MaterialTheme.extendedColors.skeleton.copy(alpha = alpha), shape)
+    )
+}
+
+/** Card-shaped skeleton matching LedgerCard geometry while real content loads. */
+@Composable
+fun SkeletonCard(modifier: Modifier = Modifier, lines: Int = 3) {
+    LedgerCard(modifier = modifier) {
+        ShimmerBox(Modifier.fillMaxWidth(0.4f).height(14.dp))
+        repeat(lines) {
+            ShimmerBox(Modifier.fillMaxWidth(if (it == lines - 1) 0.7f else 1f).height(12.dp))
+        }
     }
 }
 
 @Composable
 fun KeyValue(label: String, value: String, valueColor: Color = Color.Unspecified, monospace: Boolean = false) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = LocalContentColor.current.copy(alpha = 0.75f))
         Spacer(modifier = Modifier.size(8.dp))
         Text(
             value,
@@ -288,16 +346,16 @@ fun Throwable.readableMessage(): String = when (this) {
 @Composable
 fun VerifiedBadge(modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.size(20.dp),
-        shape = MaterialTheme.shapes.extraSmall,
+        modifier = modifier.size(24.dp),
+        shape = CircleShape,
         color = MaterialTheme.colorScheme.primary,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Verified",
-                modifier = Modifier.size(14.dp),
-                tint = Color.White,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onPrimary,
             )
         }
     }
@@ -314,7 +372,7 @@ fun StageNumberCircle(
     modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = modifier.size(32.dp),
+        modifier = modifier.size(36.dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
@@ -322,12 +380,12 @@ fun StageNumberCircle(
             color = if (isCompleted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (isCompleted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
         ) {
-            Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
                 if (isCompleted) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Completed",
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 } else {
                     Text(text = number, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)

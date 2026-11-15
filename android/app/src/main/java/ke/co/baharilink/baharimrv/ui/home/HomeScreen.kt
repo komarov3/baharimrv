@@ -1,6 +1,7 @@
 package ke.co.baharilink.baharimrv.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,8 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,7 +69,6 @@ import ke.co.baharilink.baharimrv.ui.components.SectionHeader
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
 import ke.co.baharilink.baharimrv.ui.components.WalletRevenueStream
 import ke.co.baharilink.baharimrv.ui.components.chainNetworkLabel
-import ke.co.baharilink.baharimrv.ui.components.dashedBorder
 import ke.co.baharilink.baharimrv.ui.components.formatAmount
 import ke.co.baharilink.baharimrv.ui.components.formatInstant
 import ke.co.baharilink.baharimrv.ui.components.stateTone
@@ -149,7 +149,7 @@ fun HomeScreen(
 
 @Composable
 private fun ProjectPicker(state: HomeUiState, viewModel: HomeViewModel, onCreateProject: () -> Unit) {
-    LedgerCard(contentPadding = 12.dp) {
+    LedgerCard {
         Text("Project dashboard", style = MaterialTheme.typography.titleLarge)
         Text(
             "Your authorised projects load from the server. No sample impact or financial data is shown.",
@@ -177,7 +177,7 @@ private fun ProjectPicker(state: HomeUiState, viewModel: HomeViewModel, onCreate
             } else {
                 SectionHeader("Authorized projects")
                 projects.data.summary?.let { summary ->
-                    LedgerCard(contentPadding = 12.dp) {
+                    LedgerCard {
                         KeyValue("Projects", summary.total.toString())
                         KeyValue("Active", summary.active.toString())
                         KeyValue("Awaiting verification", summary.pendingVerification.toString())
@@ -201,7 +201,7 @@ private fun ProjectRow(row: ProjectRowDto, onSelect: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder(),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(row.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 StatusChip(row.status, tone = stateTone(row.status))
@@ -255,12 +255,14 @@ private fun DashboardContent(
 
         WalletSummary(wallet, onRetryWallet)
 
-        Text("ALERTS & NEXT ACTIONS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SectionHeader("Alerts & next actions")
         AlertList(dashboard.alerts)
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onFieldVisit, modifier = Modifier.weight(1f).height(48.dp)) { Text("+  Field visit") }
             OutlinedButton(onClick = onVerification, modifier = Modifier.weight(1f).height(48.dp)) { Text("Reports") }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { onPlanting(dashboard.project.id) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Planting") }
             OutlinedButton(onClick = { onSatellite(dashboard.project.id) }, modifier = Modifier.weight(1f).height(48.dp)) { Text("Satellite") }
         }
@@ -287,7 +289,7 @@ private fun WalletSummary(wallet: LoadState<WalletDto>?, onRetry: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
         border = CardDefaults.outlinedCardBorder(),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("PROJECT WALLET", style = MaterialTheme.typography.labelSmall, modifier = Modifier.weight(1f))
                 if (wallet is LoadState.Success) StatusChip(chainNetworkLabel(wallet.data.mode), tone = stateTone(wallet.data.mode))
@@ -304,11 +306,11 @@ private fun WalletSummary(wallet: LoadState<WalletDto>?, onRetry: () -> Unit) {
                 }
                 is LoadState.Success -> {
                     val data = wallet.data
-                    val emeraldGreen = Color(0xFF079B76)
-                    WalletRevenueStream("From tourism contributions", formatAmount(data.balances.tourismContributions), amountColor = emeraldGreen)
-                    WalletRevenueStream("From carbon credit sales", formatAmount(data.balances.carbonCreditSales), amountColor = emeraldGreen)
+                    val amountColor = MaterialTheme.colorScheme.primary
+                    WalletRevenueStream("From tourism contributions", formatAmount(data.balances.tourismContributions), amountColor = amountColor)
+                    WalletRevenueStream("From carbon credit sales", formatAmount(data.balances.carbonCreditSales), amountColor = amountColor)
                     val communityLabel = data.revenueRule?.communityPercent?.let { "Community share ($it%)" } ?: "Community share"
-                    WalletRevenueStream(communityLabel, formatAmount(data.balances.communityShare), amountColor = emeraldGreen, amountWeight = FontWeight.Bold)
+                    WalletRevenueStream(communityLabel, formatAmount(data.balances.communityShare), amountColor = amountColor, amountWeight = FontWeight.Bold)
                     Text("Server-reported balances · no local calculation", style = MaterialTheme.typography.bodySmall)
                 }
                 null -> Text("Wallet balances unavailable from this dashboard.", style = MaterialTheme.typography.bodySmall)
@@ -353,10 +355,11 @@ private fun AlertCard(alert: AlertDto) {
 private fun CompactMetricCard(metric: MetricDto, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = CardDefaults.outlinedCardBorder(),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 metric.label,
                 style = MaterialTheme.typography.labelSmall,
@@ -366,7 +369,7 @@ private fun CompactMetricCard(metric: MetricDto, modifier: Modifier = Modifier) 
             )
             Text(
                 listOfNotNull(metric.value, metric.unit).joinToString(" "),
-                style = MaterialTheme.typography.displayLarge,
+                style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -378,7 +381,7 @@ private fun CompactMetricCard(metric: MetricDto, modifier: Modifier = Modifier) 
 
 @Composable
 private fun MetricCard(metric: MetricDto, modifier: Modifier = Modifier) {
-    LedgerCard(modifier = modifier, contentPadding = 12.dp) {
+    LedgerCard(modifier = modifier) {
         Text(metric.label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(listOfNotNull(metric.value, metric.unit).joinToString(" "), style = MaterialTheme.typography.displayMedium)
         metric.status?.let { StatusChip(it, tone = stateTone(it)) }
@@ -427,7 +430,7 @@ private fun SatelliteHeadline(
     val headline = satelliteHeadlineState(change, legacyNdvi)
     val isSandbox = headline.isSandbox
     val liveChange = headline.liveChange
-    LedgerCard(contentPadding = 12.dp) {
+    LedgerCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Satellite NDVI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             StatusChip(
@@ -451,7 +454,7 @@ private fun SatelliteHeadline(
                 liveChange.changeAbs?.let { delta ->
                     val sign = if (delta >= 0) "+" else ""
                     val tone = when {
-                        delta > 0.02 -> Color(0xFF059669)
+                        delta > 0.02 -> MaterialTheme.colorScheme.primary
                         delta < -0.02 -> MaterialTheme.colorScheme.error
                         else -> MaterialTheme.colorScheme.onSurface
                     }
@@ -511,7 +514,7 @@ private fun SatelliteHeadline(
             }
         }
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onOpenSatellite, modifier = Modifier.fillMaxWidth().height(44.dp)) {
+        OutlinedButton(onClick = onOpenSatellite, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Text("Open satellite screen")
         }
     }
@@ -521,13 +524,13 @@ private fun SatelliteHeadline(
 private fun ProjectMap(plots: List<PlotDto>) {
     Column(
         modifier = Modifier.fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .dashedBorder(MaterialTheme.colorScheme.outline, 12.dp)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .background(MaterialTheme.colorScheme.surface, MaterialTheme.shapes.medium)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Project plots", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+            Text("Project plots", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Text("${plots.size} plots", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (plots.isEmpty()) {
@@ -572,7 +575,7 @@ private fun ProjectMap(plots: List<PlotDto>) {
                     mapView.onDetach()
                 }
             }
-            AndroidView(factory = { mapView }, modifier = Modifier.fillMaxWidth().height(160.dp).clipToBounds())
+            AndroidView(factory = { mapView }, modifier = Modifier.fillMaxWidth().height(200.dp).clip(MaterialTheme.shapes.small).clipToBounds())
         }
         Text("Tap a plot for returned NDVI, GPS, area and status.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         selected?.let { plot ->

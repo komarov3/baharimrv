@@ -17,7 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
@@ -53,8 +53,8 @@ import ke.co.baharilink.baharimrv.ui.components.ErrorState
 import ke.co.baharilink.baharimrv.ui.components.ExpandableSection
 import ke.co.baharilink.baharimrv.ui.components.LedgerCard
 import ke.co.baharilink.baharimrv.ui.components.LoadState
-import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.MicroLabel
+import ke.co.baharilink.baharimrv.ui.components.SkeletonCard
 import ke.co.baharilink.baharimrv.ui.components.StageNumberCircle
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
 import ke.co.baharilink.baharimrv.ui.components.chainNetworkLabel
@@ -78,7 +78,7 @@ fun VerificationScreen(
                 },
                 leading = {
                     IconButton(onClick = if (state.activityId.isBlank()) onBack else viewModel::showQueue) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 trailing = {
@@ -92,7 +92,11 @@ fun VerificationScreen(
         if (state.activityId.isBlank()) {
             item { ActivityLookup(state, viewModel) }
             when (val queue = state.queue) {
-                LoadState.Loading -> item { LoadingState("Loading the verifier queue…") }
+                LoadState.Loading -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        repeat(2) { SkeletonCard(lines = 2) }
+                    }
+                }
                 is LoadState.Error -> item { ErrorState(queue.message, viewModel::loadQueue) }
                 is LoadState.Success -> {
                     if (queue.data.isEmpty()) {
@@ -104,13 +108,17 @@ fun VerificationScreen(
                         }
                     }
                 }
-                null -> item { LoadingState("Loading the verifier queue…") }
+                null -> item {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        repeat(2) { SkeletonCard(lines = 2) }
+                    }
+                }
             }
         } else {
             state.message?.let { item { Notice(it) } }
             state.error?.let { item { Notice(it, isError = true) } }
             when (val provenance = state.provenance) {
-                LoadState.Loading -> item { LoadingState("Loading provenance…") }
+                LoadState.Loading -> item { SkeletonCard(lines = 4) }
                 is LoadState.Error -> item { ErrorState(provenance.message, viewModel::load) }
                 is LoadState.Success -> item { ProvenanceContent(provenance.data, state, viewModel) }
                 null -> item { EmptyState("No activity loaded", "Field, audit, and provenance events will appear here.") }
@@ -133,6 +141,7 @@ private fun ActivityLookup(state: VerificationUiState, viewModel: VerificationVi
             onValueChange = viewModel::updateActivityId,
             label = { Text("Activity ID") },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
         Button(onClick = viewModel::load, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Load timeline") }
@@ -324,6 +333,7 @@ private fun ActivityActions(state: VerificationUiState, viewModel: VerificationV
             value = state.disputeReason,
             onValueChange = { value -> viewModel.update { it.copy(disputeReason = value) } },
             label = { Text("What is contested?") },
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -387,7 +397,7 @@ private fun EventRow(event: ProvenanceEventDto) {
 @Composable
 private fun ProofPanel(state: VerificationUiState, viewModel: VerificationViewModel) {
     when (val proofs = state.proofs) {
-        LoadState.Loading -> LoadingState("Loading proofs…")
+        LoadState.Loading -> SkeletonCard(lines = 2)
         is LoadState.Error -> ErrorState(proofs.message, viewModel::load)
         is LoadState.Success -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (proofs.data.isEmpty()) {
@@ -495,12 +505,14 @@ private fun DecisionPanel(state: VerificationUiState, viewModel: VerificationVie
             onValueChange = { value -> viewModel.update { it.copy(methodologyVersion = value) } },
             label = { Text("Methodology version applied") },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.notes,
             onValueChange = { value -> viewModel.update { it.copy(notes = value) } },
             label = { Text("Written rationale") },
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -508,6 +520,7 @@ private fun DecisionPanel(state: VerificationUiState, viewModel: VerificationVie
             onValueChange = { value -> viewModel.update { it.copy(password = value) } },
             label = { Text("Password") },
             singleLine = true,
+            shape = MaterialTheme.shapes.small,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             modifier = Modifier.fillMaxWidth(),

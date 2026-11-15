@@ -71,8 +71,8 @@ import ke.co.baharilink.baharimrv.ui.components.ErrorState
 import ke.co.baharilink.baharimrv.ui.components.KeyValue
 import ke.co.baharilink.baharimrv.ui.components.LedgerCard
 import ke.co.baharilink.baharimrv.ui.components.LoadState
-import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.SectionHeader
+import ke.co.baharilink.baharimrv.ui.components.SkeletonCard
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
 import ke.co.baharilink.baharimrv.ui.components.chainNetworkLabel
 import ke.co.baharilink.baharimrv.ui.components.formatInstant
@@ -109,7 +109,7 @@ fun ProfileScreen(
         item {
             when (val identity = state.identity) {
                 is LoadState.Success -> PlantingImpactCard(identity.data)
-                LoadState.Loading -> LoadingState("Loading impact…")
+                LoadState.Loading -> SkeletonCard()
                 else -> Unit
             }
         }
@@ -121,7 +121,7 @@ fun ProfileScreen(
         // Identity Section
         item { SectionHeader("Blockchain Identity") }
         when (val identity = state.identity) {
-            LoadState.Loading -> item { LoadingState("Loading your identity…") }
+            LoadState.Loading -> item { SkeletonCard(lines = 4) }
             is LoadState.Error -> item { ErrorState(identity.message, viewModel::load) }
             is LoadState.Success -> item { EnhancedIdentityCard(identity.data, state.working, viewModel) }
             null -> item { EmptyState("No identity loaded", "Your IOTA identity will appear here.") }
@@ -130,7 +130,7 @@ fun ProfileScreen(
         // Linked Platforms Section
         item { SectionHeader("Connected Platforms") }
         when (val links = state.links) {
-            LoadState.Loading -> item { LoadingState("Loading linked platforms…") }
+            LoadState.Loading -> item { SkeletonCard(lines = 2) }
             is LoadState.Error -> item { ErrorState(links.message, viewModel::load) }
             is LoadState.Success -> {
                 if (links.data.isEmpty()) {
@@ -237,7 +237,7 @@ private fun PlantingImpactCard(identity: IdentityProfileDto) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -275,7 +275,7 @@ private fun PlantingImpactCard(identity: IdentityProfileDto) {
                     "—",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF059669),
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
 
@@ -340,7 +340,7 @@ private fun PlantingImpactCard(identity: IdentityProfileDto) {
 private fun ImpactStatBox(label: String, value: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
-        color = Color(0xFFE7F8F1),
+        color = MaterialTheme.colorScheme.primaryContainer,
         shape = MaterialTheme.shapes.small,
     ) {
         Column(
@@ -350,13 +350,13 @@ private fun ImpactStatBox(label: String, value: String, modifier: Modifier = Mod
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF059669),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Text(
                 value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF047857),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
         }
     }
@@ -461,7 +461,7 @@ private fun ProfileHeader(session: ke.co.baharilink.baharimrv.data.local.Session
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            color = MaterialTheme.colorScheme.primaryContainer,
                             shape = MaterialTheme.shapes.small
                         ) {
                             Text(
@@ -469,7 +469,7 @@ private fun ProfileHeader(session: ke.co.baharilink.baharimrv.data.local.Session
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -492,7 +492,7 @@ private fun QuickStatsCard(identity: IdentityProfileDto) {
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -566,7 +566,7 @@ private fun VerticalDivider() {
         modifier = Modifier
             .width(1.dp)
             .height(60.dp)
-            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            .background(MaterialTheme.colorScheme.outlineVariant)
     )
 }
 
@@ -620,7 +620,7 @@ private fun EnhancedIdentityCard(profile: IdentityProfileDto, working: Boolean, 
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -755,7 +755,7 @@ private fun RoleCapabilityCard(capability: ke.co.baharilink.baharimrv.data.remot
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -795,7 +795,7 @@ private fun EnhancedLinkCard(link: LinkedPlatformDto) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -841,7 +841,7 @@ private fun SettingsSection(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column {
             SettingsItem(
@@ -916,7 +916,7 @@ private fun AppInfoCard() {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),

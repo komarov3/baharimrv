@@ -4,20 +4,22 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,12 +31,15 @@ import javax.inject.Inject
 import ke.co.baharilink.baharimrv.data.remote.ProjectActivityDto
 import ke.co.baharilink.baharimrv.data.remote.DashboardDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
+import ke.co.baharilink.baharimrv.ui.components.BahariCard
 import ke.co.baharilink.baharimrv.ui.components.EmptyState
 import ke.co.baharilink.baharimrv.ui.components.ErrorState
+import ke.co.baharilink.baharimrv.ui.components.KeyValue
 import ke.co.baharilink.baharimrv.ui.components.LoadState
 import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.SectionHeader
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
+import ke.co.baharilink.baharimrv.ui.components.stateTone
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -111,8 +116,10 @@ fun ProjectDetailScreen(
 
     LazyColumn(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onBack) { Text("Back") }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
                 Text("Project detail", style = MaterialTheme.typography.titleLarge)
             }
         }
@@ -122,33 +129,33 @@ fun ProjectDetailScreen(
             is LoadState.Success<*> -> {
                 val dash = d.data as DashboardDto
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(dash.project.name, style = MaterialTheme.typography.titleMedium)
-                            Text("Methodology: ${dash.project.methodology}")
-                            Text("Sites: ${dash.project.siteCount}")
-                            Text("Weather: ${state.weather}")
-                            Text("Salinity: ${state.salinity}")
-                            Text("Sentinel-1: ${state.satelliteS1}")
-                            Text("Sentinel-2: ${state.satelliteS2}")
-                        }
+                    BahariCard {
+                        Text(dash.project.name, style = MaterialTheme.typography.titleMedium)
+                        KeyValue("Methodology", dash.project.methodology ?: "—")
+                        KeyValue("Sites", dash.project.siteCount.toString())
+                        KeyValue("Weather", state.weather)
+                        KeyValue("Salinity", state.salinity)
+                        KeyValue("Sentinel-1", state.satelliteS1)
+                        KeyValue("Sentinel-2", state.satelliteS2)
                     }
                 }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onAddPlot, modifier = Modifier.weight(1f)) { Text("Add plot") }
-                        Button(onClick = onAddActivity, modifier = Modifier.weight(1f)) { Text("New activity") }
-                        OutlinedButton(onClick = onManageMonitors, modifier = Modifier.weight(1f)) { Text("Monitors") }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = onAddPlot, modifier = Modifier.weight(1f).height(48.dp)) { Text("Add plot") }
+                            Button(onClick = onAddActivity, modifier = Modifier.weight(1f).height(48.dp)) { Text("New activity") }
+                        }
+                        OutlinedButton(onClick = onManageMonitors, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Manage monitors") }
                     }
                 }
                 item { SectionHeader("Plots") }
                 items(dash.plots) { plot ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(plot.label, style = MaterialTheme.typography.titleSmall)
-                            Text("${plot.latitude}, ${plot.longitude}")
-                            Text("Status: ${plot.status}")
+                    BahariCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(plot.label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            StatusChip(plot.status, tone = stateTone(plot.status))
                         }
+                        Text("${plot.latitude}, ${plot.longitude}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 if (dash.plots.isEmpty()) item { EmptyState("No plots", "Add a plot to start monitoring.") }
@@ -162,12 +169,12 @@ fun ProjectDetailScreen(
                 val activities = (a.data as? List<ProjectActivityDto>) ?: emptyList()
                 if (activities.isEmpty()) item { EmptyState("No activities", "Create an activity to begin reporting.") }
                 items(activities) { act ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(act.activityType, style = MaterialTheme.typography.titleSmall)
-                            Text("Status: ${act.status}")
-                            Text("Period: ${act.periodStart ?: "—"} to ${act.periodEnd ?: "—"}")
+                    BahariCard {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(act.activityType, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            StatusChip(act.status, tone = stateTone(act.status))
                         }
+                        Text("Period: ${act.periodStart ?: "—"} to ${act.periodEnd ?: "—"}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }

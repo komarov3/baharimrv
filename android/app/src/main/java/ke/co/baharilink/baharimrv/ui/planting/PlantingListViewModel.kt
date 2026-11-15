@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 
 data class PlantingListUiState(
     val activities: LoadState<List<ProjectActivityDto>> = LoadState.Success(emptyList()),
+    val query: String = "",
+    val page: Int = 0,
 )
 
 @HiltViewModel
@@ -38,5 +40,13 @@ class PlantingListViewModel @Inject constructor(
                 _state.update { it.copy(activities = LoadState.Error(e.readableMessage())) }
             }
         }
+    }
+
+    fun setQuery(value: String) = _state.update { it.copy(query = value, page = 0) }
+
+    fun setPage(value: Int) = _state.update { it.copy(page = value.coerceAtLeast(0)) }
+
+    companion object {
+        const val PAGE_SIZE = 6
     }
 }

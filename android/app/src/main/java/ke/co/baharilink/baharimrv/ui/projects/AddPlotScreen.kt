@@ -9,7 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import ke.co.baharilink.baharimrv.data.remote.CreatePlotRequestDto
@@ -58,13 +61,13 @@ fun AddPlotScreen(
 
     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Add plot", style = MaterialTheme.typography.titleLarge)
-        OutlinedTextField(value = siteName, onValueChange = { siteName = it }, label = { Text("Site name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = code, onValueChange = { code = it }, label = { Text("Plot code") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = siteName, onValueChange = { siteName = it }, label = { Text("Site name") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = code, onValueChange = { code = it }, label = { Text("Plot code") }, singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = area, onValueChange = { area = it }, label = { Text("Area (ha)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = latitude, onValueChange = { latitude = it }, label = { Text("Latitude") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = longitude, onValueChange = { longitude = it }, label = { Text("Longitude") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth())
         if (permissionMessage.isNotBlank()) {
-            Text(permissionMessage, color = MaterialTheme.colorScheme.error)
+            Text(permissionMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
         Button(onClick = {
             val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -80,13 +83,13 @@ fun AddPlotScreen(
                     permissionMessage = "Location is unavailable. Enter coordinates manually."
                 }
             }
-        }, modifier = Modifier.fillMaxWidth()) {
+        }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Text("Use current location")
         }
-        Button(onClick = onSaved, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = onSaved, modifier = Modifier.fillMaxWidth().height(48.dp)) {
             Text("Save plot (wire to repository in next step)")
         }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Back") }
     }
 }
 

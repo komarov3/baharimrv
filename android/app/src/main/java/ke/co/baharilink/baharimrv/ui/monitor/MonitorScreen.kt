@@ -47,6 +47,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -79,13 +80,17 @@ import ke.co.baharilink.baharimrv.data.local.EvidenceKind
 import ke.co.baharilink.baharimrv.data.local.MonitoringWithEvidence
 import ke.co.baharilink.baharimrv.data.repository.EvidenceSelection
 import ke.co.baharilink.baharimrv.location.AudioRecorder
+import androidx.compose.ui.draw.clip
+import ke.co.baharilink.baharimrv.ui.components.BahariDashedBox
+import ke.co.baharilink.baharimrv.ui.components.BahariIconBackground
 import ke.co.baharilink.baharimrv.ui.components.ChipTone
 import ke.co.baharilink.baharimrv.ui.components.ContextHeader
 import ke.co.baharilink.baharimrv.ui.components.ExpandableSection
+import ke.co.baharilink.baharimrv.ui.components.IconBackgroundColor
+import ke.co.baharilink.baharimrv.ui.components.LedgerCard
 import ke.co.baharilink.baharimrv.ui.components.MicroLabel
 import ke.co.baharilink.baharimrv.ui.components.SessionAwareToast
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
-import ke.co.baharilink.baharimrv.ui.components.dashedBorder
 import ke.co.baharilink.baharimrv.ui.components.stateTone
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -172,13 +177,19 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
             title = { Text("Add photo evidence") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showPhotoMenu = false; launchCamera() }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showPhotoMenu = false; launchCamera() },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) {
                         Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
-                        Text("  Take photo with camera")
+                        Text("Take photo with camera", modifier = Modifier.padding(start = 8.dp))
                     }
-                    OutlinedButton(onClick = { showPhotoMenu = false; galleryPicker.launch("image/*") }, modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showPhotoMenu = false; galleryPicker.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) {
                         Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
-                        Text("  Choose from gallery / files")
+                        Text("Choose from gallery / files", modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             },
@@ -206,8 +217,8 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
         item {
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-                verticalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val (gpsLabel, gpsTone) = when (state.coordinateSource) {
                     CoordinateSource.DEVICE_FIX -> "GPS ±${state.gpsAccuracy.ifBlank { "?" }} m" to ChipTone.POSITIVE
@@ -221,52 +232,64 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
         }
 
         item {
-            MicroLabel("Survival count")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CaptureField(state.aliveCount,   { v -> viewModel.update { it.copy(aliveCount = v) } },   "Alive",   Modifier.weight(1f), KeyboardType.Number)
-                CaptureField(state.plantedCount, { v -> viewModel.update { it.copy(plantedCount = v) } }, "Planted", Modifier.weight(1f), KeyboardType.Number)
-            }
-        }
-
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CaptureField(state.averageHeight, { v -> viewModel.update { it.copy(averageHeight = v) } }, "Avg height (m)", Modifier.weight(1f), KeyboardType.Decimal)
-                CaptureField(state.species,       { v -> viewModel.update { it.copy(species = v) } },       "Species",        Modifier.weight(1f))
+            LedgerCard {
+                MicroLabel("Survival count")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CaptureField(state.aliveCount,   { v -> viewModel.update { it.copy(aliveCount = v) } },   "Alive",   Modifier.weight(1f), KeyboardType.Number)
+                    CaptureField(state.plantedCount, { v -> viewModel.update { it.copy(plantedCount = v) } }, "Planted", Modifier.weight(1f), KeyboardType.Number)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CaptureField(state.averageHeight, { v -> viewModel.update { it.copy(averageHeight = v) } }, "Avg height (m)", Modifier.weight(1f), KeyboardType.Decimal)
+                    CaptureField(state.species,       { v -> viewModel.update { it.copy(species = v) } },       "Species",        Modifier.weight(1f))
+                }
             }
         }
 
         // Photo evidence — tappable dashed box
         item {
-            Column(
+            BahariDashedBox(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 88.dp)
-                    .dashedBorder(MaterialTheme.colorScheme.outline, 12.dp)
-                    .clickable { showPhotoMenu = true }
-                    .padding(14.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                    .heightIn(min = 96.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Add photo evidence") { showPhotoMenu = true },
             ) {
-                Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(26.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    if (photoCount > 0) "Geo-tagged photos · $photoCount taken" else "Geo-tagged photos · none taken",
-                    style = MaterialTheme.typography.titleSmall,
-                    textAlign = TextAlign.Center,
-                )
-                Text("Tap to add · camera or gallery · hashed on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    BahariIconBackground(color = IconBackgroundColor.GREEN) {
+                        Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(20.dp))
+                    }
+                    Text(
+                        if (photoCount > 0) "Geo-tagged photos · $photoCount taken" else "Add geo-tagged photos",
+                        style = MaterialTheme.typography.titleSmall,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text("Camera or gallery · hashed on this device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
             }
         }
 
         state.evidence.forEachIndexed { index, evidence ->
             item {
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(evidence.originalFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val coords = evidence.latitude?.let { lat -> evidence.longitude?.let { lon -> "GPS $lat, $lon" } } ?: "Coordinates pending"
-                        Text("${evidence.kind.name.lowercase()} · hash computed · $coords", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                    IconButton(onClick = { viewModel.removeEvidence(index) }) {
-                        Icon(Icons.Default.Delete, "Remove ${evidence.originalFileName}")
+                LedgerCard(contentPadding = 12.dp) {
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        BahariIconBackground(color = if (evidence.kind == EvidenceKind.PHOTO) IconBackgroundColor.GREEN else IconBackgroundColor.VIOLET) {
+                            Icon(
+                                if (evidence.kind == EvidenceKind.PHOTO) Icons.Default.PhotoCamera else Icons.Default.Mic,
+                                null,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(evidence.originalFileName, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val coords = evidence.latitude?.let { lat -> evidence.longitude?.let { lon -> "GPS $lat, $lon" } } ?: "Coordinates pending"
+                            Text("${evidence.kind.name.lowercase()} · hash computed · $coords", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        IconButton(onClick = { viewModel.removeEvidence(index) }) {
+                            Icon(Icons.Default.Delete, "Remove ${evidence.originalFileName}", tint = MaterialTheme.colorScheme.error)
+                        }
                     }
                 }
             }
@@ -274,7 +297,12 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
 
         item {
             OutlinedButton(onClick = ::recordVoice, modifier = Modifier.fillMaxWidth().height(48.dp)) {
-                Icon(Icons.Default.Mic, null, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Default.Mic,
+                    null,
+                    modifier = Modifier.size(18.dp),
+                    tint = if (state.recording) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                )
                 Text(
                     text = when { state.recording -> "Stop and attach voice note"; voiceCount > 0 -> "Record another voice observation"; else -> "Voice observation" },
                     modifier = Modifier.padding(start = 8.dp),
@@ -289,14 +317,28 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
         }
 
         item {
-            TextButton(onClick = { showPlotSheet = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
-                Text("Plot, activity & GPS", modifier = Modifier.padding(start = 8.dp), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    if (state.projectId.isBlank() || state.activityId.isBlank() || state.plotId.isBlank()) " · required" else " · set",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            val contextSet = state.projectId.isNotBlank() && state.activityId.isNotBlank() && state.plotId.isNotBlank()
+            LedgerCard(
+                modifier = Modifier.clickable(role = Role.Button, onClickLabel = "Edit plot, activity and GPS") { showPlotSheet = true },
+                contentPadding = 12.dp,
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BahariIconBackground(color = IconBackgroundColor.BLUE) {
+                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(20.dp))
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("Plot, activity & GPS", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            if (contextSet) "Context set for this record" else "Required before saving",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    StatusChip(
+                        text = if (contextSet) "Set" else "Required",
+                        tone = if (contextSet) ChipTone.POSITIVE else ChipTone.WARNING,
+                    )
+                }
             }
         }
 
@@ -305,13 +347,13 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
 
         if (state.error == null && state.message == null) {
             item {
-                Text("Hash anchors to CreditMRV contract on sync", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium, color = Color(0xFF079B76), modifier = Modifier.fillMaxWidth())
+                Text("Hash anchors to CreditMRV contract on sync", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth())
             }
         }
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = state.attested, role = Role.Checkbox, onValueChange = { checked -> viewModel.update { it.copy(attested = checked) } }),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(MaterialTheme.shapes.small).toggleable(value = state.attested, role = Role.Checkbox, onValueChange = { checked -> viewModel.update { it.copy(attested = checked) } }),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = state.attested, onCheckedChange = null)
@@ -319,7 +361,16 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
             }
         }
 
-        item { Button(onClick = viewModel::save, enabled = !state.saving, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(if (state.saving) "Saving on device…" else "Save monitoring record") } }
+        item {
+            Button(onClick = viewModel::save, enabled = !state.saving, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                if (state.saving) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Saving on device…", modifier = Modifier.padding(start = 8.dp))
+                } else {
+                    Text("Save monitoring record")
+                }
+            }
+        }
         item { OutlinedButton(onClick = viewModel::syncNow, enabled = state.pendingCount > 0, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text(if (state.pendingCount > 0) "Sync ${state.pendingCount} queued records" else "No queued records") } }
 
         item {
@@ -366,6 +417,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
                         },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                     )
                     if (state.availableProjects.isNotEmpty()) {
                         ExposedDropdownMenu(expanded = projectExpanded, onDismissRequest = { projectExpanded = false }) {
@@ -399,6 +451,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
                         },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                     )
                     if (state.availablePlots.isNotEmpty()) {
                         ExposedDropdownMenu(expanded = plotExpanded, onDismissRequest = { plotExpanded = false }) {
@@ -432,6 +485,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
                         },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                     )
                     if (state.availableActivities.isNotEmpty()) {
                         ExposedDropdownMenu(expanded = activityExpanded, onDismissRequest = { activityExpanded = false }) {
@@ -465,6 +519,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = hiltViewModel()) {
                         },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         singleLine = true,
+                        shape = MaterialTheme.shapes.small,
                     )
                     if (state.availableMethodologies.isNotEmpty()) {
                         ExposedDropdownMenu(expanded = methodExpanded, onDismissRequest = { methodExpanded = false }) {
@@ -508,7 +563,7 @@ private fun Notice(text: String, container: Color, content: Color, icon: ImageVe
 
 @Composable
 private fun QueuedRecordRow(item: MonitoringWithEvidence) {
-    Column(modifier = Modifier.fillMaxWidth().dashedBorder(MaterialTheme.colorScheme.outlineVariant, 12.dp).padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    LedgerCard(contentPadding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${item.record.plotId} • ${item.record.species}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             StatusChip(item.record.syncState.name.replace('_', ' '), tone = stateTone(item.record.syncState.name))
@@ -526,7 +581,7 @@ private fun QueuedRecordRow(item: MonitoringWithEvidence) {
 
 @Composable
 private fun CaptureField(value: String, onValueChange: (String) -> Unit, label: String, modifier: Modifier = Modifier, keyboardType: KeyboardType = KeyboardType.Text) {
-    OutlinedTextField(value = value, onValueChange = onValueChange, label = { Text(label) }, keyboardOptions = KeyboardOptions(keyboardType = keyboardType), singleLine = true, modifier = modifier.fillMaxWidth())
+    OutlinedTextField(value = value, onValueChange = onValueChange, label = { Text(label) }, keyboardOptions = KeyboardOptions(keyboardType = keyboardType), singleLine = true, shape = MaterialTheme.shapes.small, modifier = modifier.fillMaxWidth())
 }
 
 private fun Context.displayName(uri: Uri): String? =

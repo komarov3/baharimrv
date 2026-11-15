@@ -34,7 +34,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,15 +55,14 @@ import ke.co.baharilink.baharimrv.ui.components.LedgerCard
 import ke.co.baharilink.baharimrv.ui.components.LoadState
 import ke.co.baharilink.baharimrv.ui.components.LoadingState
 import ke.co.baharilink.baharimrv.ui.components.MicroLabel
+import ke.co.baharilink.baharimrv.ui.components.SkeletonCard
 import ke.co.baharilink.baharimrv.ui.components.StatusChip
 import ke.co.baharilink.baharimrv.ui.components.WalletRevenueStream
 import ke.co.baharilink.baharimrv.ui.components.chainNetworkLabel
 import ke.co.baharilink.baharimrv.ui.components.formatAmount
 import ke.co.baharilink.baharimrv.ui.components.formatInstant
 import ke.co.baharilink.baharimrv.ui.components.stateTone
-
-private val GreenPrimary = Color(0xFF059669)
-private val GreenContainer = Color(0xFFE7F8F1)
+import ke.co.baharilink.baharimrv.ui.theme.extendedColors
 
 @Composable
 fun WalletScreen(viewModel: WalletViewModel = hiltViewModel()) {
@@ -98,6 +96,7 @@ fun WalletScreen(viewModel: WalletViewModel = hiltViewModel()) {
                     onValueChange = viewModel::updateProjectId,
                     label = { Text("Project ID") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(
@@ -114,7 +113,7 @@ fun WalletScreen(viewModel: WalletViewModel = hiltViewModel()) {
         state.message?.let { msg ->
             item {
                 LedgerCard(contentPadding = 12.dp) {
-                    Text(msg, style = MaterialTheme.typography.bodySmall, color = GreenPrimary)
+                    Text(msg, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -129,7 +128,11 @@ fun WalletScreen(viewModel: WalletViewModel = hiltViewModel()) {
 
         // ── wallet content ────────────────────────────────────────────────
         when (val wallet = state.wallet) {
-            LoadState.Loading -> item { LoadingState("Loading wallet…") }
+            LoadState.Loading -> item {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    repeat(3) { SkeletonCard() }
+                }
+            }
             is LoadState.Error -> item { ErrorState(wallet.message, viewModel::load) }
             is LoadState.Success -> item { WalletContent(wallet.data, state, viewModel) }
             null -> Unit
@@ -181,7 +184,11 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
         // ── available-balance hero ────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = GreenContainer),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ),
         ) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -196,13 +203,13 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
                         Icon(
                             Icons.Default.AccountBalanceWallet,
                             contentDescription = null,
-                            tint = GreenPrimary,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
                         )
                         Text(
                             "Available balance",
                             style = MaterialTheme.typography.labelMedium,
-                            color = GreenPrimary,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -218,7 +225,7 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
                     formatAmount(community),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = GreenPrimary,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -227,16 +234,16 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
                         onClick = {},
                         enabled = false,
                         colors = ButtonDefaults.buttonColors(
-                            disabledContainerColor = GreenPrimary.copy(alpha = 0.15f),
-                            disabledContentColor = GreenPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            disabledContentColor = MaterialTheme.colorScheme.primary,
                         ),
-                        modifier = Modifier.weight(1f).height(40.dp),
+                        modifier = Modifier.weight(1f).height(48.dp),
                     ) {
                         Text("Cash out", style = MaterialTheme.typography.labelMedium)
                     }
                     OutlinedButton(
                         onClick = viewModel::load,
-                        modifier = Modifier.weight(1f).height(40.dp),
+                        modifier = Modifier.weight(1f).height(48.dp),
                     ) {
                         Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
@@ -247,7 +254,7 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
                 Text(
                     "Cash out is backend-controlled · BahariMRV displays imports only",
                     style = MaterialTheme.typography.bodySmall,
-                    color = GreenPrimary.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
                 )
             }
         }
@@ -313,14 +320,14 @@ private fun WalletContent(wallet: WalletDto, state: WalletUiState, viewModel: Wa
                         ?.joinToString("/") { it.percent }
                         ?: "${rule.communityPercent}%"
                     Surface(
-                        color = GreenContainer,
+                        color = MaterialTheme.colorScheme.primaryContainer,
                         shape = MaterialTheme.shapes.small,
                     ) {
                         Text(
                             split,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            color = GreenPrimary,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
@@ -369,14 +376,14 @@ private fun RevenueRow(label: String, amount: String, highlight: Boolean = false
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (highlight) GreenPrimary else MaterialTheme.colorScheme.onSurface,
+            color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             fontWeight = if (highlight) FontWeight.SemiBold else FontWeight.Normal,
         )
         Text(
             amount,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (highlight) FontWeight.Bold else FontWeight.Medium,
-            color = if (highlight) GreenPrimary else MaterialTheme.colorScheme.onSurface,
+            color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -414,9 +421,9 @@ private fun EntryCard(entry: WalletEntryDto) {
         ) {
             // Colour-coded dot per entry kind
             val dotColor = when {
-                entry.kind.contains("tourism", ignoreCase = true) -> Color(0xFF3B82F6)
-                entry.kind.contains("carbon", ignoreCase = true) -> GreenPrimary
-                entry.kind.contains("community", ignoreCase = true) -> Color(0xFF8B5CF6)
+                entry.kind.contains("tourism", ignoreCase = true) -> MaterialTheme.colorScheme.secondary
+                entry.kind.contains("carbon", ignoreCase = true) -> MaterialTheme.colorScheme.primary
+                entry.kind.contains("community", ignoreCase = true) -> MaterialTheme.extendedColors.violet
                 else -> MaterialTheme.colorScheme.onSurfaceVariant
             }
             Surface(
@@ -445,7 +452,7 @@ private fun EntryCard(entry: WalletEntryDto) {
                 "+${formatAmount(entry.amount)}",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = GreenPrimary,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
 
@@ -491,7 +498,7 @@ private fun ReconciliationCard(reconciliation: ReconciliationDto) {
                 Icon(
                     imageVector = if (isOk) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (isOk) GreenPrimary else MaterialTheme.colorScheme.error,
+                    tint = if (isOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(
@@ -563,7 +570,7 @@ private fun DocumentRow(document: DocumentDto, enabled: Boolean, onDownload: () 
         OutlinedButton(
             onClick = onDownload,
             enabled = enabled,
-            modifier = Modifier.height(44.dp),
+            modifier = Modifier.height(48.dp),
         ) { Text("Save") }
     }
 }

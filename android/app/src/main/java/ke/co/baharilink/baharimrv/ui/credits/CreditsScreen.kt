@@ -47,7 +47,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.ListingDto
@@ -137,10 +136,10 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
             OutlinedButton(
                 onClick = { showRetirementSheet = true },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.small,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF059669)
+                    contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Text("Retire credits from a batch", style = MaterialTheme.typography.labelLarge)
@@ -185,6 +184,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
                     onValueChange = { value -> viewModel.update { it.copy(quantityTonnes = value) } },
                     label = { Text("Tonnes") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -193,6 +193,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
                     onValueChange = { value -> viewModel.update { it.copy(password = value) } },
                     label = { Text("Password") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -227,6 +228,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
                     onValueChange = { value -> viewModel.update { it.copy(retirementBatchId = value) } },
                     label = { Text("Credit batch ID") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -234,6 +236,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
                     onValueChange = { value -> viewModel.update { it.copy(retirementQuantity = value) } },
                     label = { Text("Tonnes") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -248,6 +251,7 @@ fun CreditsScreen(viewModel: CreditsViewModel = hiltViewModel()) {
                     onValueChange = { value -> viewModel.update { it.copy(retirementPassword = value) } },
                     label = { Text("Password") },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.small,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -352,15 +356,15 @@ private fun ListingCard(listing: ListingDto, selected: Boolean, onSelect: () -> 
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    formatPrice(listing.pricePerTonne) + " 📦",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = Color(0xFF059669),
+                    formatPrice(listing.pricePerTonne),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
             Button(
                 onClick = onSelect,
                 modifier = Modifier.height(48.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                shape = MaterialTheme.shapes.small,
             ) {
                 Text("Buy credits", style = MaterialTheme.typography.labelLarge)
             }
@@ -372,14 +376,15 @@ private fun ListingCard(listing: ListingDto, selected: Boolean, onSelect: () -> 
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Surface(
-                color = Color(0xFFF1F5F9),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.extraSmall,
+                modifier = Modifier.weight(1f),
             ) {
                 Text(
                     listing.batchId,
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 8.5.sp),
+                    style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
-                    color = Color(0xFF5B6B80),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -443,7 +448,7 @@ private fun RetirementCertificate(result: RetirementResultDto) {
             color = NavyMuted,
         )
         Text(
-            "community 60 · project 25 · platform 15 🔒",
+            "community 60 · project 25 · platform 15",
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace,
         )

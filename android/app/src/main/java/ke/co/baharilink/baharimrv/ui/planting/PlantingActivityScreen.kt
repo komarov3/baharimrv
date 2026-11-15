@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,7 +60,6 @@ data class PendingPhoto(
     val hashStatus: String = "hashed on device",
 )
 
-private val GreenPrimary = Color(0xFF059669)
 private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ fun PlantingActivityScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
                         onClick = { showPhotoMenu = false; launchCamera() },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {
                         Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -197,7 +197,7 @@ fun PlantingActivityScreen(
                     }
                     OutlinedButton(
                         onClick = { showPhotoMenu = false; galleryPicker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                     ) {
                         Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -244,26 +244,25 @@ fun PlantingActivityScreen(
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color(0xFFE7F8F1),
-                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = MaterialTheme.shapes.medium,
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Link, null, tint = GreenPrimary, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Link, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                         Column {
                             Text(
                                 "Activity becomes the baseline for survival monitoring.",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = GreenPrimary,
                             )
                             Text(
                                 "Photo hashes anchor to CreditMRV contract on sync · signed by Blue ID",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = GreenPrimary.copy(alpha = 0.8f),
                             )
                         }
                     }
@@ -292,6 +291,7 @@ fun PlantingActivityScreen(
                             trailingIcon = { Icon(if (projectExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, "Select project") },
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
                             singleLine = true,
+                            shape = MaterialTheme.shapes.small,
                         )
                         if (state.availableProjects.isNotEmpty()) {
                             ExposedDropdownMenu(expanded = projectExpanded, onDismissRequest = { projectExpanded = false }) {
@@ -333,6 +333,7 @@ fun PlantingActivityScreen(
                             },
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
                             singleLine = true,
+                            shape = MaterialTheme.shapes.small,
                         )
                         if (state.availablePlots.isNotEmpty()) {
                             ExposedDropdownMenu(expanded = plotExpanded, onDismissRequest = { plotExpanded = false }) {
@@ -384,6 +385,7 @@ fun PlantingActivityScreen(
                             },
                             modifier = Modifier.fillMaxWidth().menuAnchor(),
                             singleLine = true,
+                            shape = MaterialTheme.shapes.small,
                         )
                         ExposedDropdownMenu(
                             expanded = speciesExpanded,
@@ -450,6 +452,7 @@ fun PlantingActivityScreen(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.weight(1f),
                             singleLine = true,
+                            shape = MaterialTheme.shapes.small,
                         )
                         IconButton(onClick = {
                             val n = state.seedlingsPlanted.toIntOrNull() ?: 0
@@ -507,7 +510,7 @@ fun PlantingActivityScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { launchCamera() },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(48.dp),
                         ) {
                             Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
@@ -515,7 +518,7 @@ fun PlantingActivityScreen(
                         }
                         OutlinedButton(
                             onClick = { galleryPicker.launch("image/*") },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(48.dp),
                         ) {
                             Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
@@ -535,7 +538,7 @@ fun PlantingActivityScreen(
                                 Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(photo.fileName, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("photo · ${photo.hashStatus}", style = MaterialTheme.typography.bodySmall, color = GreenPrimary)
+                                    Text("photo · ${photo.hashStatus}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                                 }
                                 IconButton(onClick = {
                                     pendingPhotos = pendingPhotos.toMutableList().also { it.removeAt(idx) }
@@ -608,7 +611,7 @@ fun PlantingActivityScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { showStartDatePicker = true },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(20.dp))
@@ -621,7 +624,7 @@ fun PlantingActivityScreen(
                         }
                         OutlinedButton(
                             onClick = { showEndDatePicker = true },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Event, null, modifier = Modifier.size(20.dp))
@@ -646,7 +649,9 @@ fun PlantingActivityScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { showConditions = !showConditions },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -680,6 +685,7 @@ fun PlantingActivityScreen(
                                 leadingIcon = { Icon(Icons.Default.WbSunny, null, modifier = Modifier.size(20.dp)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                shape = MaterialTheme.shapes.small,
                             )
                             OutlinedTextField(
                                 value = tideCondition,
@@ -689,6 +695,7 @@ fun PlantingActivityScreen(
                                 leadingIcon = { Icon(Icons.Default.Water, null, modifier = Modifier.size(20.dp)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                shape = MaterialTheme.shapes.small,
                             )
                             OutlinedTextField(
                                 value = soilCondition,
@@ -698,6 +705,7 @@ fun PlantingActivityScreen(
                                 leadingIcon = { Icon(Icons.Default.Landscape, null, modifier = Modifier.size(20.dp)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                shape = MaterialTheme.shapes.small,
                             )
                             OutlinedTextField(
                                 value = notes,
@@ -717,7 +725,9 @@ fun PlantingActivityScreen(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { showTeamInfo = !showTeamInfo },
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -751,6 +761,7 @@ fun PlantingActivityScreen(
                                 leadingIcon = { Icon(Icons.Default.Person, null, modifier = Modifier.size(20.dp)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                shape = MaterialTheme.shapes.small,
                             )
                             OutlinedTextField(
                                 value = teamSize,
@@ -761,6 +772,7 @@ fun PlantingActivityScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
+                                shape = MaterialTheme.shapes.small,
                             )
                             OutlinedTextField(
                                 value = volunteers,
@@ -825,7 +837,7 @@ fun PlantingActivityScreen(
                             Icon(
                                 if (anchored) Icons.Default.CheckCircle else Icons.Default.HourglassTop,
                                 null,
-                                tint = if (anchored) GreenPrimary else Color(0xFFD97706),
+                                tint = if (anchored) Color(0xFF6EE7B7) else Color(0xFFFCD34D),
                                 modifier = Modifier.size(20.dp),
                             )
                             Column(modifier = Modifier.weight(1f)) {
@@ -834,7 +846,7 @@ fun PlantingActivityScreen(
                                     Text(
                                         "Anchor status: ${state.anchorStatus}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = if (anchored) GreenPrimary else Color(0xFFD97706),
+                                        color = if (anchored) Color(0xFF6EE7B7) else Color(0xFFFCD34D),
                                     )
                                 }
                             }

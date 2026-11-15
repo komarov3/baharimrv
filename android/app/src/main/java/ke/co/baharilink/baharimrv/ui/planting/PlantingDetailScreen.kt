@@ -5,40 +5,18 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.filled.Forest
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -48,20 +26,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ke.co.baharilink.baharimrv.data.remote.ActivityDetailDto
-import ke.co.baharilink.baharimrv.ui.components.BahariButton
-import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
-import ke.co.baharilink.baharimrv.ui.components.BahariCard
-import ke.co.baharilink.baharimrv.ui.components.StatusChip
-import ke.co.baharilink.baharimrv.ui.components.ChipTone
-import ke.co.baharilink.baharimrv.ui.components.BahariDashedBox
-import ke.co.baharilink.baharimrv.ui.components.ContextHeader
-import ke.co.baharilink.baharimrv.ui.components.EmptyState
-import ke.co.baharilink.baharimrv.ui.components.ErrorState
-import ke.co.baharilink.baharimrv.ui.components.KeyValue
-import ke.co.baharilink.baharimrv.ui.components.LoadState
-import ke.co.baharilink.baharimrv.ui.components.LoadingState
-import ke.co.baharilink.baharimrv.ui.components.NavyLedgerCard
-import ke.co.baharilink.baharimrv.ui.components.chainNetworkLabel
+import ke.co.baharilink.baharimrv.ui.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +37,6 @@ fun PlantingDetailScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    // Trigger load exactly once on entry
     LaunchedEffect(activityId) { viewModel.load(activityId) }
 
     // Once the detail resolves with at least one evidence object, fetch and decode
@@ -85,14 +49,13 @@ fun PlantingDetailScreen(
         }
     }
 
-    // Full-screen photo overlay — pure navigation state, NOT in ViewModel
     var showFullScreenPhoto by remember { mutableStateOf(false) }
     val photoBitmap = (state.image as? LoadState.Success)?.data
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Activity detail") },
+                title = { Text("Activity report") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -103,11 +66,11 @@ fun PlantingDetailScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (val detail = state.detail) {
-                null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingState("Preparing…")
-                }
-                is LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingState("Loading activity detail…")
+                null, is LoadState.Loading -> Column(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    repeat(3) { SkeletonCard() }
                 }
                 is LoadState.Error -> ErrorState(
                     message = detail.message,
@@ -132,12 +95,18 @@ private fun ActivityDetailContent(
     imageState: LoadState<ImageBitmap>?,
     onPhotoClick: () -> Unit,
 ) {
+    val measurements = dto.measurements.orEmpty()
+    val species = measurements["species"]?.takeIf { it.isNotBlank() }
+        ?: dto.record?.species?.takeIf { it.isNotBlank() }
+    val plantedBaseline = measurements["seedlingsPlanted"]?.takeIf { it.isNotBlank() }
+        ?: dto.record?.plantedCount?.takeIf { it > 0 }?.toString()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // 1. Hero header
+        // Hero header
         item {
             BahariCard(highlighted = dto.status.equals("open", ignoreCase = true)) {
                 Row(
@@ -150,11 +119,11 @@ private fun ActivityDetailContent(
                             .size(52.dp)
                             .background(
                                 color = when {
-                                    dto.status.equals("complete", ignoreCase = true) -> Color(0xFF059669).copy(alpha = 0.14f)
-                                    dto.status.equals("open", ignoreCase = true) -> Color(0xFFD97706).copy(alpha = 0.14f)
+                                    dto.status.equals("complete", ignoreCase = true) -> MaterialTheme.colorScheme.primaryContainer
+                                    dto.status.equals("open", ignoreCase = true) -> MaterialTheme.colorScheme.tertiaryContainer
                                     else -> MaterialTheme.colorScheme.surfaceVariant
                                 },
-                                shape = RoundedCornerShape(14.dp),
+                                shape = MaterialTheme.shapes.medium,
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -162,8 +131,8 @@ private fun ActivityDetailContent(
                             Icons.Default.Forest,
                             contentDescription = null,
                             tint = when {
-                                dto.status.equals("complete", ignoreCase = true) -> Color(0xFF059669)
-                                dto.status.equals("open", ignoreCase = true) -> Color(0xFFD97706)
+                                dto.status.equals("complete", ignoreCase = true) -> MaterialTheme.colorScheme.onPrimaryContainer
+                                dto.status.equals("open", ignoreCase = true) -> MaterialTheme.colorScheme.onTertiaryContainer
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             },
                             modifier = Modifier.size(28.dp),
@@ -194,19 +163,15 @@ private fun ActivityDetailContent(
             }
         }
 
-        // 1b. Activity details card (immutable summary of the collected form)
+        // Core details — the immutable summary of everything collected at planting.
         item {
-            BahariCard {
-                Text(
-                    "Activity details",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            ReportSection(title = "Activity details", icon = Icons.Default.Info) {
                 KeyValue(label = "Activity ID", value = dto.id, monospace = true)
                 KeyValue(label = "Project ID", value = dto.projectId, monospace = true)
                 KeyValue(label = "Plot ID", value = dto.plotId, monospace = true)
                 KeyValue(label = "Activity type", value = dto.activityType.replaceFirstChar { it.uppercase() })
                 KeyValue(label = "Status", value = dto.status.replaceFirstChar { it.uppercase() })
+                KeyValue(label = "Species", value = species ?: "Not recorded")
                 KeyValue(
                     label = "Methodology version",
                     value = dto.methodologyVersion?.takeIf { it.isNotBlank() } ?: "—",
@@ -220,23 +185,15 @@ private fun ActivityDetailContent(
                         else -> "${dto.periodStart} → ${dto.periodEnd}"
                     },
                 )
-                KeyValue(
-                    label = "Seedlings planted",
-                    value = dto.record?.plantedCount?.toString() ?: "Not recorded yet",
-                )
+                KeyValue(label = "Seedlings planted", value = plantedBaseline ?: "Not recorded yet")
             }
         }
 
-        // 1c. Optional planting details card
+        // Optional conditions & team — every remaining measurement from the form.
         item {
-            val measurements = dto.measurements.orEmpty()
-            BahariCard {
-                Text(
-                    "Planting conditions & team",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (measurements.isEmpty()) {
+            ReportSection(title = "Planting conditions & team", icon = Icons.Default.Cloud) {
+                val optional = measurements.filterKeys { it != "species" && it != "seedlingsPlanted" }
+                if (optional.values.all { it.isNullOrBlank() }) {
                     Text(
                         "No optional details recorded for this activity.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -251,23 +208,19 @@ private fun ActivityDetailContent(
                         "teamLead" to "Team lead",
                         "teamSize" to "Team size",
                         "volunteers" to "Volunteers / community",
-                        "seedlingsPlanted" to "Planned seedlings",
                         "photoCount" to "Photos captured",
                     )
-                    measurements.toSortedMap().forEach { (key, value) ->
-                        val text = value?.toString()?.trim().orEmpty()
+                    optional.toSortedMap().forEach { (key, value) ->
+                        val text = value?.trim().orEmpty()
                         if (text.isNotBlank()) {
-                            KeyValue(
-                                label = labels[key] ?: key.replaceFirstChar { it.uppercase() },
-                                value = text,
-                            )
+                            KeyValue(label = labels[key] ?: key.replaceFirstChar { it.uppercase() }, value = text)
                         }
                     }
                 }
             }
         }
 
-        // 2. Monitoring record card
+        // Monitoring record
         item {
             val record = dto.record
             if (record == null) {
@@ -276,44 +229,26 @@ private fun ActivityDetailContent(
                     detail = "No records have been synchronised for this activity yet.",
                 )
             } else {
-                BahariCard {
-                    Text(
-                        "Monitoring record",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                ReportSection(title = "Monitoring record", icon = Icons.Default.Assessment) {
                     KeyValue(label = "Alive count", value = record.aliveCount.toString())
                     KeyValue(label = "Planted count", value = record.plantedCount.toString())
                     KeyValue(label = "Average height (m)", value = record.averageHeightMetres.ifBlank { "—" })
                     KeyValue(label = "Species", value = record.species.ifBlank { "Unspecified" })
                     KeyValue(label = "Methodology version", value = record.methodologyVersion.ifBlank { "—" })
-                    KeyValue(
-                        label = "Device captured at",
-                        value = record.deviceTimestamp?.takeIf { it.isNotBlank() } ?: "—",
-                    )
-                    KeyValue(
-                        label = "Server receipt at",
-                        value = record.serverReceiptTime?.takeIf { it.isNotBlank() } ?: "—",
-                    )
+                    KeyValue(label = "Device captured at", value = record.deviceTimestamp?.takeIf { it.isNotBlank() } ?: "—")
+                    KeyValue(label = "Server receipt at", value = record.serverReceiptTime?.takeIf { it.isNotBlank() } ?: "—")
                     KeyValue(
                         label = "Observations",
-                        // The backend stores observations only in the content commitment,
-                        // not as a column, so this is empty in practice. Treat blank as none.
                         value = record.observations?.takeIf { it.isNotBlank() } ?: "No observations",
                     )
                 }
             }
         }
 
-        // 2b. Location card
+        // Field location
         item {
             val record = dto.record
-            BahariCard {
-                Text(
-                    "Field location",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            ReportSection(title = "Field location", icon = Icons.Default.Place) {
                 if (record != null) {
                     KeyValue(label = "Latitude", value = record.latitude.toString())
                     KeyValue(label = "Longitude", value = record.longitude.toString())
@@ -339,31 +274,21 @@ private fun ActivityDetailContent(
             }
         }
 
-        // 3. Evidence photo card
+        // Evidence photo
         item {
             val evidence = dto.record?.evidence.orEmpty()
             if (evidence.isNotEmpty()) {
                 val first = evidence.first()
-                BahariCard(onClick = onPhotoClick) {
-                    Text(
-                        "Evidence",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    BahariDashedBox(
-                        modifier = Modifier.fillMaxWidth().height(220.dp),
-                    ) {
+                ReportSection(title = "Evidence", icon = Icons.Default.Image, onClick = onPhotoClick) {
+                    BahariDashedBox(modifier = Modifier.fillMaxWidth().height(220.dp)) {
                         when (imageState) {
                             is LoadState.Success -> Image(
                                 bitmap = imageState.data,
                                 contentDescription = "Evidence photo",
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxSize().clip(MaterialTheme.shapes.small),
                                 contentScale = ContentScale.Crop,
                             )
-                            is LoadState.Loading -> Box(
-                                Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center,
-                            ) {
+                            is LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
                             }
                             is LoadState.Error -> EvidencePlaceholder(sha256 = first.sha256)
@@ -377,12 +302,7 @@ private fun ActivityDetailContent(
                     )
                 }
             } else {
-                BahariCard {
-                    Text(
-                        "Evidence",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                ReportSection(title = "Evidence", icon = Icons.Default.Image) {
                     Text(
                         "No evidence attached",
                         style = MaterialTheme.typography.bodyMedium,
@@ -392,58 +312,40 @@ private fun ActivityDetailContent(
             }
         }
 
-        // 4. On-chain anchor card
+        // On-chain anchor
         item {
             val provenance = dto.provenance
             NavyLedgerCard {
-                Text(
-                    "On-chain anchor",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Link, contentDescription = null, tint = Color(0xFF6EE7B7), modifier = Modifier.size(18.dp))
+                    Text("On-chain anchor", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
                 if (provenance != null) {
-                    KeyValue(
-                        label = "Status",
-                        value = provenance.status,
-                        valueColor = statusColor(provenance.status),
-                    )
+                    KeyValue(label = "Status", value = provenance.status, valueColor = statusColor(provenance.status))
                     KeyValue(label = "Network", value = chainNetworkLabel(provenance.network))
                     provenance.objectId?.let { KeyValue(label = "Object ID", value = it, monospace = true) }
                     provenance.explorerUrl?.let { explorerUrl ->
                         val context = LocalContext.current
                         BahariButton(
-                            onClick = {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl)))
-                            },
+                            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(explorerUrl))) },
                             variant = BahariButtonVariant.GREEN,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Text(text = "View on IOTA ↗")
+                            Text("View on IOTA ↗")
                         }
                     }
                 } else {
-                    Text(
-                        "Not yet anchored on-chain",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text("Not yet anchored on-chain", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
 
-        // 5. Attestation card
+        // Attestation
         item {
             val attestation = dto.record?.attestationStatement
-            BahariCard {
-                Text(
-                    "Attestation",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
+            ReportSection(title = "Attestation", icon = Icons.Default.Verified) {
                 if (!attestation.isNullOrBlank()) {
-                    Text(
-                        attestation,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Text(attestation, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     Text(
                         "No attestation recorded",
@@ -456,10 +358,26 @@ private fun ActivityDetailContent(
     }
 }
 
+@Composable
+private fun ReportSection(
+    title: String,
+    icon: ImageVector,
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    BahariCard(onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        }
+        content()
+    }
+}
+
 private fun statusColor(status: String): Color = when (status.lowercase()) {
-    "anchored" -> Color(0xFF059669)
-    "pending" -> Color(0xFFD97706)
-    "failed" -> Color(0xFFDC2626)
+    "anchored" -> Color(0xFF6EE7B7)
+    "pending" -> Color(0xFFFCD34D)
+    "failed" -> Color(0xFFFCA5A5)
     else -> Color.Unspecified
 }
 
@@ -506,10 +424,16 @@ private fun FullScreenPhotoOverlay(bitmap: ImageBitmap?, onDismiss: () -> Unit) 
             } else {
                 Icon(
                     Icons.Default.Image,
-                    contentDescription = "Close",
+                    contentDescription = "Evidence photo unavailable",
                     modifier = Modifier.size(64.dp),
                     tint = Color.White,
                 )
+            }
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close photo", tint = Color.White)
             }
         }
     }
