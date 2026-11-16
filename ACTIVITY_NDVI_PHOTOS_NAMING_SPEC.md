@@ -1,6 +1,6 @@
 # Planting Activity: Naming, Evidence Photos, and Auto NDVI Baseline — Spec
 
-Status: APPROVED, backend and Android implementation complete. API deployed to Fly release v31 on 2026-11-16 from commit 166d2ee. Read-only emulator checks passed; full write-flow acceptance and isolated PostgreSQL migration testing remain pending. Three workstreams, sequenced naming → photos → NDVI.
+Status: APPROVED, backend and Android implementation complete. API deployed from commit 166d2ee; explicitly approved live-mode activation is healthy on Fly release v32 as of 2026-11-16. Read-only emulator checks and isolated PostgreSQL 17.12 migration execution passed; full write-flow device acceptance remains pending. Three workstreams, sequenced naming → photos → NDVI.
 Scope: backend (Go), Android, s2-worker (read-only reuse). Web out of scope.
 Build order approved by user; NDVI search window locked at ±15 days.
 
@@ -144,10 +144,12 @@ Three gaps, one broken behaviour, in the planting-activity flow:
   geometry and statistics for later comparisons without additional imagery calls.
   Only strictly later acquisitions are compared; absent or incompatible passes leave
   change null. Partial coverage remains labelled. All figures are server-returned.
-- **Dependency to flag**: the deployed API currently runs `satellite: sandbox`
-  (health). The pipeline is correct in both modes, but real NDVI numbers require
-  `SATELLITE_MODE=live` plus worker URL/token configured in the Fly environment.
-  Until then every baseline is labelled sandbox, exactly like the dashboard today.
+- **Live dependency, verified 2026-11-16**: the worker returned a real Sentinel-2
+  scene and measured usable pixels before explicitly approved activation of
+  `SATELLITE_MODE=live` on Fly release v32. Health reports `satellite: live` and
+  `satelliteProvider: opendata-s2`. Provider selection uses `SATELLITE_PROVIDER`
+  and requires the worker URL/token; health mode alone does not establish an
+  observation's provenance. Each reading retains its server-returned adapter mode.
 
 ## 5. Integrity rules (carried over, non-negotiable)
 
@@ -235,7 +237,10 @@ Phase 3: Auto NDVI baseline
   future acquisitions, percentage precision, write rollback, API access and server-only Android values
 - [x] Production API deployment: Fly release v31, commit 166d2ee, health and authenticated
   activity detail/NDVI reads checked on 2026-11-16
-- [ ] Enable live imagery, separate approval required; deployed mode remains sandbox
+- [x] Live activation explicitly approved on 2026-11-16: Fly v32 health live/opendata-s2;
+  worker readiness measured scene S2C_37MER_20261105_1_L2A, acquired 2026-11-05,
+  NDVI 0.837, 289 usable pixels and 100% coverage on a non-project readiness footprint.
+  Existing six/hour/project quota, worker credentials and volumes unchanged.
 
 Phase V: Build and verify
 - [x] Android assembleDebug and all 78 unit tests, BUILD SUCCESSFUL
@@ -244,12 +249,19 @@ Phase V: Build and verify
 - [x] Complete Go suite passed with a longer timeout after the initial host-pressure timeout
 - [x] Final complete Go suite and build, satellite percentage precision regression,
   and planting NDVI/queue race checks repeated three times
-- [ ] PostgreSQL migration execution on an isolated test database
+- [x] PostgreSQL 17.12 migration execution on an isolated, socket-only temporary cluster:
+  all embedded PostgreSQL migrations applied in four rolled-back schemas; existing
+  upgrade/idempotence checks passed. Complete database test package passed on
+  2026-11-16; no test schemas remained and the temporary cluster was stopped/removed.
 - [x] Read-only BlueStacks acceptance after deployment: list/detail reload, Rename dialog
   and cancel, NDVI refresh and server-returned no-baseline state for an old activity
 - [ ] Full write-flow acceptance: name/save, photo upload/retry/reopen and automatic
-  NDVI capture for a new planting activity; no production test accounts, test data
-  or automated login were used.
+  NDVI capture for a new planting activity. One clearly labelled test activity and
+  one synthetic fixture photo were explicitly approved on 2026-11-16. Emulator
+  control timed out and lost its visible target window before submission. Reconnecting
+  found a new emulator instance, but screenshots still timed out, preventing safe
+  coordinate-based interaction. No QA activity/photo or new account was created,
+  and no login was automated.
 
 Automatic reports read subsequent project imagery refreshes; no periodic monitoring
 scheduler or NDVI-derived survival/carbon verification was introduced.
@@ -272,8 +284,10 @@ scheduler or NDVI-derived survival/carbon verification was introduced.
 - **NDVI window center**: `reportingPeriodStart` if set, else activity `createdAt`.
 - **Baseline per plot**: the first `complete`/`partial` observation for a plot is the
   reference; the report shows change of later passes against it. Re-capture is manual.
-- **Live imagery**: shipped sandbox-correct; enabling real numbers in Fly
-  (`SATELLITE_MODE=live` + worker URL/token) is a separate, explicitly-approved step.
+- **Live imagery**: explicitly approved and activated on Fly v32 on 2026-11-16.
+  `SATELLITE_PROVIDER=opendata-s2` selects the real worker-backed provider;
+  `SATELLITE_MODE=live` is also enabled. Worker URL/token remain configured without
+  disclosure. Actual observation provenance, not health alone, determines its label.
 - **Storage target**: activity evidence on the same filesystem store as monitoring
   evidence (`evidence/store.go`), activity-scoped key prefix. The Fly app has no
   persistent volume; adding one was explicitly declined on 2026-11-16. Metadata
