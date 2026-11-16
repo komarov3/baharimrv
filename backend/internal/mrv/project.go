@@ -477,7 +477,7 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 		Project: DashboardProject{
 			ID: project.ID, Name: project.Name, SiteCount: len(sites),
 			CommunityGroup: project.CommunityGroup, Species: project.Species, ConservationType: project.ConservationType,
-			Methodology: fmt.Sprintf("%s v%s", methodology.Code, methodology.Version),
+			Methodology:   fmt.Sprintf("%s v%s", methodology.Code, methodology.Version),
 			MethodologyID: project.MethodologyID, Status: project.Status,
 			CommunityShareBPS: project.CommunityShareBPS, Boundary: json.RawMessage(project.Boundary),
 		},
@@ -1487,10 +1487,22 @@ type ActivityInput struct {
 	ProjectID            string         `json:"projectId"`
 	PlotID               string         `json:"plotId"`
 	ActivityType         string         `json:"activityType"`
+	Title                string         `json:"title"`
 	MethodologyVersion   string         `json:"methodologyVersion"`
 	ReportingPeriodStart *time.Time     `json:"reportingPeriodStart"`
 	ReportingPeriodEnd   *time.Time     `json:"reportingPeriodEnd"`
 	Measurements         map[string]any `json:"measurements"`
+}
+
+// maxActivityTitle keeps a manager-supplied name to one readable line.
+const maxActivityTitle = 120
+
+func normalizeActivityTitle(value string) (string, error) {
+	title := strings.TrimSpace(value)
+	if len([]rune(title)) > maxActivityTitle {
+		return "", domain.Invalid("the activity name is limited to %d characters", maxActivityTitle)
+	}
+	return title, nil
 }
 
 // UnmarshalJSON accepts reporting periods as either full RFC3339 timestamps or
@@ -1500,6 +1512,7 @@ func (i *ActivityInput) UnmarshalJSON(data []byte) error {
 		ProjectID            string         `json:"projectId"`
 		PlotID               string         `json:"plotId"`
 		ActivityType         string         `json:"activityType"`
+		Title                string         `json:"title"`
 		MethodologyVersion   string         `json:"methodologyVersion"`
 		ReportingPeriodStart *string        `json:"reportingPeriodStart"`
 		ReportingPeriodEnd   *string        `json:"reportingPeriodEnd"`
@@ -1512,6 +1525,7 @@ func (i *ActivityInput) UnmarshalJSON(data []byte) error {
 	i.ProjectID = r.ProjectID
 	i.PlotID = r.PlotID
 	i.ActivityType = r.ActivityType
+	i.Title = r.Title
 	i.MethodologyVersion = r.MethodologyVersion
 	i.Measurements = r.Measurements
 	if r.ReportingPeriodStart != nil && strings.TrimSpace(*r.ReportingPeriodStart) != "" {
@@ -1557,6 +1571,9 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	if err := s.AssertProjectAccess(userID, input.ProjectID); err != nil {
 		return models.ConservationActivity{}, err
 	}
+	if err := s.assertProjectWritable(input.ProjectID); err != nil {
+		return models.ConservationActivity{}, err
+	}
 	var user models.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		return models.ConservationActivity{}, ErrForbidden
@@ -1578,6 +1595,10 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	if input.ActivityType == "" || input.MethodologyVersion == "" {
 		return models.ConservationActivity{}, domain.Invalid("activity type and methodology version are required")
 	}
+	title, err := normalizeActivityTitle(input.Title)
+	if err != nil {
+		return models.ConservationActivity{}, err
+	}
 	now := s.now().UTC()
 	// Default reporting period: past 90 days if not supplied
 	start := now.AddDate(0, -3, 0)
@@ -1594,7 +1615,7 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	}
 	activity := models.ConservationActivity{
 		ID: uuid.NewString(), ProjectID: project.ID, PlotID: plot.ID, ManagerID: project.ManagerID,
-		ActivityType: input.ActivityType, Status: models.ActivityDraft,
+		ActivityType: input.ActivityType, Title: title, Status: models.ActivityDraft,
 		ReportingPeriodStart: start, ReportingPeriodEnd: end,
 		MethodologyVersion: input.MethodologyVersion, Measurements: marshalMeasurements(input.Measurements),
 		CreatedAt: now, UpdatedAt: now,
@@ -1602,8 +1623,22 @@ func (s *Service) CreateActivity(userID string, input ActivityInput) (models.Con
 	if activity.ManagerID == "" {
 		return activity, errors.New("the project manager is unavailable")
 	}
-	if err := s.db.Create(&activity).Error; err != nil {
-		return activity, err
-	}
-	return activity, nil
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&activity).Error; err != nil {
+			return err
+		}
+		if activity.ActivityType != "planting" {
+			return nil
+		}
+		center := now
+		if input.ReportingPeriodStart != nil {
+			center = input.ReportingPeriodStart.UTC()
+		}
+		request, err := satellite.NewActivityNdviRequest(activity, plot, center, userID)
+		if err != nil {
+			return err
+		}
+		return tx.Create(&request).Error
+	})
+	return activity, err
 }

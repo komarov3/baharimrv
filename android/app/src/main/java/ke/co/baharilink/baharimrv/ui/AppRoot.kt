@@ -155,7 +155,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val compact = maxWidth < 600.dp
         Row(Modifier.fillMaxSize()) {
-            if (!compact) {
+            if (!compact && currentRoute != Routes.PLANTING_CREATE) {
                 AppNavigationRail(navController, currentRoute)
             }
             Scaffold(
@@ -171,7 +171,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                     }
                 },
                 bottomBar = {
-                    if (compact) AppNavigationBar(navController, currentRoute)
+                    if (compact && currentRoute != Routes.PLANTING_CREATE) AppNavigationBar(navController, currentRoute)
                 },
             ) { padding ->
                 NavHost(
@@ -210,6 +210,7 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                     bahariScreen(Routes.PLANTING_CREATE) {
                         PlantingActivityScreen(
                             onBack = { navController.popBackStack() },
+                            onOpenActivity = { navController.navigate(Routes.plantingDetail(it)) },
                             projectId = selection,
                         )
                     }

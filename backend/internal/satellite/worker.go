@@ -70,6 +70,20 @@ func (p *OpenDataStacProvider) BaselineObservation(ctx context.Context, aoi AOI,
 	return p.observe(ctx, aoi, window, p.now().UTC().AddDate(baselineLookbackYears, 0, 0))
 }
 
+// ObservationWindow searches the caller's dated window, independent of the clock.
+func (p *OpenDataStacProvider) ObservationWindow(ctx context.Context, aoi AOI, start, end time.Time) (SceneStats, error) {
+	if !end.After(start) {
+		return SceneStats{}, errors.New("observation window end must be after start")
+	}
+	scene, err := p.observe(ctx, aoi, end.Sub(start), end)
+	// Keep the requested period even when no scene can be found or measured.
+	// Cloud ceilings, when available, still come from the worker's search.
+	scene.Window.Start = start
+	scene.Window.End = end
+	scene.Window.Days = windowDays(end.Sub(start))
+	return scene, err
+}
+
 // observe runs the two calls one figure needs: choose the granule, which includes the
 // coverage screen because that screen is a pixel read, then measure the cells on it.
 //

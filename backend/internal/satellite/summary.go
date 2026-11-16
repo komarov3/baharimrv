@@ -52,6 +52,7 @@ type summaryPayload struct {
 	FramingBBox      []float64       `json:"framing_bbox"`
 	WeightByArea     bool            `json:"weight_by_area"`
 
+	Cells    []Cell      `json:"cells"`
 	Current  SceneStats  `json:"current"`
 	Baseline *SceneStats `json:"baseline"`
 
@@ -112,6 +113,7 @@ func (s *Service) ComputeProjectSummary(ctx context.Context, projectID string, w
 		AnalysisGeometry:   aoi.AnalysisGeom,
 		FramingBBox:        aoi.FramingBBox,
 		WeightByArea:       true,
+		Cells:              aoi.Cells,
 		Current:            current,
 		Baseline:           baseline,
 		MeanNDVI:           current.MeanNDVI,

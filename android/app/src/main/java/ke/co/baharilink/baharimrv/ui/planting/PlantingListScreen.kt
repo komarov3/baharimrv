@@ -225,7 +225,8 @@ private fun ActivityCard(activity: ProjectActivityDto, onClick: () -> Unit) {
                 }
 
                 Text(
-                    text = activity.activityType.replaceFirstChar { it.uppercase() },
+                    text = activity.title?.takeIf { it.isNotBlank() }
+                        ?: activity.activityType.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

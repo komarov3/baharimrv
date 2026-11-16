@@ -36,6 +36,11 @@ func (p *stubProvider) BaselineObservation(_ context.Context, _ AOI, _ time.Dura
 	return p.baseline, p.baselineErr
 }
 
+func (p *stubProvider) ObservationWindow(_ context.Context, _ AOI, _, _ time.Time) (SceneStats, error) {
+	p.reads++
+	return p.baseline, p.baselineErr
+}
+
 func (p *stubProvider) TileSet(_ context.Context, _ AOI, _ SceneStats) (TileSet, error) {
 	return TileSet{}, nil
 }

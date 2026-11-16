@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -57,7 +58,9 @@ data class PendingPhoto(
     val uri: Uri,
     val fileName: String,
     val sizeBytes: Long,
-    val hashStatus: String = "hashed on device",
+    val uploadStatus: String = "Selected, not uploaded",
+    val uploadedId: String? = null,
+    val error: String? = null,
 )
 
 private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -69,6 +72,7 @@ private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 fun PlantingActivityScreen(
     viewModel: PlantingActivityViewModel = hiltViewModel(),
     onBack: () -> Unit,
+    onOpenActivity: (String) -> Unit,
     projectId: String,
 ) {
     val state   by viewModel.state.collectAsStateWithLifecycle()
@@ -83,7 +87,28 @@ fun PlantingActivityScreen(
     var showConditions       by remember { mutableStateOf(false) }
     var showTeamInfo         by remember { mutableStateOf(false) }
     var showPhotoMenu        by remember { mutableStateOf(false) }
-    var pendingPhotos        by remember { mutableStateOf(listOf<PendingPhoto>()) }
+    val pendingPhotos = state.photos
+    val busy = state.creating || state.uploading
+    val hasPendingPhotos = pendingPhotos.any { it.uploadedId == null }
+    var leaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun requestLeave(action: () -> Unit) {
+        if (busy || hasPendingPhotos) leaveAction = action else action()
+    }
+    BackHandler { requestLeave(onBack) }
+    if (leaveAction != null) {
+        AlertDialog(
+            onDismissRequest = { leaveAction = null },
+            title = { Text(if (busy) "Upload in progress" else "Photos not uploaded") },
+            text = { Text(if (busy) "Wait for saving and uploads to finish before leaving this screen."
+                else "Leaving will discard selected photos that have not uploaded. Photos already stored on the activity will remain.") },
+            confirmButton = {
+                TextButton(onClick = { leaveAction = null }) { Text("Stay") }
+            },
+            dismissButton = {
+                if (!busy) TextButton(onClick = { val action = leaveAction; leaveAction = null; action?.invoke() }) { Text("Leave without photos") }
+            },
+        )
+    }
 
     // Extra conditions / team state
     var weatherCondition by remember { mutableStateOf("") }
@@ -111,14 +136,14 @@ fun PlantingActivityScreen(
     // Gallery / file picker
     val galleryPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
-    ) { uri -> uri?.let { pendingPhotos = pendingPhotos + resolvePhotoMeta(it) } }
+    ) { uri -> uri?.let { viewModel.addPhoto(resolvePhotoMeta(it)) } }
 
     // Camera capture
     val cameraPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { captured ->
         if (captured) {
-            cameraUri?.let { uri -> pendingPhotos = pendingPhotos + resolvePhotoMeta(uri) }
+            cameraUri?.let { uri -> viewModel.addPhoto(resolvePhotoMeta(uri)) }
         }
     }
 
@@ -217,7 +242,7 @@ fun PlantingActivityScreen(
             TopAppBar(
                 title = { Text("New Planting Activity") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { requestLeave(onBack) }) {
                         Icon(Icons.Default.ArrowBack, "Back")
                     }
                 },
@@ -261,7 +286,7 @@ fun PlantingActivityScreen(
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "Photo hashes anchor to CreditMRV contract on sync · signed by Blue ID",
+                                "Activity photos are stored separately from signed monitoring records. Uploading does not attest or anchor them.",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
@@ -269,10 +294,22 @@ fun PlantingActivityScreen(
                 }
             }
 
+            item { ActivityNdviSection(activityId = state.createdActivityId, canRecapture = state.createdActivityId != null) }
+
+            if (state.createdActivityId == null) {
             // ── Core Information ──────────────────────────────────────────
             item {
                 BahariCard {
                     Text("Core Information", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    OutlinedTextField(
+                        value = state.title,
+                        onValueChange = viewModel::setTitle,
+                        label = { Text("Activity name (optional)") },
+                        supportingText = { Text("Up to 120 characters. Leave blank to use the activity type.") },
+                        isError = state.title.codePointCount(0, state.title.length) > 120,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(12.dp))
 
                     // ── Project selector ─────────────────────────────────
@@ -491,16 +528,18 @@ fun PlantingActivityScreen(
                 }
             }
 
+            }
+
             // ── Photo evidence ────────────────────────────────────────────
             item {
                 BahariCard {
                     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
-                            Text("Geo-tagged photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text("IPFS-hashed · tamper-proof audit evidence · signed by Blue ID", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Activity photos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Manager uploads, not attested or anchored. JPEG, PNG or GIF; 5 MB each, up to 10 photos.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (pendingPhotos.isNotEmpty()) {
-                            StatusChip("${pendingPhotos.size} taken", tone = ChipTone.POSITIVE)
+                            StatusChip("${pendingPhotos.count { it.uploadedId != null }} stored", tone = ChipTone.NEUTRAL)
                         }
                     }
 
@@ -510,6 +549,7 @@ fun PlantingActivityScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { launchCamera() },
+                            enabled = !busy && pendingPhotos.size < 10,
                             modifier = Modifier.weight(1f).height(48.dp),
                         ) {
                             Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
@@ -518,6 +558,7 @@ fun PlantingActivityScreen(
                         }
                         OutlinedButton(
                             onClick = { galleryPicker.launch("image/*") },
+                            enabled = !busy && pendingPhotos.size < 10,
                             modifier = Modifier.weight(1f).height(48.dp),
                         ) {
                             Icon(Icons.Default.PhotoLibrary, null, modifier = Modifier.size(18.dp))
@@ -529,7 +570,7 @@ fun PlantingActivityScreen(
                     // Photo list
                     if (pendingPhotos.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        pendingPhotos.forEachIndexed { idx, photo ->
+                        pendingPhotos.forEach { photo ->
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -538,17 +579,18 @@ fun PlantingActivityScreen(
                                 Icon(Icons.Default.Image, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(photo.fileName, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text("photo · ${photo.hashStatus}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                                    Text(photo.uploadStatus, style = MaterialTheme.typography.bodySmall)
+                                    photo.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                                 }
-                                IconButton(onClick = {
-                                    pendingPhotos = pendingPhotos.toMutableList().also { it.removeAt(idx) }
+                                IconButton(enabled = !state.uploading && !state.creating && photo.uploadedId == null, onClick = {
+                                    viewModel.removePhoto(photo)
                                 }) {
                                     Icon(Icons.Default.Delete, "Remove", modifier = Modifier.size(16.dp))
                                 }
                             }
                         }
                         Text(
-                            "${pendingPhotos.size} photo(s) · SHA-256 hashed on device · will upload to IPFS on sync",
+                            "${pendingPhotos.count { it.uploadedId != null }} of ${pendingPhotos.size} stored. Keep this screen open until uploads finish.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -556,6 +598,24 @@ fun PlantingActivityScreen(
                 }
             }
 
+            if (state.createdActivityId != null) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (hasPendingPhotos || state.uploading) {
+                            Button(onClick = viewModel::retryPhotos, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                                Text(if (state.uploading) "Uploading photos…" else "Upload remaining photos")
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { requestLeave { onOpenActivity(state.createdActivityId!!) } },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("View activity report") }
+                    }
+                }
+            }
+
+            if (state.createdActivityId == null) {
             // ── Methodology dropdown ──────────────────────────────────────
             item {
                 var methodExpanded by remember { mutableStateOf(false) }
@@ -802,7 +862,6 @@ fun PlantingActivityScreen(
                                 "teamLead" to teamLead,
                                 "teamSize" to teamSize,
                                 "volunteers" to volunteers,
-                                "photoCount" to pendingPhotos.size.toString(),
                             ),
                         )
                     },
@@ -812,8 +871,8 @@ fun PlantingActivityScreen(
                               state.species.isNotBlank() &&
                               state.methodologyVersion.isNotBlank() &&
                               state.seedlingsPlanted.isNotBlank() &&
-                              !state.creating &&
-                              !state.anchoring,
+                              state.title.codePointCount(0, state.title.length) <= 120 &&
+                              !busy && state.createdActivityId == null,
                 ) {
                     Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                         when {
@@ -823,6 +882,8 @@ fun PlantingActivityScreen(
                         }
                     }
                 }
+            }
+
             }
 
             // ── Feedback ──────────────────────────────────────────────────

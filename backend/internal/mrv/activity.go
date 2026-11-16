@@ -128,6 +128,30 @@ func (s *Service) Activity(activityID string) (models.ConservationActivity, mode
 	return activity, project, nil
 }
 
+// Titles are display labels, not part of a signed monitoring record.
+func (s *Service) UpdateActivityTitle(activityID, userID, title string) (models.ConservationActivity, error) {
+	activity, project, err := s.Activity(activityID)
+	if err != nil {
+		return activity, err
+	}
+	if err := s.AssertProjectManager(userID, project.ID); err != nil {
+		return activity, err
+	}
+	if err := s.assertProjectWritable(project.ID); err != nil {
+		return activity, err
+	}
+	name, err := normalizeActivityTitle(title)
+	if err != nil {
+		return activity, err
+	}
+	activity.Title = name
+	// UpdatedAt is used as the capture timestamp in signed MRV links.
+	if err := s.db.Model(&activity).UpdateColumn("title", name).Error; err != nil {
+		return activity, err
+	}
+	return activity, nil
+}
+
 // Complete records the project manager's signed completion claim. The claim is
 // anchored as achieved_unverified: it proves the claim existed, not that it is
 // independently valid.

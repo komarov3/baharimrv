@@ -210,25 +210,25 @@ type Methodology struct {
 }
 
 type ConservationProject struct {
-	ID                string    `gorm:"type:uuid;primaryKey" json:"id"`
-	Name              string    `gorm:"not null" json:"name"`
-	ManagerID         string    `gorm:"type:uuid;index;not null" json:"managerId"`
-	MethodologyID     string    `gorm:"type:uuid;index;not null" json:"methodologyId"`
-	Status            string    `gorm:"not null" json:"status"`
-	CommunityGroup    string    `gorm:"column:community_group;not null;default:''" json:"communityGroup"`
-	Species           string    `gorm:"not null;default:''" json:"species"`
-	ConservationType  string    `gorm:"column:conservation_type;not null;default:'mangrove'" json:"conservationType"`
-	CommunityShareBPS int       `gorm:"column:community_share_bps;not null" json:"communityShareBasisPoints"`
-	SandboxDemo       bool      `gorm:"not null;default:false" json:"sandboxDemo"`
-	JahaziEnabled     bool      `gorm:"column:jahazi_enabled;not null;default:false" json:"jahaziEnabled"`
-	JahaziProjectID   string    `gorm:"column:jahazi_project_id;index" json:"jahaziProjectId,omitempty"`
-	LedgerObjectID    string    `gorm:"column:ledger_object_id" json:"ledgerObjectId,omitempty"`
+	ID                string `gorm:"type:uuid;primaryKey" json:"id"`
+	Name              string `gorm:"not null" json:"name"`
+	ManagerID         string `gorm:"type:uuid;index;not null" json:"managerId"`
+	MethodologyID     string `gorm:"type:uuid;index;not null" json:"methodologyId"`
+	Status            string `gorm:"not null" json:"status"`
+	CommunityGroup    string `gorm:"column:community_group;not null;default:''" json:"communityGroup"`
+	Species           string `gorm:"not null;default:''" json:"species"`
+	ConservationType  string `gorm:"column:conservation_type;not null;default:'mangrove'" json:"conservationType"`
+	CommunityShareBPS int    `gorm:"column:community_share_bps;not null" json:"communityShareBasisPoints"`
+	SandboxDemo       bool   `gorm:"not null;default:false" json:"sandboxDemo"`
+	JahaziEnabled     bool   `gorm:"column:jahazi_enabled;not null;default:false" json:"jahaziEnabled"`
+	JahaziProjectID   string `gorm:"column:jahazi_project_id;index" json:"jahaziProjectId,omitempty"`
+	LedgerObjectID    string `gorm:"column:ledger_object_id" json:"ledgerObjectId,omitempty"`
 	// Boundary is the project's surveyed outline as a GeoJSON Polygon in EPSG:4326. When
 	// present, a plot's centroid must fall inside it. It is optional: a project without
 	// one places no containment restriction on its plots.
-	Boundary          datatypes.JSON `gorm:"type:jsonb" json:"boundary,omitempty"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	Boundary  datatypes.JSON `gorm:"type:jsonb" json:"boundary,omitempty"`
+	CreatedAt time.Time      `json:"createdAt"`
+	UpdatedAt time.Time      `json:"updatedAt"`
 }
 
 type Site struct {
@@ -264,6 +264,7 @@ type ConservationActivity struct {
 	PlotID               string         `gorm:"type:uuid;index;not null" json:"plotId"`
 	ManagerID            string         `gorm:"type:uuid;index;not null" json:"managerId"`
 	ActivityType         string         `gorm:"not null" json:"activityType"`
+	Title                string         `gorm:"column:title;not null;default:''" json:"title"`
 	Status               string         `gorm:"not null;index" json:"status"`
 	ReportingPeriodStart time.Time      `json:"reportingPeriodStart"`
 	ReportingPeriodEnd   time.Time      `json:"reportingPeriodEnd"`
@@ -318,9 +319,51 @@ type EvidenceObject struct {
 	CreatedAt          time.Time `json:"createdAt"`
 }
 
+type ActivityEvidence struct {
+	ID         string     `gorm:"type:uuid;primaryKey" json:"id"`
+	ActivityID string     `gorm:"type:uuid;not null;index" json:"activityId"`
+	Kind       string     `gorm:"not null" json:"kind"`
+	StorageURI string     `gorm:"not null" json:"-"`
+	SHA256     string     `gorm:"column:sha256;not null" json:"sha256"`
+	MediaType  string     `gorm:"not null" json:"mediaType"`
+	SizeBytes  int64      `gorm:"not null" json:"sizeBytes"`
+	CapturedAt *time.Time `json:"capturedAt,omitempty"`
+	CreatedAt  time.Time  `json:"createdAt"`
+}
+
+func (ActivityEvidence) TableName() string { return "activity_evidence" }
+
+const (
+	ActivityNdviWaiting  = "waiting"
+	ActivityNdviQueued   = "queued"
+	ActivityNdviComplete = "complete"
+)
+
+// ActivityNdviRequest keeps the captured planting geometry durable until the shared
+// project refresh quota admits its baseline computation.
+type ActivityNdviRequest struct {
+	ActivityID    string         `gorm:"type:uuid;primaryKey;index:idx_activity_ndvi_requests_waiting,priority:3" json:"activityId"`
+	ProjectID     string         `gorm:"type:uuid;not null;index" json:"projectId"`
+	PlotID        string         `gorm:"type:uuid;not null" json:"plotId"`
+	CenterAt      time.Time      `gorm:"not null" json:"centerAt"`
+	AOI           datatypes.JSON `gorm:"type:jsonb;not null" json:"aoi"`
+	GeometryHash  string         `gorm:"type:text;not null" json:"geometryHash"`
+	Status        string         `gorm:"type:text;not null;default:'waiting';index:idx_activity_ndvi_requests_waiting,priority:1" json:"status"`
+	JobID         string         `gorm:"type:text;not null;default:'';uniqueIndex:idx_activity_ndvi_requests_job,where:job_id <> ''" json:"jobId,omitempty"`
+	ObservationID string         `gorm:"type:text;not null;default:''" json:"observationId,omitempty"`
+	RequestedBy   string         `gorm:"type:text;not null;default:''" json:"requestedBy,omitempty"`
+	CreatedAt     time.Time      `gorm:"index:idx_activity_ndvi_requests_waiting,priority:2" json:"createdAt"`
+	UpdatedAt     time.Time      `json:"updatedAt"`
+}
+
+func (ActivityNdviRequest) TableName() string { return "activity_ndvi_requests" }
+
 type SatelliteObservation struct {
 	ID                string         `gorm:"type:uuid;primaryKey" json:"id"`
 	ActivityID        string         `gorm:"type:uuid;index;not null" json:"activityId"`
+	Purpose           string         `gorm:"type:text;not null;default:'corroboration';index:idx_satellite_observations_geometry,priority:1" json:"purpose"`
+	PlotID            string         `gorm:"type:text;default:'';index:idx_satellite_observations_geometry,priority:2" json:"plotId,omitempty"`
+	GeometryHash      string         `gorm:"type:text;default:'';index:idx_satellite_observations_geometry,priority:3" json:"geometryHash,omitempty"`
 	AdapterMode       string         `gorm:"not null" json:"adapterMode"`
 	Status            string         `gorm:"not null" json:"status"`
 	SceneID           string         `json:"sceneId,omitempty"`
@@ -617,8 +660,8 @@ type ProjectNdviSummary struct {
 	// TileMinZoom and TileMaxZoom are the range the worker painted for this row. They
 	// are nil when no render ran (sandbox, no plots, or the worker refused), so a tile
 	// proxy that reads nil answers 410 instead of guessing a range.
-	TileMinZoom *int `json:"tileMinZoom,omitempty"`
-	TileMaxZoom *int `json:"tileMaxZoom,omitempty"`
+	TileMinZoom *int      `json:"tileMinZoom,omitempty"`
+	TileMaxZoom *int      `json:"tileMaxZoom,omitempty"`
 	ComputedAt  time.Time `gorm:"not null" json:"computedAt"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
@@ -627,17 +670,19 @@ type ProjectNdviSummary struct {
 // the one-open-job-per-project rule, so a restart cannot strand a project with a
 // running job nothing will ever finish.
 type SatelliteRefreshJob struct {
-	ID          string     `gorm:"type:uuid;primaryKey" json:"id"`
-	ProjectID   string     `gorm:"type:uuid;not null" json:"projectId"`
-	Status      string     `gorm:"type:text;not null;index" json:"status"`
-	RequestedBy string     `gorm:"type:text;not null;default:''" json:"requestedBy,omitempty"`
-	Reason      string     `gorm:"type:text;not null;default:''" json:"reason,omitempty"`
-	Error       string     `gorm:"type:text;not null;default:''" json:"error,omitempty"`
-	SummaryID   string     `gorm:"type:text;not null;default:''" json:"summaryId,omitempty"`
-	StartedAt   *time.Time `json:"startedAt,omitempty"`
-	FinishedAt  *time.Time `json:"finishedAt,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
+	ID            string     `gorm:"type:uuid;primaryKey" json:"id"`
+	ProjectID     string     `gorm:"type:uuid;not null" json:"projectId"`
+	Status        string     `gorm:"type:text;not null;index" json:"status"`
+	RequestedBy   string     `gorm:"type:text;not null;default:''" json:"requestedBy,omitempty"`
+	Reason        string     `gorm:"type:text;not null;default:''" json:"reason,omitempty"`
+	Error         string     `gorm:"type:text;not null;default:''" json:"error,omitempty"`
+	SummaryID     string     `gorm:"type:text;not null;default:''" json:"summaryId,omitempty"`
+	ActivityID    string     `gorm:"type:text;default:''" json:"activityId,omitempty"`
+	ObservationID string     `gorm:"type:text;default:''" json:"observationId,omitempty"`
+	StartedAt     *time.Time `json:"startedAt,omitempty"`
+	FinishedAt    *time.Time `json:"finishedAt,omitempty"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	UpdatedAt     time.Time  `json:"updatedAt"`
 }
 
 type FinancialImport struct {

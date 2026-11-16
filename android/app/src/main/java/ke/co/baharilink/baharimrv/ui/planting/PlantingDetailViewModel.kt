@@ -12,19 +12,30 @@ import ke.co.baharilink.baharimrv.data.remote.ActivityDetailDto
 import ke.co.baharilink.baharimrv.data.repository.ProjectRepository
 import ke.co.baharilink.baharimrv.ui.components.LoadState
 import ke.co.baharilink.baharimrv.ui.components.readableMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class PlantingPhotoRef(
+    val evidenceId: String,
+    // null identifies monitoring evidence; manager uploads use the activity proxy.
+    val activityId: String? = null,
+)
+
 data class PlantingDetailUiState(
     // null = not yet requested; Loading = in flight; Success/Error = done
     val detail: LoadState<ActivityDetailDto>? = null,
-    // decoded evidence photo; null until the detail resolves with at least one
-    // evidence object, then Loading while the bytes stream and decode.
+    // Keep the source with the image so a new selection cannot show the old photo.
+    val imageRef: PlantingPhotoRef? = null,
     val image: LoadState<ImageBitmap>? = null,
+    val renaming: Boolean = false,
+    val renameError: String? = null,
 )
 
 @HiltViewModel
@@ -33,6 +44,24 @@ class PlantingDetailViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(PlantingDetailUiState())
     val state = _state.asStateFlow()
+    private var imageJob: Job? = null
+
+    fun rename(activityId: String, title: String, onSuccess: () -> Unit) {
+        if (_state.value.renaming) return
+        _state.update { it.copy(renaming = true, renameError = null) }
+        viewModelScope.launch {
+            try {
+                val result = repository.updateActivityTitle(activityId, title)
+                _state.update {
+                    val current = (it.detail as? LoadState.Success)?.data
+                    it.copy(renaming = false, detail = current?.let { dto -> LoadState.Success(dto.copy(title = result.title)) } ?: it.detail)
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                _state.update { it.copy(renaming = false, renameError = e.readableMessage()) }
+            }
+        }
+    }
 
     fun load(activityId: String) {
         _state.update { it.copy(detail = LoadState.Loading) }
@@ -52,24 +81,38 @@ class PlantingDetailViewModel @Inject constructor(
      * Decoding runs on Dispatchers.IO and is downsampled so a large field photo never
      * decodes every pixel and risks an out-of-memory crash on a phone.
      */
-    fun loadImage(evidenceId: String) {
-        _state.update { it.copy(image = LoadState.Loading) }
-        viewModelScope.launch {
+    fun loadImage(evidenceId: String, activityId: String? = null) {
+        imageJob?.cancel()
+        _state.update { it.copy(imageRef = PlantingPhotoRef(evidenceId, activityId), image = LoadState.Loading) }
+        imageJob = viewModelScope.launch {
             try {
                 val bitmap = withContext(Dispatchers.IO) {
-                    val body = repository.evidenceMedia(evidenceId)
+                    val body = if (activityId == null) repository.evidenceMedia(evidenceId)
+                        else repository.activityEvidenceMedia(activityId, evidenceId)
                     val bytes = body.use { it.bytes() }
+                    coroutineContext.ensureActive()
                     decodeSampled(bytes)
                 }
+                coroutineContext.ensureActive()
                 if (bitmap == null) {
                     _state.update { it.copy(image = LoadState.Error("Could not decode the evidence image.")) }
                 } else {
                     _state.update { it.copy(image = LoadState.Success(bitmap.asImageBitmap())) }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                // A cancelled blocking read may fail with an I/O exception instead.
+                coroutineContext.ensureActive()
                 _state.update { it.copy(image = LoadState.Error(e.readableMessage())) }
             }
         }
+    }
+
+    fun clearImage() {
+        imageJob?.cancel()
+        imageJob = null
+        _state.update { it.copy(imageRef = null, image = null) }
     }
 
     private fun decodeSampled(bytes: ByteArray): Bitmap? {

@@ -240,6 +240,7 @@ data class CreateActivityRequestDto(
     val plotId: String,
     val activityType: String,
     val methodologyVersion: String,
+    val title: String? = null,
     val reportingPeriodStart: String? = null,
     val reportingPeriodEnd: String? = null,
     val measurements: Map<String, String>? = null,
@@ -837,6 +838,7 @@ data class ProjectActivityDto(
     val plotId: String,
     val activityType: String,
     val status: String,
+    val title: String? = null,
     val periodStart: String? = null,
     val periodEnd: String? = null,
     val methodologyVersion: String? = null,
@@ -930,15 +932,93 @@ data class ActivityDetailDto(
     val plotId: String,
     val activityType: String,
     val status: String,
+    val title: String? = null,
     val methodologyVersion: String? = null,
     val periodStart: String? = null,
     val periodEnd: String? = null,
+    val canManage: Boolean = false,
+    val activityEvidence: List<ActivityEvidenceDto>? = null,
+    val ndvi: ActivityNdviDto? = null,
     val record: MonitoringRecordViewDto? = null,
     val provenance: ProvViewDto? = null,
     val measurements: Map<String, String>? = null,
 )
 
+data class ActivityEvidenceDto(
+    val id: String,
+    val activityId: String,
+    val kind: String,
+    val sha256: String,
+    val mediaType: String,
+    val sizeBytes: Long,
+    val createdAt: String,
+    val capturedAt: String? = null,
+)
+
+data class ActivityEvidenceResponse(val items: List<ActivityEvidenceDto> = emptyList())
+
+data class ActivityNdviReadingDto(
+    val id: String,
+    val sourceActivityId: String? = null,
+    val meanNdvi: Double? = null,
+    val acquiredAt: String? = null,
+    val sceneId: String? = null,
+    val cloudPct: Double? = null,
+    val coveragePct: Double? = null,
+    val quality: String,
+    val adapterMode: String,
+    val provider: String,
+    val processingVersion: String,
+    val resultHash: String,
+)
+
+data class ActivityNdviDto(
+    val status: String,
+    val jobId: String? = null,
+    val error: String? = null,
+    val centerAt: String? = null,
+    val windowStart: String? = null,
+    val windowEnd: String? = null,
+    val observation: ActivityNdviReadingDto? = null,
+    val baseline: ActivityNdviReadingDto? = null,
+    val latestPass: ActivityNdviReadingDto? = null,
+    val changeAbs: Double? = null,
+    val changePct: Double? = null,
+)
+
+data class ActivityTitleRequest(val title: String)
+data class ActivityTitleResponse(val id: String, val title: String)
+
 interface BahariMrvApi {
+    @GET("api/v1/activities/{id}/ndvi")
+    suspend fun activityNdvi(@Path("id") activityId: String): ActivityNdviDto
+
+    @POST("api/v1/activities/{id}/ndvi/recapture")
+    suspend fun recaptureActivityNdvi(@Path("id") activityId: String): ActivityNdviDto
+
+    @Multipart
+    @POST("api/v1/activities/{id}/evidence")
+    suspend fun uploadActivityEvidence(
+        @Path("id") activityId: String,
+        @Part file: MultipartBody.Part,
+        @Part("kind") kind: RequestBody,
+        @Part("sha256") sha256: RequestBody,
+        @Part("mediaType") mediaType: RequestBody,
+    ): ActivityEvidenceDto
+
+    @GET("api/v1/activities/{id}/evidence")
+    suspend fun activityEvidence(@Path("id") activityId: String): ActivityEvidenceResponse
+
+    @Streaming
+    @GET("api/v1/activities/{id}/evidence/{evidenceId}")
+    suspend fun activityEvidenceMedia(@Path("id") activityId: String, @Path("evidenceId") evidenceId: String): ResponseBody
+
+    @PATCH("api/v1/activities/{id}")
+    suspend fun updateActivityTitle(
+        @Path("id") activityId: String,
+        @Body request: ActivityTitleRequest,
+    ): ActivityTitleResponse
+
     @GET("api/v1/health")
     suspend fun health(): HealthDto
 

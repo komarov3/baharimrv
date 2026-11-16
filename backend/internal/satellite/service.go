@@ -96,7 +96,7 @@ func (s *Service) Mode() string { return s.mode }
 // Latest returns the most recent corroboration for an activity, if any.
 func (s *Service) Latest(activityID string) (Summary, bool) {
 	var observation models.SatelliteObservation
-	if err := s.db.Where("activity_id = ?", activityID).Order("created_at desc").First(&observation).Error; err != nil {
+	if err := s.db.Where("activity_id = ? AND purpose = ?", activityID, "corroboration").Order("created_at desc").First(&observation).Error; err != nil {
 		return Summary{}, false
 	}
 	return toSummary(observation), true
@@ -144,7 +144,7 @@ func (s *Service) AttachSandbox(activity models.ConservationActivity, baselineND
 // Summaries lists every corroboration attached to an activity.
 func (s *Service) Summaries(activityID string) ([]Summary, error) {
 	var observations []models.SatelliteObservation
-	if err := s.db.Where("activity_id = ?", activityID).Order("created_at asc").Find(&observations).Error; err != nil {
+	if err := s.db.Where("activity_id = ? AND purpose = ?", activityID, "corroboration").Order("created_at asc").Find(&observations).Error; err != nil {
 		return nil, err
 	}
 	summaries := make([]Summary, 0, len(observations))

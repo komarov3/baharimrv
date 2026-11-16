@@ -349,6 +349,10 @@ func (r *renderStub) BaselineObservation(ctx context.Context, aoi AOI, w time.Du
 	return r.inner.BaselineObservation(ctx, aoi, w)
 }
 
+func (r *renderStub) ObservationWindow(ctx context.Context, aoi AOI, start, end time.Time) (SceneStats, error) {
+	return r.inner.ObservationWindow(ctx, aoi, start, end)
+}
+
 func (r *renderStub) TileSet(_ context.Context, _ AOI, _ SceneStats) (TileSet, error) {
 	return r.tileSet, nil
 }

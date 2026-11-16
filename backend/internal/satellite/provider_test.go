@@ -289,6 +289,96 @@ func TestBaselineObservationLooksBackOneYear(t *testing.T) {
 	}
 }
 
+func TestObservationWindowSearchesAroundHistoricalPlanting(t *testing.T) {
+	planting := time.Date(2022, 3, 9, 8, 30, 0, 0, time.FixedZone("EAT", 3*60*60))
+	start, end := planting.Add(-15*24*time.Hour), planting.Add(15*24*time.Hour)
+	sceneFixture := fixture(t, "scene.json")
+	sceneFixture["acquired_at"] = planting
+	sceneFixture["window"] = SearchWindow{Start: start, End: end, Days: 30, CloudCeilings: []float64{40, 60}}
+	worker := newFakeWorker(t, map[string]any{
+		"/v1/scene": sceneFixture,
+		"/v1/stats": fixture(t, "stats.json"),
+	})
+
+	scene, err := worker.provider().ObservationWindow(context.Background(), fixtureAOI(), start, end)
+	if err != nil {
+		t.Fatalf("historical planting window: %v", err)
+	}
+	search := worker.call("/v1/scene")
+	if days, _ := search.body["window_days"].(float64); days != 30 {
+		t.Errorf("window_days = %v, want 30", days)
+	}
+	endTime, _ := search.body["end_time"].(string)
+	parsed, err := time.Parse(time.RFC3339, endTime)
+	if err != nil || !parsed.Equal(end) {
+		t.Fatalf("end_time = %q, want planting + 15 days (%s), not now or a year ago", endTime, end)
+	}
+	if !parsed.Add(-30 * 24 * time.Hour).Equal(start) {
+		t.Errorf("search does not start 15 days before planting: %s", start)
+	}
+	if !scene.Window.Start.Equal(start) || !scene.Window.End.Equal(end) || scene.Window.Days != 30 {
+		t.Errorf("window = %+v, want %s .. %s (30 days)", scene.Window, start, end)
+	}
+	if len(scene.Window.CloudCeilings) != 2 || scene.Window.CloudCeilings[0] != 40 || scene.Window.CloudCeilings[1] != 60 {
+		t.Errorf("worker cloud ceilings lost: %+v", scene.Window)
+	}
+	if !scene.AcquiredAt.Equal(planting) || scene.SceneID != fixtureSceneID || scene.AdapterMode != ModeLive {
+		t.Errorf("historical scene provenance lost: %+v", scene)
+	}
+	if got := number(t, scene.MeanNDVI, "mean_ndvi"); got != 0.837 {
+		t.Errorf("mean = %v, want the measured 0.837", got)
+	}
+	worker.call("/v1/stats")
+}
+
+func TestObservationWindowRetainsRequestedPeriodWhenUnavailable(t *testing.T) {
+	start := time.Date(2022, 2, 22, 8, 30, 0, 0, time.UTC)
+	end := start.Add(30 * 24 * time.Hour)
+	for _, path := range []string{"/v1/scene", "/v1/stats"} {
+		t.Run(path, func(t *testing.T) {
+			replies := map[string]any{"/v1/scene": fixture(t, "scene.json")}
+			replies[path] = `{"error":"unavailable","detail":"no usable imagery","notes":[]}`
+			worker := newFakeWorker(t, replies)
+			worker.status[path] = http.StatusNotFound
+
+			scene, err := worker.provider().ObservationWindow(context.Background(), fixtureAOI(), start, end)
+			if err != nil {
+				t.Fatalf("an unavailable window is not a fault: %v", err)
+			}
+			if scene.Quality != QualityUnavailable || scene.Measured() || scene.SceneID != "" || !scene.AcquiredAt.IsZero() {
+				t.Errorf("unavailable result carries imagery: %+v", scene)
+			}
+			if !scene.Window.Start.Equal(start) || !scene.Window.End.Equal(end) || scene.Window.Days != 30 {
+				t.Errorf("window = %+v, want requested %s .. %s (30 days)", scene.Window, start, end)
+			}
+			worker.call(path)
+			if path == "/v1/scene" && worker.count("/v1/stats") != 0 {
+				t.Error("an empty search must not measure a scene")
+			}
+		})
+	}
+}
+
+func TestObservationWindowRejectsNonIncreasingBounds(t *testing.T) {
+	worker := newFakeWorker(t, map[string]any{})
+	for _, provider := range []Provider{worker.provider(), NewSandboxProvider()} {
+		t.Run(provider.Name(), func(t *testing.T) {
+			for _, duration := range []time.Duration{0, -30 * 24 * time.Hour} {
+				scene, err := provider.ObservationWindow(context.Background(), fixtureAOI(), fixtureNow, fixtureNow.Add(duration))
+				if err == nil {
+					t.Errorf("window duration %s accepted: %+v", duration, scene)
+				}
+				if scene.Measured() || scene.SceneID != "" || !scene.AcquiredAt.IsZero() {
+					t.Errorf("invalid window returned imagery: %+v", scene)
+				}
+			}
+		})
+	}
+	if len(worker.calls) != 0 {
+		t.Errorf("invalid windows made %d worker requests", len(worker.calls))
+	}
+}
+
 func TestQualityIsTheWorseOfTheTwoAnswers(t *testing.T) {
 	for _, test := range []struct {
 		name, scene, stats, want string
@@ -405,6 +495,18 @@ func TestUnconfiguredAndCelllessAOIsNeverReachOut(t *testing.T) {
 			}
 			if !strings.Contains(strings.Join(scene.Notes, " "), test.needles) {
 				t.Errorf("notes %q do not name %q", scene.Notes, test.needles)
+			}
+			start := time.Date(2022, 2, 22, 8, 30, 0, 0, time.UTC)
+			end := start.Add(30 * 24 * time.Hour)
+			scene, err = test.worker.ObservationWindow(context.Background(), test.aoi, start, end)
+			if err != nil {
+				t.Fatalf("dated window: %v", err)
+			}
+			if scene.Quality != QualityUnavailable || scene.Measured() {
+				t.Errorf("got %+v, want an unavailable result", scene)
+			}
+			if !scene.Window.Start.Equal(start) || !scene.Window.End.Equal(end) || scene.Window.Days != 30 {
+				t.Errorf("unavailable window = %+v, want requested %s .. %s (30 days)", scene.Window, start, end)
 			}
 		})
 	}
@@ -542,7 +644,19 @@ func TestSandboxProviderIsAlwaysLabelledAndNeverPaints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	for _, scene := range []SceneStats{baseline, latest} {
+	planting := time.Date(2022, 3, 9, 8, 30, 0, 0, time.UTC)
+	start, end := planting.Add(-15*24*time.Hour), planting.Add(15*24*time.Hour)
+	windowed, err := provider.ObservationWindow(context.Background(), aoi, start, end)
+	if err != nil {
+		t.Fatalf("dated sandbox window: %v", err)
+	}
+	if got := number(t, windowed.MeanNDVI, "window mean"); got != 0.64 {
+		t.Errorf("window mean = %v, want the synthetic baseline 0.64", got)
+	}
+	if !windowed.Window.Start.Equal(start) || !windowed.Window.End.Equal(end) || windowed.Window.Days != 30 {
+		t.Errorf("window = %+v, want requested %s .. %s (30 days)", windowed.Window, start, end)
+	}
+	for _, scene := range []SceneStats{baseline, latest, windowed} {
 		if scene.AdapterMode != ModeSandbox || scene.ProviderName != ProviderSandbox {
 			t.Errorf("sandbox result labelled %s/%s", scene.AdapterMode, scene.ProviderName)
 		}
@@ -577,6 +691,21 @@ func TestSandboxProviderIsAlwaysLabelledAndNeverPaints(t *testing.T) {
 	}
 	if tiles.Valid() {
 		t.Errorf("sandbox returned a tile address: %+v", tiles)
+	}
+}
+
+func TestSandboxObservationWindowWithoutCellsRetainsRequestedPeriod(t *testing.T) {
+	start := time.Date(2022, 2, 22, 8, 30, 0, 0, time.UTC)
+	end := start.Add(30 * 24 * time.Hour)
+	scene, err := NewSandboxProvider().ObservationWindow(context.Background(), AOI{}, start, end)
+	if err != nil {
+		t.Fatalf("empty sandbox AOI: %v", err)
+	}
+	if scene.Quality != QualityUnavailable || scene.Measured() || scene.SceneID != "" || !scene.AcquiredAt.IsZero() {
+		t.Errorf("empty sandbox AOI produced imagery: %+v", scene)
+	}
+	if !scene.Window.Start.Equal(start) || !scene.Window.End.Equal(end) || scene.Window.Days != 30 {
+		t.Errorf("window = %+v, want requested %s .. %s (30 days)", scene.Window, start, end)
 	}
 }
 

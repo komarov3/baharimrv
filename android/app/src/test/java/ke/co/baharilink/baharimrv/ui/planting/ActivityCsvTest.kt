@@ -27,6 +27,20 @@ class ActivityCsvTest {
     )
 
     @Test
+    fun nameIsSearchableAndExported() {
+        val named = activity().copy(title = "Long rains, Kilifi")
+        assertTrue(matchesQuery(named, "LONG RAINS"))
+        assertTrue(activitiesToCsv(listOf(named)).contains("\"Long rains, Kilifi\""))
+    }
+
+    @Test
+    fun formulaNamesAreExportedAsText() {
+        listOf("=1+1", "+SUM(A1)", "-1", "@SUM(A1)", "  =1+1", "\t=1+1").forEach {
+            assertTrue(activitiesToCsv(listOf(activity().copy(title = it))).contains("'$it"))
+        }
+    }
+
+    @Test
     fun blankQueryMatchesEverything() {
         assertTrue(matchesQuery(activity(), ""))
         assertTrue(matchesQuery(activity(), "   "))
@@ -54,7 +68,7 @@ class ActivityCsvTest {
         val lines = csv.trim().split("\r\n")
         assertEquals(3, lines.size)
         assertEquals(
-            "Activity ID,Project ID,Plot,Activity Type,Status,Period Start,Period End,Methodology Version",
+            "Activity ID,Project ID,Plot,Activity Type,Activity Name,Status,Period Start,Period End,Methodology Version",
             lines[0],
         )
         assertTrue(lines[1].startsWith("a,proj-1,"))

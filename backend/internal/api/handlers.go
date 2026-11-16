@@ -215,17 +215,21 @@ func (r *router) activityProvenance(c *gin.Context) {
 }
 
 type activityDetailView struct {
-	ID                 string                `json:"id"`
-	ProjectID          string                `json:"projectId"`
-	PlotID             string                `json:"plotId"`
-	ActivityType       string                `json:"activityType"`
-	Status             string                `json:"status"`
-	MethodologyVersion string                `json:"methodologyVersion,omitempty"`
-	PeriodStart        *time.Time            `json:"periodStart,omitempty"`
-	PeriodEnd          *time.Time            `json:"periodEnd,omitempty"`
-	Record             *monitoringRecordView `json:"record,omitempty"`
-	Provenance         *provView             `json:"provenance,omitempty"`
-	Measurements       map[string]any        `json:"measurements,omitempty"`
+	ID                 string                      `json:"id"`
+	ProjectID          string                      `json:"projectId"`
+	PlotID             string                      `json:"plotId"`
+	ActivityType       string                      `json:"activityType"`
+	Title              string                      `json:"title"`
+	CanManage          bool                        `json:"canManage"`
+	ActivityEvidence   []models.ActivityEvidence   `json:"activityEvidence"`
+	NDVI               *satellite.ActivityNdviView `json:"ndvi,omitempty"`
+	Status             string                      `json:"status"`
+	MethodologyVersion string                      `json:"methodologyVersion,omitempty"`
+	PeriodStart        *time.Time                  `json:"periodStart,omitempty"`
+	PeriodEnd          *time.Time                  `json:"periodEnd,omitempty"`
+	Record             *monitoringRecordView       `json:"record,omitempty"`
+	Provenance         *provView                   `json:"provenance,omitempty"`
+	Measurements       map[string]any              `json:"measurements,omitempty"`
 }
 
 type monitoringRecordView struct {
@@ -297,11 +301,26 @@ func (r *router) activityDetail(c *gin.Context) {
 		return
 	}
 
+	photos, err := r.projects.ActivityEvidenceFor(activityID)
+	if err != nil {
+		fail(c, err)
+		return
+	}
 	view := activityDetailView{
-		ID: activity.ID, ProjectID: activity.ProjectID, PlotID: activity.PlotID,
-		ActivityType: activity.ActivityType, Status: activity.Status,
+		ActivityEvidence: photos,
+		ID:               activity.ID, ProjectID: activity.ProjectID, PlotID: activity.PlotID,
+		ActivityType: activity.ActivityType, Title: activity.Title, Status: activity.Status,
+		CanManage:          r.projects.AssertProjectManager(userID, activity.ProjectID) == nil,
 		MethodologyVersion: activity.MethodologyVersion,
 		PeriodStart:        &activity.ReportingPeriodStart, PeriodEnd: &activity.ReportingPeriodEnd,
+	}
+	if activity.ActivityType == "planting" {
+		ndvi, err := r.satellite.ActivityNdvi(activity.ID)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		view.NDVI = &ndvi
 	}
 	if len(activity.Measurements) > 0 {
 		var measurements map[string]any
@@ -828,15 +847,15 @@ func (r *router) adminSatelliteHealth(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"status":              "ok",
-		"provider":            provider.Name(),
-		"adapterMode":         r.satellite.Mode(),
-		"tileStoreAvailable":  r.satellite.TileCache().Available(),
-		"tileCache":           stats,
-		"queuedJobs":          jobs.Queued,
-		"runningJobs":         jobs.Running,
-		"stuckJobs":           jobs.Stuck,
-		"failedJobsLastDay":   jobs.FailedLastDay,
+		"status":             "ok",
+		"provider":           provider.Name(),
+		"adapterMode":        r.satellite.Mode(),
+		"tileStoreAvailable": r.satellite.TileCache().Available(),
+		"tileCache":          stats,
+		"queuedJobs":         jobs.Queued,
+		"runningJobs":        jobs.Running,
+		"stuckJobs":          jobs.Stuck,
+		"failedJobsLastDay":  jobs.FailedLastDay,
 	})
 }
 
@@ -904,6 +923,27 @@ func (r *router) unarchiveProject(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": project.ID, "status": project.Status})
+}
+
+// updateActivityTitle renames an activity. An empty title is a valid name-clearing,
+// but a request that omits the field altogether is refused so the intent stays explicit.
+func (r *router) updateActivityTitle(c *gin.Context) {
+	var body struct {
+		Title *string `json:"title"`
+	}
+	if !httpx.BindJSON(c, &body) {
+		return
+	}
+	if body.Title == nil {
+		fail(c, domain.Invalid("title is required"))
+		return
+	}
+	activity, err := r.projects.UpdateActivityTitle(c.Param("id"), c.GetString("user_id"), *body.Title)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": activity.ID, "title": activity.Title})
 }
 
 func fail(c *gin.Context, err error) {

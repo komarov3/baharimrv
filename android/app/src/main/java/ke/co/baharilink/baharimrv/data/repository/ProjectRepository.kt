@@ -1,5 +1,7 @@
 package ke.co.baharilink.baharimrv.data.repository
 
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.math.BigDecimal
 import java.util.UUID
 import javax.inject.Inject
@@ -33,6 +35,8 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun activities(projectId: String) = api.activities(projectId).items
     suspend fun createActivity(projectId: String, request: CreateActivityRequestDto) =
         api.createActivity(projectId, request)
+    suspend fun updateActivityTitle(activityId: String, title: String) =
+        api.updateActivityTitle(activityId, ke.co.baharilink.baharimrv.data.remote.ActivityTitleRequest(title))
     suspend fun weather(projectId: String) = api.weather(projectId)
     suspend fun salinity(projectId: String) = api.salinity(projectId)
     suspend fun satellitePasses(projectId: String, mission: String) =
@@ -104,7 +108,18 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun identity() = api.identity()
     suspend fun retryIdentity() = api.retryIdentity()
     suspend fun activityDetail(activityId: String) = api.activityDetail(activityId)
+    suspend fun activityNdvi(activityId: String) = api.activityNdvi(activityId)
+    suspend fun recaptureActivityNdvi(activityId: String) = api.recaptureActivityNdvi(activityId)
     suspend fun evidenceMedia(evidenceId: String) = api.evidenceMedia(evidenceId)
+    suspend fun activityEvidenceMedia(activityId: String, evidenceId: String) = api.activityEvidenceMedia(activityId, evidenceId)
+    suspend fun uploadActivityPhoto(activityId: String, bytes: ByteArray, mediaType: String): ke.co.baharilink.baharimrv.data.remote.ActivityEvidenceDto {
+        val hash = java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        return api.uploadActivityEvidence(
+            activityId,
+            okhttp3.MultipartBody.Part.createFormData("file", "photo", bytes.toRequestBody(mediaType.toMediaType())),
+            "photo".toRequestBody(), hash.toRequestBody(), mediaType.toRequestBody(),
+        )
+    }
     suspend fun links() = api.links()
 
     /**

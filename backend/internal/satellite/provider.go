@@ -14,6 +14,7 @@ package satellite
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
@@ -148,6 +149,8 @@ type Provider interface {
 	Name() string
 	LatestObservation(ctx context.Context, aoi AOI, window time.Duration) (SceneStats, error)
 	BaselineObservation(ctx context.Context, aoi AOI, window time.Duration) (SceneStats, error)
+	// ObservationWindow accepts explicit bounds; callers use whole-day windows.
+	ObservationWindow(ctx context.Context, aoi AOI, start, end time.Time) (SceneStats, error)
 	TileSet(ctx context.Context, aoi AOI, scene SceneStats) (TileSet, error)
 }
 
@@ -174,6 +177,15 @@ func (p *SandboxProvider) LatestObservation(_ context.Context, aoi AOI, _ time.D
 
 func (p *SandboxProvider) BaselineObservation(_ context.Context, aoi AOI, _ time.Duration) (SceneStats, error) {
 	return p.scene(aoi, sandboxStandNDVI), nil
+}
+
+func (p *SandboxProvider) ObservationWindow(_ context.Context, aoi AOI, start, end time.Time) (SceneStats, error) {
+	if !end.After(start) {
+		return SceneStats{}, errors.New("observation window end must be after start")
+	}
+	scene := p.scene(aoi, sandboxStandNDVI)
+	scene.Window = SearchWindow{Start: start, End: end, Days: windowDays(end.Sub(start))}
+	return scene, nil
 }
 
 func (p *SandboxProvider) TileSet(_ context.Context, _ AOI, _ SceneStats) (TileSet, error) {

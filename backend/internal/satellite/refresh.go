@@ -58,17 +58,20 @@ var openJobPredicate = clause.Expr{SQL: fmt.Sprintf("status IN ('%s','%s')", Job
 // package wrote for a client, never the worker's or a catalog's own text, which can
 // carry internal addresses.
 type RefreshView struct {
-	JobID      string     `json:"jobId"`
-	Status     string     `json:"status"`
-	SummaryID  string     `json:"summaryId,omitempty"`
-	Error      string     `json:"error,omitempty"`
-	StartedAt  *time.Time `json:"startedAt"`
-	FinishedAt *time.Time `json:"finishedAt"`
+	JobID         string     `json:"jobId"`
+	Status        string     `json:"status"`
+	SummaryID     string     `json:"summaryId,omitempty"`
+	ActivityID    string     `json:"activityId,omitempty"`
+	ObservationID string     `json:"observationId,omitempty"`
+	Error         string     `json:"error,omitempty"`
+	StartedAt     *time.Time `json:"startedAt"`
+	FinishedAt    *time.Time `json:"finishedAt"`
 }
 
 func refreshViewOf(job models.SatelliteRefreshJob) RefreshView {
 	return RefreshView{
 		JobID: job.ID, Status: job.Status, SummaryID: job.SummaryID, Error: job.Error,
+		ActivityID: job.ActivityID, ObservationID: job.ObservationID,
 		StartedAt: job.StartedAt, FinishedAt: job.FinishedAt,
 	}
 }
@@ -77,8 +80,54 @@ func refreshViewOf(job models.SatelliteRefreshJob) RefreshView {
 // whether this request became a job: false means one was already open, and the view is
 // that job, which is what the caller shows instead of a second spinner.
 func (s *Service) QueueRefresh(projectID, requestedBy, reason string) (RefreshView, bool, error) {
+	var view RefreshView
+	var inserted bool
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		var err error
+		view, inserted, err = s.queueRefresh(tx, projectID, requestedBy, reason, nil)
+		return err
+	})
+	if err != nil {
+		return RefreshView{}, false, err
+	}
+	return view, inserted, nil
+}
+
+// queueRefresh requires a transaction. The no-op project write serializes the rate
+// check and insert for both manual refreshes and automatic baselines, without
+// changing the project's UpdatedAt. A request is rechecked only after that lock.
+func (s *Service) queueRefresh(tx *gorm.DB, projectID, requestedBy, reason string, request *models.ActivityNdviRequest) (RefreshView, bool, error) {
+	locked := tx.Model(&models.ConservationProject{}).Where("id = ?", projectID).
+		UpdateColumn("id", gorm.Expr("id"))
+	if locked.Error != nil {
+		return RefreshView{}, false, fmt.Errorf("lock refresh project: %w", locked.Error)
+	}
+	if locked.RowsAffected == 0 {
+		return RefreshView{}, false, gorm.ErrRecordNotFound
+	}
+	if request != nil {
+		var project models.ConservationProject
+		if err := tx.Select("status").First(&project, "id = ?", projectID).Error; err != nil {
+			return RefreshView{}, false, err
+		}
+		if project.Status == "archived" {
+			return RefreshView{}, false, nil
+		}
+		// Lock the request too, so an explicit recapture cannot race its admission.
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("activity_id = ? AND project_id = ? AND status = ?", request.ActivityID, projectID, models.ActivityNdviWaiting).
+			First(request).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return RefreshView{}, false, nil
+		}
+		if err != nil {
+			return RefreshView{}, false, err
+		}
+		requestedBy = request.RequestedBy
+	}
+
 	var recent int64
-	if err := s.db.Model(&models.SatelliteRefreshJob{}).
+	if err := tx.Model(&models.SatelliteRefreshJob{}).
 		Where("project_id = ? AND created_at >= ?", projectID, s.now().UTC().Add(-refreshRateWindow)).
 		Count(&recent).Error; err != nil {
 		return RefreshView{}, false, fmt.Errorf("count recent refreshes: %w", err)
@@ -97,7 +146,10 @@ func (s *Service) QueueRefresh(projectID, requestedBy, reason string) (RefreshVi
 		ID: uuid.NewString(), ProjectID: projectID, Status: JobQueued,
 		RequestedBy: requestedBy, Reason: reason, CreatedAt: now, UpdatedAt: now,
 	}
-	result := s.db.Clauses(clause.OnConflict{
+	if request != nil {
+		job.ActivityID = request.ActivityID
+	}
+	result := tx.Clauses(clause.OnConflict{
 		Columns:     []clause.Column{{Name: "project_id"}},
 		TargetWhere: clause.Where{Exprs: []clause.Expression{openJobPredicate}},
 		DoNothing:   true,
@@ -109,7 +161,7 @@ func (s *Service) QueueRefresh(projectID, requestedBy, reason string) (RefreshVi
 		return refreshViewOf(job), true, nil
 	}
 
-	open, ok, err := s.OpenRefreshJob(projectID)
+	open, ok, err := openRefreshJob(tx, projectID)
 	if err != nil {
 		return RefreshView{}, false, err
 	}
@@ -123,8 +175,12 @@ func (s *Service) QueueRefresh(projectID, requestedBy, reason string) (RefreshVi
 
 // OpenRefreshJob is the job holding a project's single-flight lock, if any.
 func (s *Service) OpenRefreshJob(projectID string) (RefreshView, bool, error) {
+	return openRefreshJob(s.db, projectID)
+}
+
+func openRefreshJob(db *gorm.DB, projectID string) (RefreshView, bool, error) {
 	var job models.SatelliteRefreshJob
-	err := s.db.Where("project_id = ? AND status IN (?,?)", projectID, JobQueued, JobRunning).
+	err := db.Where("project_id = ? AND status IN (?,?)", projectID, JobQueued, JobRunning).
 		Order("created_at").Order("id").First(&job).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return RefreshView{}, false, nil
@@ -171,6 +227,9 @@ func (s *Service) ProcessRefreshJobs(ctx context.Context) (int, error) {
 	}
 	finished := 0
 	for ctx.Err() == nil {
+		if err := s.admitActivityRequests(ctx); err != nil {
+			return finished, err
+		}
 		job, ok, err := s.claimJob(ctx)
 		if err != nil {
 			return finished, err
@@ -219,9 +278,14 @@ func (s *Service) runJob(ctx context.Context, job models.SatelliteRefreshJob) {
 	defer cancel()
 
 	var summary models.ProjectNdviSummary
+	var observation models.SatelliteObservation
 	var err error
 	for attempt := 1; attempt <= jobAttempts; attempt++ {
-		summary, err = s.ComputeProjectSummary(runCtx, job.ProjectID, DefaultWindow)
+		if job.ActivityID != "" {
+			observation, err = s.ComputeActivityBaseline(runCtx, job)
+		} else {
+			summary, err = s.ComputeProjectSummary(runCtx, job.ProjectID, DefaultWindow)
+		}
 		if err == nil || !errors.Is(err, ErrProviderFailed) {
 			break
 		}
@@ -238,12 +302,16 @@ func (s *Service) runJob(ctx context.Context, job models.SatelliteRefreshJob) {
 		slog.Error("satellite refresh failed", "job", job.ID, "project", job.ProjectID, "error", err)
 	} else {
 		updates["status"] = JobComplete
-		updates["summary_id"] = summary.ID
-		// Best-effort tile render. A summary without tiles still stands on its
-		// number; the overlay omits tileBaseUrl and the proxy answers 410 until
-		// the next refresh paints pixels for the new scene.
-		if renderErr := s.RenderActiveScene(runCtx, job.ProjectID); renderErr != nil {
-			slog.Warn("satellite refresh did not paint tiles", "job", job.ID, "project", job.ProjectID, "error", renderErr)
+		if job.ActivityID != "" {
+			updates["observation_id"] = observation.ID
+		} else {
+			updates["summary_id"] = summary.ID
+			// Best-effort tile render. A summary without tiles still stands on its
+			// number; the overlay omits tileBaseUrl and the proxy answers 410 until
+			// the next refresh paints pixels for the new scene.
+			if renderErr := s.RenderActiveScene(runCtx, job.ProjectID); renderErr != nil {
+				slog.Warn("satellite refresh did not paint tiles", "job", job.ID, "project", job.ProjectID, "error", renderErr)
+			}
 		}
 	}
 	if err := s.db.Model(&models.SatelliteRefreshJob{}).Where("id = ?", job.ID).Updates(updates).Error; err != nil {
@@ -300,16 +368,21 @@ func (s *Service) reapStuckJobs(ctx context.Context) error {
 // is a count so the operator can see whether the queue is draining without
 // reading individual rows.
 type HealthJobs struct {
-	Queued          int `json:"queued"`
-	Running         int `json:"running"`
-	Stuck           int `json:"stuck"`
-	FailedLastDay   int `json:"failedLastDay"`
+	Waiting       int `json:"waiting"`
+	Queued        int `json:"queued"`
+	Running       int `json:"running"`
+	Stuck         int `json:"stuck"`
+	FailedLastDay int `json:"failedLastDay"`
 }
 
 // HealthJobs returns the backlog counts. A stuck job is a running one whose
 // started_at is older than stuckJobAfter, the same predicate the reaper uses,
 // so the admin sees exactly what the next sweep will free.
 func (s *Service) HealthJobs() (HealthJobs, error) {
+	var waiting int64
+	if err := s.db.Model(&models.ActivityNdviRequest{}).Where("status = ?", models.ActivityNdviWaiting).Count(&waiting).Error; err != nil {
+		return HealthJobs{}, err
+	}
 	var queued, running int64
 	if err := s.db.Model(&models.SatelliteRefreshJob{}).Where("status = ?", JobQueued).Count(&queued).Error; err != nil {
 		return HealthJobs{}, err
@@ -329,6 +402,6 @@ func (s *Service) HealthJobs() (HealthJobs, error) {
 		return HealthJobs{}, err
 	}
 	return HealthJobs{
-		Queued: int(queued), Running: int(running), Stuck: int(stuck), FailedLastDay: int(failed),
+		Waiting: int(waiting), Queued: int(queued), Running: int(running), Stuck: int(stuck), FailedLastDay: int(failed),
 	}, nil
 }

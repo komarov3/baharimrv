@@ -13,6 +13,7 @@ internal fun matchesQuery(activity: ProjectActivityDto, query: String): Boolean 
     return listOf(
         activity.plotId,
         activity.activityType,
+        activity.title.orEmpty(),
         activity.status,
         activity.methodologyVersion.orEmpty(),
         activity.periodStart.orEmpty(),
@@ -23,12 +24,12 @@ internal fun matchesQuery(activity: ProjectActivityDto, query: String): Boolean 
 
 internal fun activitiesToCsv(items: List<ProjectActivityDto>): String {
     val header = listOf(
-        "Activity ID", "Project ID", "Plot", "Activity Type",
+        "Activity ID", "Project ID", "Plot", "Activity Type", "Activity Name",
         "Status", "Period Start", "Period End", "Methodology Version",
     )
     val rows = items.map { a ->
         listOf(
-            a.id, a.projectId, a.plotId, a.activityType,
+            a.id, a.projectId, a.plotId, a.activityType, a.title.orEmpty(),
             a.status, a.periodStart.orEmpty(), a.periodEnd.orEmpty(), a.methodologyVersion.orEmpty(),
         )
     }
@@ -38,8 +39,10 @@ internal fun activitiesToCsv(items: List<ProjectActivityDto>): String {
 }
 
 private fun csvField(value: String): String {
-    val needsQuote = value.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
-    return if (needsQuote) "\"" + value.replace("\"", "\"\"") + "\"" else value
+    val text = if (value.trimStart().firstOrNull() in listOf('=', '+', '-', '@') ||
+        value.firstOrNull() in listOf('\t', '\r', '\n')) "'$value" else value
+    val needsQuote = text.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
+    return if (needsQuote) "\"" + text.replace("\"", "\"\"") + "\"" else text
 }
 
 /** Writes the filtered activities to a cache CSV and opens the system share sheet. */
