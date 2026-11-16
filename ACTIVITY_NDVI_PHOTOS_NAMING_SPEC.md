@@ -1,6 +1,6 @@
 # Planting Activity: Naming, Evidence Photos, and Auto NDVI Baseline — Spec
 
-Status: APPROVED, backend and Android implementation complete. Device acceptance, PostgreSQL migration execution and deployment remain pending. Three workstreams, sequenced naming → photos → NDVI.
+Status: APPROVED, backend and Android implementation complete. API deployed to Fly release v31 on 2026-11-16 from commit 166d2ee. Read-only emulator checks passed; full write-flow acceptance and isolated PostgreSQL migration testing remain pending. Three workstreams, sequenced naming → photos → NDVI.
 Scope: backend (Go), Android, s2-worker (read-only reuse). Web out of scope.
 Build order approved by user; NDVI search window locked at ±15 days.
 
@@ -233,7 +233,9 @@ Phase 3: Auto NDVI baseline
 - [x] NDVI section in create/report; server-side comparisons with later compatible passes
 - [x] Focused tests: quality/null states, windows/geometry, reuse, quotas, provenance separation,
   future acquisitions, percentage precision, write rollback, API access and server-only Android values
-- [ ] Production deployment and live imagery configuration, separate approval required
+- [x] Production API deployment: Fly release v31, commit 166d2ee, health and authenticated
+  activity detail/NDVI reads checked on 2026-11-16
+- [ ] Enable live imagery, separate approval required; deployed mode remains sandbox
 
 Phase V: Build and verify
 - [x] Android assembleDebug and all 78 unit tests, BUILD SUCCESSFUL
@@ -243,10 +245,11 @@ Phase V: Build and verify
 - [x] Final complete Go suite and build, satellite percentage precision regression,
   and planting NDVI/queue race checks repeated three times
 - [ ] PostgreSQL migration execution on an isolated test database
-- [ ] Emulator acceptance: name/rename, photo persistence/retry and NDVI report states;
-  the production-targeted APK was installed and launched, but Android system ANRs
-  blocked interaction. The new API is not deployed; no production test accounts,
-  test data or automated login were used.
+- [x] Read-only BlueStacks acceptance after deployment: list/detail reload, Rename dialog
+  and cancel, NDVI refresh and server-returned no-baseline state for an old activity
+- [ ] Full write-flow acceptance: name/save, photo upload/retry/reopen and automatic
+  NDVI capture for a new planting activity; no production test accounts, test data
+  or automated login were used.
 
 Automatic reports read subsequent project imagery refreshes; no periodic monitoring
 scheduler or NDVI-derived survival/carbon verification was introduced.
@@ -271,5 +274,8 @@ scheduler or NDVI-derived survival/carbon verification was introduced.
   reference; the report shows change of later passes against it. Re-capture is manual.
 - **Live imagery**: shipped sandbox-correct; enabling real numbers in Fly
   (`SATELLITE_MODE=live` + worker URL/token) is a separate, explicitly-approved step.
-- **Storage target**: activity evidence on the same disk/volume store as monitoring
-  evidence (`evidence/store.go`), activity-scoped key prefix.
+- **Storage target**: activity evidence on the same filesystem store as monitoring
+  evidence (`evidence/store.go`), activity-scoped key prefix. The Fly app has no
+  persistent volume; adding one was explicitly declined on 2026-11-16. Metadata
+  persists in PostgreSQL, but photo files are machine-local and can disappear on
+  replacement or redeployment. Shared durable object storage was not added.
