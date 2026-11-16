@@ -67,6 +67,8 @@ import ke.co.baharilink.baharimrv.ui.planting.PlantingDetailScreen
 import ke.co.baharilink.baharimrv.ui.planting.PlantingListScreen
 import ke.co.baharilink.baharimrv.ui.projects.AddActivityScreen
 import ke.co.baharilink.baharimrv.ui.projects.AddPlotScreen
+import ke.co.baharilink.baharimrv.ui.projects.EditPlotScreen
+import ke.co.baharilink.baharimrv.ui.projects.EditProjectScreen
 import ke.co.baharilink.baharimrv.ui.projects.MonitorManagementScreen
 import ke.co.baharilink.baharimrv.ui.projects.ProjectDetailScreen
 import ke.co.baharilink.baharimrv.ui.projects.ProjectsScreen
@@ -90,6 +92,8 @@ private object Routes {
     const val VERIFICATION = "verification?activityId={activityId}"
     const val PROJECT_DETAIL = "projectDetail/{projectId}"
     const val ADD_PLOT = "addPlot/{projectId}"
+    const val EDIT_PROJECT = "editProject/{projectId}"
+    const val EDIT_PLOT = "editPlot/{projectId}/{plotId}"
     const val ADD_ACTIVITY = "addActivity/{projectId}"
     const val MANAGE_MONITORS = "manageMonitors/{projectId}/{plotId}"
 
@@ -238,6 +242,32 @@ private fun AuthenticatedShell(online: Boolean, authViewModel: AuthViewModel, sh
                             onAddPlot = { navController.navigate(Routes.ADD_PLOT.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty())) },
                             onAddActivity = { navController.navigate(Routes.ADD_ACTIVITY.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty())) },
                             onManageMonitors = { navController.navigate(Routes.MANAGE_MONITORS.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty()).replace("{plotId}", "")) },
+                            onEditProject = { navController.navigate(Routes.EDIT_PROJECT.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty())) },
+                            onEditPlot = { plotId -> navController.navigate(Routes.EDIT_PLOT.replace("{projectId}", backStackEntry.arguments?.getString("projectId").orEmpty()).replace("{plotId}", plotId)) },
+                        )
+                    }
+                    bahariScreen(
+                        route = Routes.EDIT_PROJECT,
+                        arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        EditProjectScreen(
+                            projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
+                            onBack = { navController.popBackStack() },
+                            onSaved = { navController.popBackStack() },
+                        )
+                    }
+                    bahariScreen(
+                        route = Routes.EDIT_PLOT,
+                        arguments = listOf(
+                            navArgument("projectId") { type = NavType.StringType },
+                            navArgument("plotId") { type = NavType.StringType },
+                        ),
+                    ) { backStackEntry ->
+                        EditPlotScreen(
+                            projectId = backStackEntry.arguments?.getString("projectId").orEmpty(),
+                            plotId = backStackEntry.arguments?.getString("plotId").orEmpty(),
+                            onBack = { navController.popBackStack() },
+                            onSaved = { navController.popBackStack() },
                         )
                     }
                     bahariScreen(
@@ -356,6 +386,12 @@ private fun AppNavigationRail(navController: NavController, currentRoute: String
 }
 
 private fun navigateTo(navController: NavController, route: String) {
+    val startDestination = navController.graph.findStartDestination().route
+    // Returning to the start destination via navigate+popUpTo(start) collapses under
+    // launchSingleTop and leaves the deep screen drawn, so pop the stack back to it instead.
+    if (route == startDestination && navController.popBackStack(route = startDestination, inclusive = false)) {
+        return
+    }
     navController.navigate(route) {
         popUpTo(navController.graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true

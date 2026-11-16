@@ -124,7 +124,7 @@ func Load() (Config, error) {
 		DatabaseURL:        databaseURL,
 		CORSOrigins:        origins,
 		PublicBaseURL:      strings.TrimRight(publicURL, "/"),
-		SessionTTL:         duration("SESSION_TTL", time.Hour),
+		SessionTTL:         duration("SESSION_TTL", 5*time.Hour),
 		RefreshTTL:         duration("REFRESH_TTL", 7*24*time.Hour),
 		KMSKEK:             kek,
 		ChainMode:          chainMode,

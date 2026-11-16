@@ -30,6 +30,15 @@ fun isValidBoundary(ring: PlotRing): Boolean {
 fun boundaryPolygon(ring: PlotRing): GeoPolygonDto =
     GeoPolygonDto(coordinates = listOf(ring.map { listOf(it.first, it.second) }))
 
+/** Vertices of a stored boundary as a closed ring, or empty when it is absent or invalid. */
+fun ringVertices(boundary: GeoPolygonDto?): PlotRing {
+    val outer = boundary?.coordinates?.firstOrNull() ?: return emptyList()
+    val ring = outer.mapNotNull { vertex ->
+        if (vertex.size >= 2) vertex[0] to vertex[1] else null
+    }
+    return if (isValidBoundary(closeRing(ring))) closeRing(ring) else emptyList()
+}
+
 /** Polygon area in hectares via local equirectangular projection + shoelace. */
 fun ringAreaHectares(ring: PlotRing): Double {
     val (lat0, lon0) = ringMean(ring)
@@ -60,6 +69,28 @@ fun ringCentroid(ring: PlotRing): Pair<Double, Double> {
     cy /= 6 * a
     val cosLat = cos(Math.toRadians(lat0)).let { if (it == 0.0) 1.0 else it }
     return (lat0 + cy / METRES_PER_DEGREE_LAT) to (lon0 + cx / (METRES_PER_DEGREE_LAT * cosLat))
+}
+
+/** Even-odd ray cast, a line-for-line mirror of geo.PointInRing. */
+fun pointInRing(ring: PlotRing, lat: Double, lon: Double): Boolean {
+    if (ring.size < 3) return false
+    val cosLat = cos(Math.toRadians(lat)).let { if (it == 0.0) 1.0 else it }
+    val xs = ring.map { (it.first - lon) * cosLat * METRES_PER_DEGREE_LAT }
+    val ys = ring.map { (it.second - lat) * METRES_PER_DEGREE_LAT }
+    var inside = false
+    var i = 0
+    var j = xs.size - 1
+    while (i < xs.size) {
+        val yi = ys[i]
+        val yj = ys[j]
+        if ((yi > 0) != (yj > 0)) {
+            val xCross = xs[i] - yi * (xs[j] - xs[i]) / (yj - yi)
+            if (xCross > 0) inside = !inside
+        }
+        j = i
+        i++
+    }
+    return inside
 }
 
 private fun ringMean(ring: PlotRing): Pair<Double, Double> {

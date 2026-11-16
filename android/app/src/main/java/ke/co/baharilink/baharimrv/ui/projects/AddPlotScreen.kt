@@ -1,11 +1,7 @@
 package ke.co.baharilink.baharimrv.ui.projects
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
-import android.location.Location
-import android.location.LocationManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -33,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,18 +41,11 @@ import ke.co.baharilink.baharimrv.ui.components.BahariButton
 import ke.co.baharilink.baharimrv.ui.components.BahariButtonVariant
 import ke.co.baharilink.baharimrv.ui.components.BahariCard
 import ke.co.baharilink.baharimrv.ui.components.BahariChip
+import ke.co.baharilink.baharimrv.ui.components.BoundaryCaptureMap
 import ke.co.baharilink.baharimrv.ui.components.ChipColor
-import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.MapEventsOverlay
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polygon
+import ke.co.baharilink.baharimrv.ui.components.recentGpsFix
 
 private enum class CaptureMode { TAP, WALK }
-
-private data class LocationFix(val latitude: Double, val longitude: Double, val accuracyM: Double?)
 
 @Composable
 fun AddPlotScreen(
@@ -91,7 +78,7 @@ fun AddPlotScreen(
         val granted = result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
         if (granted) {
-            val fix = currentFix(context)
+            val fix = recentGpsFix(context)
             if (fix != null) {
                 latitude = fix.latitude.toString()
                 longitude = fix.longitude.toString()
@@ -110,7 +97,7 @@ fun AddPlotScreen(
         if (!fine && !coarse) {
             launcher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
         } else {
-            val fix = currentFix(context)
+            val fix = recentGpsFix(context)
             if (fix != null) {
                 latitude = fix.latitude.toString()
                 longitude = fix.longitude.toString()
@@ -128,7 +115,7 @@ fun AddPlotScreen(
             launcher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
             return
         }
-        val fix = currentFix(context)
+        val fix = recentGpsFix(context)
         if (fix != null) {
             vertices.add(fix.longitude to fix.latitude)
             gpsAccuracy = fix.accuracyM
@@ -154,7 +141,7 @@ fun AddPlotScreen(
                 BahariChip("Tap corners", selected = mode == CaptureMode.TAP, color = ChipColor.GREEN, onClick = { mode = CaptureMode.TAP })
                 BahariChip("Walk perimeter", selected = mode == CaptureMode.WALK, color = ChipColor.GREEN, onClick = { mode = CaptureMode.WALK })
             }
-            BoundaryMap(
+            BoundaryCaptureMap(
                 vertices = vertices,
                 tapEnabled = { mode == CaptureMode.TAP },
                 onVertex = { lon, lat -> vertices.add(lon to lat) },
@@ -242,82 +229,4 @@ fun AddPlotScreen(
         ) { Text(if (state.saving) "Saving…" else "Save plot") }
         BahariButton(onClick = onBack, variant = BahariButtonVariant.OUTLINED, modifier = Modifier.fillMaxWidth()) { Text("Back") }
     }
-}
-
-@Composable
-private fun BoundaryMap(
-    vertices: List<Pair<Double, Double>>,
-    tapEnabled: () -> Boolean,
-    onVertex: (Double, Double) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    val mapView = remember {
-        MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
-            setMultiTouchControls(true)
-            setBuiltInZoomControls(false)
-            controller.setZoom(16.0)
-            val start = currentFix(context)
-            controller.setCenter(if (start != null) GeoPoint(start.latitude, start.longitude) else GeoPoint(-4.05, 39.67))
-            overlays.add(
-                MapEventsOverlay(
-                    object : MapEventsReceiver {
-                        override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                            if (tapEnabled()) {
-                                onVertex(p.longitude, p.latitude)
-                                return true
-                            }
-                            return false
-                        }
-
-                        override fun longPressHelper(p: GeoPoint): Boolean = false
-                    },
-                ),
-            )
-        }
-    }
-    DisposableEffect(mapView) {
-        mapView.onResume()
-        onDispose {
-            mapView.onPause()
-            mapView.onDetach()
-        }
-    }
-    AndroidView(
-        factory = { mapView },
-        modifier = modifier,
-        update = { mv ->
-            while (mv.overlays.size > 1) mv.overlays.removeAt(mv.overlays.size - 1)
-            if (vertices.size >= 2) {
-                val polygon = Polygon().apply {
-                    points = vertices.map { GeoPoint(it.second, it.first) }
-                    fillColor = Color.argb(48, 0, 128, 0)
-                    strokeColor = Color.GREEN
-                    strokeWidth = 3f
-                }
-                mv.overlays.add(polygon)
-            }
-            vertices.forEach { vertex ->
-                val marker = Marker(mv).apply {
-                    position = GeoPoint(vertex.second, vertex.first)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                }
-                mv.overlays.add(marker)
-            }
-            mv.invalidate()
-        },
-    )
-}
-
-private fun currentFix(context: Context): LocationFix? {
-    val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
-    val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
-    for (provider in providers) {
-        if (!manager.isProviderEnabled(provider)) continue
-        val location: Location = runCatching { manager.getLastKnownLocation(provider) }.getOrNull() ?: continue
-        val accuracy = if (location.hasAccuracy()) location.accuracy.toDouble() else null
-        return LocationFix(location.latitude, location.longitude, accuracy)
-    }
-    return null
 }

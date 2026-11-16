@@ -68,14 +68,18 @@ type Alert struct {
 }
 
 type DashboardProject struct {
-	ID                string `json:"id"`
-	Name              string `json:"name"`
-	CommunityGroup    string `json:"communityGroup,omitempty"`
-	Species           string `json:"species,omitempty"`
-	ConservationType  string `json:"conservationType,omitempty"`
-	SiteCount         int    `json:"siteCount"`
-	Methodology       string `json:"methodology"`
-	MethodologyPeriod string `json:"methodologyPeriod,omitempty"`
+	ID                string          `json:"id"`
+	Name              string          `json:"name"`
+	CommunityGroup    string          `json:"communityGroup,omitempty"`
+	Species           string          `json:"species,omitempty"`
+	ConservationType  string          `json:"conservationType,omitempty"`
+	SiteCount         int             `json:"siteCount"`
+	Methodology       string          `json:"methodology"`
+	MethodologyID     string          `json:"methodologyId,omitempty"`
+	MethodologyPeriod string          `json:"methodologyPeriod,omitempty"`
+	Status            string          `json:"status"`
+	CommunityShareBPS int             `json:"communityShareBasisPoints"`
+	Boundary          json.RawMessage `json:"boundary,omitempty"`
 }
 
 type NDVIState struct {
@@ -474,6 +478,8 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 			ID: project.ID, Name: project.Name, SiteCount: len(sites),
 			CommunityGroup: project.CommunityGroup, Species: project.Species, ConservationType: project.ConservationType,
 			Methodology: fmt.Sprintf("%s v%s", methodology.Code, methodology.Version),
+			MethodologyID: project.MethodologyID, Status: project.Status,
+			CommunityShareBPS: project.CommunityShareBPS, Boundary: json.RawMessage(project.Boundary),
 		},
 		Plots:     make([]PlotView, 0, len(plots)),
 		ChainMode: s.provenance.Mode(),
@@ -899,6 +905,59 @@ type PlotInput struct {
 	GpsAccuracyM      *float64        `json:"gpsAccuracyM,omitempty"`
 }
 
+// PlotPatch is a partial edit of an existing plot. Unset fields keep their stored
+// value. A present assignedMonitorId always applies, and "" clears the assignment.
+// For boundary, an absent key keeps the stored outline while an explicit JSON null
+// clears it.
+type PlotPatch struct {
+	Code              *string         `json:"code"`
+	SiteName          *string         `json:"siteName"`
+	Latitude          *float64        `json:"latitude"`
+	Longitude         *float64        `json:"longitude"`
+	AreaHectares      *string         `json:"areaHectares"`
+	AssignedMonitorID *string         `json:"assignedMonitorId"`
+	Boundary          json.RawMessage `json:"boundary"`
+	GpsAccuracyM      *float64        `json:"gpsAccuracyM"`
+}
+
+// mergePlotPatch turns a partial edit plus the stored row into a full PlotInput.
+func mergePlotPatch(plot models.Plot, patch PlotPatch) PlotInput {
+	input := PlotInput{
+		Code:              plot.Code,
+		Latitude:          plot.Latitude,
+		Longitude:         plot.Longitude,
+		AreaHectares:      plot.AreaHectares,
+		AssignedMonitorID: plot.AssignedMonitorID,
+		Boundary:          json.RawMessage(plot.Boundary),
+		GpsAccuracyM:      plot.GpsAccuracyM,
+	}
+	if patch.Code != nil {
+		input.Code = *patch.Code
+	}
+	if patch.SiteName != nil {
+		input.SiteName = *patch.SiteName
+	}
+	if patch.Latitude != nil {
+		input.Latitude = *patch.Latitude
+	}
+	if patch.Longitude != nil {
+		input.Longitude = *patch.Longitude
+	}
+	if patch.AreaHectares != nil {
+		input.AreaHectares = *patch.AreaHectares
+	}
+	if patch.AssignedMonitorID != nil {
+		input.AssignedMonitorID = *patch.AssignedMonitorID
+	}
+	if len(patch.Boundary) > 0 {
+		input.Boundary = patch.Boundary
+	}
+	if patch.GpsAccuracyM != nil {
+		input.GpsAccuracyM = patch.GpsAccuracyM
+	}
+	return input
+}
+
 // resolvedPlot is the geometry a plot is stored with. A surveyed boundary overrides the
 // stated area and moves the pin to the polygon centroid; without one the recorded point
 // and stated area stand and the satellite layer falls back to the buffered square.
@@ -943,14 +1002,76 @@ func resolvePlot(code string, input PlotInput) (resolvedPlot, error) {
 }
 
 type ProjectInput struct {
-	Name              string      `json:"name"`
-	MethodologyID     string      `json:"methodologyId"`
-	CommunityGroup    string      `json:"communityGroup"`
-	Species           string      `json:"species"`
-	ConservationType  string      `json:"conservationType"`
-	CommunityShareBPS int         `json:"communityShareBasisPoints"`
-	Sites             []string    `json:"sites"`
-	Plots             []PlotInput `json:"plots"`
+	Name              string          `json:"name"`
+	MethodologyID     string          `json:"methodologyId"`
+	CommunityGroup    string          `json:"communityGroup"`
+	Species           string          `json:"species"`
+	ConservationType  string          `json:"conservationType"`
+	CommunityShareBPS int             `json:"communityShareBasisPoints"`
+	Boundary          json.RawMessage `json:"boundary,omitempty"`
+	Sites             []string        `json:"sites"`
+	Plots             []PlotInput     `json:"plots"`
+}
+
+// resolveProjectBoundary validates an optional project outline and returns the stored
+// bytes plus its outer ring. An absent boundary yields (nil, nil, nil) and imposes no
+// containment on the project's plots.
+func resolveProjectBoundary(raw json.RawMessage) (datatypes.JSON, geo.Ring, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil, nil
+	}
+	ring, err := geo.ParsePolygon(raw)
+	if err != nil {
+		return nil, nil, domain.Invalid("project has an invalid boundary: %v", err)
+	}
+	if hectares := geo.AreaHectares(ring); hectares <= 0 || math.IsNaN(hectares) || math.IsInf(hectares, 0) {
+		return nil, nil, domain.Invalid("project boundary encloses no area")
+	}
+	return datatypes.JSON(raw), ring, nil
+}
+
+// projectBoundary loads a project's stored outline as a ring. It returns has=false for a
+// project with no (or an unreadably malformed) boundary so containment silently no-ops
+// rather than inventing a rejection from our own stored data.
+func (s *Service) projectBoundary(projectID string) (geo.Ring, bool) {
+	var project models.ConservationProject
+	if err := s.db.Select("boundary").Where("id = ?", projectID).First(&project).Error; err != nil {
+		return nil, false
+	}
+	if len(project.Boundary) == 0 || string(project.Boundary) == "null" {
+		return nil, false
+	}
+	ring, err := geo.ParsePolygon(project.Boundary)
+	if err != nil {
+		return nil, false
+	}
+	return ring, true
+}
+
+// assertPlotInsideBoundary rejects a plot whose resolved centroid sits outside the
+// project's surveyed outline. Projects without a boundary impose nothing.
+func assertPlotInsideBoundary(code string, ring geo.Ring, has bool, lat, lon float64) error {
+	if has && !geo.PointInRing(ring, lat, lon) {
+		return domain.Invalid("plot %s centroid is outside the project boundary", code)
+	}
+	return nil
+}
+
+// assertProjectWritable refuses state-changing writes against an archived project until
+// it is unarchived. The record and its history stay intact either way.
+func (s *Service) assertProjectWritable(projectID string) error {
+	var status string
+	if err := s.db.Model(&models.ConservationProject{}).Where("id = ?", projectID).
+		Select("status").Scan(&status).Error; err != nil {
+		return err
+	}
+	if status == "" {
+		return ErrNotFound
+	}
+	if status == "archived" {
+		return domain.Reject("the project is archived; unarchive it before making changes")
+	}
+	return nil
 }
 
 // CreateProject is manager-only and always flags whether the record is demo data.
@@ -972,6 +1093,10 @@ func (s *Service) CreateProject(userID string, input ProjectInput, sandboxDemo b
 	if err := s.db.Where("id = ?", input.MethodologyID).First(&methodology).Error; err != nil {
 		return models.ConservationProject{}, domain.Invalid("the methodology does not exist")
 	}
+	boundary, boundaryRing, err := resolveProjectBoundary(input.Boundary)
+	if err != nil {
+		return models.ConservationProject{}, err
+	}
 	now := s.now().UTC()
 	project := models.ConservationProject{
 		ID: uuid.NewString(), Name: strings.TrimSpace(input.Name), ManagerID: userID,
@@ -979,10 +1104,11 @@ func (s *Service) CreateProject(userID string, input ProjectInput, sandboxDemo b
 		CommunityGroup: strings.TrimSpace(input.CommunityGroup), Species: strings.TrimSpace(input.Species),
 		ConservationType:  normalizeConservationType(input.ConservationType),
 		CommunityShareBPS: input.CommunityShareBPS,
+		Boundary:          boundary,
 		SandboxDemo:       sandboxDemo, CreatedAt: now, UpdatedAt: now,
 	}
 	siteIDs := map[string]string{}
-	err := s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&project).Error; err != nil {
 			return err
 		}
@@ -1004,6 +1130,9 @@ func (s *Service) CreateProject(userID string, input ProjectInput, sandboxDemo b
 			}
 			resolved, err := resolvePlot(strings.TrimSpace(input.Code), input)
 			if err != nil {
+				return err
+			}
+			if err := assertPlotInsideBoundary(strings.TrimSpace(input.Code), boundaryRing, boundaryRing != nil, resolved.Latitude, resolved.Longitude); err != nil {
 				return err
 			}
 			plot := models.Plot{
@@ -1060,31 +1189,81 @@ func (s *Service) Monitors() ([]models.User, error) {
 	return rows, nil
 }
 
-// UpdatePlot assigns or unassigns a monitor to a plot.
-func (s *Service) UpdatePlot(projectID, plotID, userID, assignedMonitorID string) (models.Plot, error) {
-	if err := s.AssertProjectAccess(userID, projectID); err != nil {
+// UpdatePlot edits a plot's code, site, geometry and assigned monitor. A surveyed
+// boundary still derives area + centroid, the centroid still has to sit inside the
+// project outline, and a changed code must stay unique in the project. Manager or admin
+// only: a plot edit is project state, not a monitor's routine action.
+func (s *Service) UpdatePlot(projectID, plotID, userID string, patch PlotPatch) (models.Plot, error) {
+	if err := s.AssertProjectManager(userID, projectID); err != nil {
+		return models.Plot{}, err
+	}
+	if err := s.assertProjectWritable(projectID); err != nil {
 		return models.Plot{}, err
 	}
 	var plot models.Plot
 	if err := s.db.Where("id = ? AND project_id = ?", plotID, projectID).First(&plot).Error; err != nil {
 		return models.Plot{}, ErrNotFound
 	}
-	if assignedMonitorID != "" {
-		var user models.User
-		if err := s.db.Where("id = ? AND role = ?", assignedMonitorID, models.RoleMonitor).First(&user).Error; err != nil {
+	input := mergePlotPatch(plot, patch)
+	code := strings.TrimSpace(input.Code)
+	if code == "" {
+		return models.Plot{}, domain.Invalid("a plot code is required")
+	}
+	resolved, err := resolvePlot(code, input)
+	if err != nil {
+		return models.Plot{}, err
+	}
+	boundaryRing, hasBoundary := s.projectBoundary(projectID)
+	if err := assertPlotInsideBoundary(code, boundaryRing, hasBoundary, resolved.Latitude, resolved.Longitude); err != nil {
+		return models.Plot{}, err
+	}
+	if code != plot.Code {
+		var clash models.Plot
+		if err := s.db.Where("project_id = ? AND code = ? AND id <> ?", projectID, code, plotID).First(&clash).Error; err == nil {
+			return models.Plot{}, domain.Reject("plot %s already exists in this project", code)
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.Plot{}, err
+		}
+	}
+	siteID := plot.SiteID
+	if name := strings.TrimSpace(input.SiteName); name != "" {
+		var site models.Site
+		if findErr := s.db.Where("project_id = ? AND LOWER(name) = ?", projectID, strings.ToLower(name)).First(&site).Error; findErr != nil {
+			if !errors.Is(findErr, gorm.ErrRecordNotFound) {
+				return models.Plot{}, findErr
+			}
+			site = models.Site{ID: uuid.NewString(), ProjectID: projectID, Name: name, CreatedAt: s.now().UTC(), UpdatedAt: s.now().UTC()}
+			if err := s.db.Create(&site).Error; err != nil {
+				return models.Plot{}, err
+			}
+		}
+		siteID = site.ID
+	}
+	assigned := input.AssignedMonitorID
+	if assigned != "" {
+		var monitor models.User
+		if err := s.db.Where("id = ? AND role = ?", assigned, models.RoleMonitor).First(&monitor).Error; err != nil {
 			return models.Plot{}, domain.Invalid("the selected monitor is not available")
 		}
 	}
-	plot.AssignedMonitorID = assignedMonitorID
+	previousMonitor := plot.AssignedMonitorID
+	plot.Code = code
+	plot.SiteID = siteID
+	plot.Latitude = resolved.Latitude
+	plot.Longitude = resolved.Longitude
+	plot.AreaHectares = resolved.AreaHectares
+	plot.Boundary = resolved.Boundary
+	plot.GpsAccuracyM = resolved.GpsAccuracyM
+	plot.AssignedMonitorID = assigned
 	plot.UpdatedAt = s.now().UTC()
 	if err := s.db.Save(&plot).Error; err != nil {
 		return models.Plot{}, err
 	}
-	// Issue MonitorCap for the newly assigned monitor (non-blocking, idempotent).
-	if assignedMonitorID != "" {
+	// Issue MonitorCap for a newly assigned monitor (non-blocking, idempotent).
+	if assigned != "" && assigned != previousMonitor {
 		capturedProjectID := projectID
 		capturedPlotID := plotID
-		capturedMonitorID := assignedMonitorID
+		capturedMonitorID := assigned
 		go func() {
 			ctx := context.Background()
 			provision, err := s.identities.EnsureProvision(ctx, capturedMonitorID)
@@ -1095,6 +1274,138 @@ func (s *Service) UpdatePlot(projectID, plotID, userID, assignedMonitorID string
 		}()
 	}
 	return plot, nil
+}
+
+// DeletePlot removes a plot that no activity depends on. It is a hard delete: a plot
+// with no activities has no downstream ledger of its own. A plot already used by a
+// monitoring record or activity is refused so anchored history never loses its subject.
+func (s *Service) DeletePlot(projectID, plotID, userID string) error {
+	if err := s.AssertProjectManager(userID, projectID); err != nil {
+		return err
+	}
+	if err := s.assertProjectWritable(projectID); err != nil {
+		return err
+	}
+	var plot models.Plot
+	if err := s.db.Where("id = ? AND project_id = ?", plotID, projectID).First(&plot).Error; err != nil {
+		return ErrNotFound
+	}
+	var used int64
+	if err := s.db.Model(&models.ConservationActivity{}).Where("plot_id = ?", plotID).Count(&used).Error; err != nil {
+		return err
+	}
+	if used > 0 {
+		return domain.Reject("the plot has activities and cannot be deleted")
+	}
+	return s.db.Delete(&plot).Error
+}
+
+// ProjectUpdateInput carries the manager-editable basics of a project. Methodology is
+// deliberately absent: it is fixed at creation. Every field keeps its stored value when
+// the key is omitted; an explicit null clears a text field. For boundary, an absent key
+// keeps the stored outline while an explicit JSON null clears it.
+type ProjectUpdateInput struct {
+	Name              string          `json:"name"`
+	CommunityGroup    *string         `json:"communityGroup"`
+	Species           *string         `json:"species"`
+	ConservationType  *string         `json:"conservationType"`
+	CommunityShareBPS *int            `json:"communityShareBasisPoints"`
+	Boundary          json.RawMessage `json:"boundary"`
+}
+
+// UpdateProject edits a project's basics and outline. Manager or admin
+// only, and only while the project is not archived. Setting a boundary must still contain
+// every plot already registered, so a manager cannot draw an outline around an empty
+// area and strand existing parcels outside it.
+func (s *Service) UpdateProject(projectID, userID string, input ProjectUpdateInput) (models.ConservationProject, error) {
+	if err := s.AssertProjectManager(userID, projectID); err != nil {
+		return models.ConservationProject{}, err
+	}
+	if err := s.assertProjectWritable(projectID); err != nil {
+		return models.ConservationProject{}, err
+	}
+	var project models.ConservationProject
+	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		return models.ConservationProject{}, ErrNotFound
+	}
+	name := strings.TrimSpace(input.Name)
+	if name == "" {
+		return models.ConservationProject{}, domain.Invalid("a project name is required")
+	}
+	share := project.CommunityShareBPS
+	if input.CommunityShareBPS != nil {
+		if *input.CommunityShareBPS < 0 || *input.CommunityShareBPS > 10000 {
+			return models.ConservationProject{}, domain.Invalid("the community share must be between 0 and 10000 basis points")
+		}
+		share = *input.CommunityShareBPS
+	}
+	rawBoundary := json.RawMessage(project.Boundary)
+	if len(input.Boundary) > 0 {
+		rawBoundary = input.Boundary
+	}
+	// Only a freshly supplied outline is re-checked against existing plots; the stored
+	// one may predate a plot that was added before any boundary existed.
+	boundarySent := len(input.Boundary) > 0
+	boundary, boundaryRing, err := resolveProjectBoundary(rawBoundary)
+	if err != nil {
+		return models.ConservationProject{}, err
+	}
+	if boundarySent && boundaryRing != nil {
+		var plots []models.Plot
+		if err := s.db.Where("project_id = ?", projectID).Find(&plots).Error; err != nil {
+			return models.ConservationProject{}, err
+		}
+		for _, p := range plots {
+			if err := assertPlotInsideBoundary(p.Code, boundaryRing, true, p.Latitude, p.Longitude); err != nil {
+				return models.ConservationProject{}, err
+			}
+		}
+	}
+	project.Name = name
+	if input.CommunityGroup != nil {
+		project.CommunityGroup = strings.TrimSpace(*input.CommunityGroup)
+	}
+	if input.Species != nil {
+		project.Species = strings.TrimSpace(*input.Species)
+	}
+	if input.ConservationType != nil {
+		project.ConservationType = normalizeConservationType(*input.ConservationType)
+	}
+	project.CommunityShareBPS = share
+	project.Boundary = boundary
+	project.UpdatedAt = s.now().UTC()
+	if err := s.db.Save(&project).Error; err != nil {
+		return models.ConservationProject{}, err
+	}
+	return project, nil
+}
+
+// setProjectStatus archives or restores a project. The status column already exists, so
+// this is reversible and touches no activity, plot, ledger entry or anchor.
+func (s *Service) setProjectStatus(projectID, userID, status string) (models.ConservationProject, error) {
+	if err := s.AssertProjectManager(userID, projectID); err != nil {
+		return models.ConservationProject{}, err
+	}
+	var project models.ConservationProject
+	if err := s.db.Where("id = ?", projectID).First(&project).Error; err != nil {
+		return models.ConservationProject{}, ErrNotFound
+	}
+	project.Status = status
+	project.UpdatedAt = s.now().UTC()
+	if err := s.db.Save(&project).Error; err != nil {
+		return models.ConservationProject{}, err
+	}
+	return project, nil
+}
+
+// ArchiveProject soft-deletes a project out of the active set without deleting anything.
+func (s *Service) ArchiveProject(projectID, userID string) (models.ConservationProject, error) {
+	return s.setProjectStatus(projectID, userID, "archived")
+}
+
+// UnarchiveProject returns an archived project to active.
+func (s *Service) UnarchiveProject(projectID, userID string) (models.ConservationProject, error) {
+	return s.setProjectStatus(projectID, userID, "active")
 }
 
 // AddPlot registers one more measured parcel on an existing project. Sites are
@@ -1111,6 +1422,9 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 	if user.Role != models.RoleManager && user.Role != models.RoleAdmin {
 		return models.Plot{}, ErrForbidden
 	}
+	if err := s.assertProjectWritable(projectID); err != nil {
+		return models.Plot{}, err
+	}
 	code := strings.TrimSpace(input.Code)
 	if code == "" {
 		return models.Plot{}, domain.Invalid("a plot code is required")
@@ -1121,6 +1435,10 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 	}
 	resolved, err := resolvePlot(code, input)
 	if err != nil {
+		return models.Plot{}, err
+	}
+	boundaryRing, hasBoundary := s.projectBoundary(projectID)
+	if err := assertPlotInsideBoundary(code, boundaryRing, hasBoundary, resolved.Latitude, resolved.Longitude); err != nil {
 		return models.Plot{}, err
 	}
 	if input.AssignedMonitorID != "" {

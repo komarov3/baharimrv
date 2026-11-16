@@ -4,6 +4,7 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
@@ -147,7 +148,11 @@ data class ProjectHeaderDto(
     val conservationType: String? = null,
     val siteCount: Int = 0,
     val methodology: String? = null,
+    val methodologyId: String? = null,
     val methodologyPeriod: String? = null,
+    val status: String? = null,
+    val communityShareBasisPoints: Int? = null,
+    val boundary: GeoPolygonDto? = null,
 )
 
 data class PlotDto(
@@ -256,6 +261,36 @@ data class CreateProjectResponse(
     val name: String,
     val status: String,
 )
+
+/**
+ * Project edit. Only name is required; omitted keys keep their stored values.
+ * A sent boundary replaces the project outline and the backend rejects it if any
+ * existing plot centroid falls outside.
+ */
+data class UpdateProjectRequest(
+    val name: String,
+    val communityGroup: String? = null,
+    val species: String? = null,
+    val conservationType: String? = null,
+    val communityShareBasisPoints: Int? = null,
+    val boundary: GeoPolygonDto? = null,
+)
+
+/** The stored project row, returned by the PATCH endpoint. */
+data class ProjectDetailDto(
+    val id: String,
+    val name: String = "",
+    val status: String = "",
+    val communityGroup: String? = null,
+    val species: String? = null,
+    val conservationType: String? = null,
+    val communityShareBasisPoints: Int = 0,
+    val boundary: GeoPolygonDto? = null,
+)
+
+data class ProjectStatusDto(val id: String, val status: String)
+
+data class DeletePlotResponse(val deleted: Boolean, val id: String)
 
 // ── wallet, revenue and reconciliation ────────────────────────────────────
 
@@ -819,7 +854,22 @@ data class MonitorDto(
 
 data class MonitorsResponse(val items: List<MonitorDto> = emptyList())
 
-data class UpdatePlotRequest(val assignedMonitorId: String? = null)
+/**
+ * Partial plot edit. Omitted keys keep their stored values; assigning
+ * assignedMonitorId to "" clears the monitor. A sent boundary replaces the outline;
+ * the app always offers re-draw rather than removal, since Gson cannot send an
+ * explicit null to clear it.
+ */
+data class UpdatePlotRequest(
+    val code: String? = null,
+    val siteName: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val areaHectares: String? = null,
+    val assignedMonitorId: String? = null,
+    val boundary: GeoPolygonDto? = null,
+    val gpsAccuracyM: Double? = null,
+)
 
 data class PlotResponse(
     val id: String,
@@ -990,12 +1040,30 @@ interface BahariMrvApi {
         @Body request: CreatePlotRequestDto,
     ): PlotResponse
 
+    @DELETE("api/v1/projects/{id}/plots/{plotId}")
+    suspend fun deletePlot(
+        @Path("id") projectId: String,
+        @Path("plotId") plotId: String,
+    ): DeletePlotResponse
+
 
     @GET("api/v1/methodologies")
     suspend fun methodologies(): MethodologiesResponse
 
     @POST("api/v1/projects")
     suspend fun createProject(@Body request: CreateProjectRequest): CreateProjectResponse
+
+    @PATCH("api/v1/projects/{id}")
+    suspend fun updateProject(
+        @Path("id") projectId: String,
+        @Body request: UpdateProjectRequest,
+    ): ProjectDetailDto
+
+    @POST("api/v1/projects/{id}/archive")
+    suspend fun archiveProject(@Path("id") projectId: String): ProjectStatusDto
+
+    @POST("api/v1/projects/{id}/unarchive")
+    suspend fun unarchiveProject(@Path("id") projectId: String): ProjectStatusDto
 
 
     @GET("api/v1/projects/{id}/dashboard")

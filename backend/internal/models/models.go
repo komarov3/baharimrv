@@ -223,6 +223,10 @@ type ConservationProject struct {
 	JahaziEnabled     bool      `gorm:"column:jahazi_enabled;not null;default:false" json:"jahaziEnabled"`
 	JahaziProjectID   string    `gorm:"column:jahazi_project_id;index" json:"jahaziProjectId,omitempty"`
 	LedgerObjectID    string    `gorm:"column:ledger_object_id" json:"ledgerObjectId,omitempty"`
+	// Boundary is the project's surveyed outline as a GeoJSON Polygon in EPSG:4326. When
+	// present, a plot's centroid must fall inside it. It is optional: a project without
+	// one places no containment restriction on its plots.
+	Boundary          datatypes.JSON `gorm:"type:jsonb" json:"boundary,omitempty"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 }

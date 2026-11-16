@@ -70,3 +70,45 @@ func TestCentroidOfDegenerateRingIsVertexMean(t *testing.T) {
 		t.Errorf("expected (0,0), got (%v,%v)", lat, lon)
 	}
 }
+
+func TestPointInRingSquare(t *testing.T) {
+	ring := squareRing(-4.05, 39.67, 200) // 200m box centred on (-4.05, 39.67)
+	inside := [][2]float64{{-4.05, 39.67}, {-4.0505, 39.6695}, {-4.0495, 39.6705}}
+	outside := [][2]float64{{-4.06, 39.67}, {-4.05, 39.69}, {0, 0}, {-4.04, 39.67}}
+	for _, p := range inside {
+		if !PointInRing(ring, p[0], p[1]) {
+			t.Errorf("expected (%v,%v) inside the square", p[0], p[1])
+		}
+	}
+	for _, p := range outside {
+		if PointInRing(ring, p[0], p[1]) {
+			t.Errorf("expected (%v,%v) outside the square", p[0], p[1])
+		}
+	}
+}
+
+func TestPointInRingConcave(t *testing.T) {
+	// An L-shaped polygon: a 2x2 block with the top-right 1x1 removed.
+	ring := Ring{{0, 0}, {2, 0}, {2, 1}, {1, 1}, {1, 2}, {0, 2}, {0, 0}} // [lon, lat]
+	cases := []struct {
+		lon, lat float64
+		want     bool
+	}{
+		{0.5, 0.5, true},  // lower-left arm
+		{0.5, 1.5, true},  // upper-left arm
+		{1.5, 0.5, true},  // lower-right arm
+		{1.5, 1.5, false}, // the notch that was cut out
+		{2.5, 0.5, false}, // fully outside
+	}
+	for _, c := range cases {
+		if got := PointInRing(ring, c.lat, c.lon); got != c.want {
+			t.Errorf("point (lon=%v,lat=%v): got inside=%v want %v", c.lon, c.lat, got, c.want)
+		}
+	}
+}
+
+func TestPointInRingDegenerateIsNeverInside(t *testing.T) {
+	if PointInRing(Ring{{0, 0}, {0, 0}}, 0, 0) {
+		t.Error("a two-point ring must contain nothing")
+	}
+}

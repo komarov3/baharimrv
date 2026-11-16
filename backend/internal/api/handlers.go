@@ -850,13 +850,11 @@ func (r *router) listMonitors(c *gin.Context) {
 }
 
 func (r *router) updatePlot(c *gin.Context) {
-	var input struct {
-		AssignedMonitorID string `json:"assignedMonitorId"`
-	}
+	var input mrv.PlotPatch
 	if !httpx.BindJSON(c, &input) {
 		return
 	}
-	plot, err := r.projects.UpdatePlot(c.Param("id"), c.Param("plotId"), c.GetString("user_id"), input.AssignedMonitorID)
+	plot, err := r.projects.UpdatePlot(c.Param("id"), c.Param("plotId"), c.GetString("user_id"), input)
 	if err != nil {
 		fail(c, err)
 		return
@@ -866,6 +864,46 @@ func (r *router) updatePlot(c *gin.Context) {
 		"latitude": plot.Latitude, "longitude": plot.Longitude, "areaHectares": plot.AreaHectares,
 		"assignedMonitorId": plot.AssignedMonitorID, "boundary": plot.Boundary, "gpsAccuracyM": plot.GpsAccuracyM,
 	})
+}
+
+func (r *router) deletePlot(c *gin.Context) {
+	if err := r.projects.DeletePlot(c.Param("id"), c.Param("plotId"), c.GetString("user_id")); err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true, "id": c.Param("plotId")})
+}
+
+// updateProject edits the manager-editable basics and outline of a project.
+func (r *router) updateProject(c *gin.Context) {
+	var input mrv.ProjectUpdateInput
+	if !httpx.BindJSON(c, &input) {
+		return
+	}
+	project, err := r.projects.UpdateProject(c.Param("id"), c.GetString("user_id"), input)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, project)
+}
+
+func (r *router) archiveProject(c *gin.Context) {
+	project, err := r.projects.ArchiveProject(c.Param("id"), c.GetString("user_id"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": project.ID, "status": project.Status})
+}
+
+func (r *router) unarchiveProject(c *gin.Context) {
+	project, err := r.projects.UnarchiveProject(c.Param("id"), c.GetString("user_id"))
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"id": project.ID, "status": project.Status})
 }
 
 func fail(c *gin.Context, err error) {

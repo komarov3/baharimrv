@@ -91,6 +91,30 @@ func Centroid(ring Ring) (lat, lon float64) {
 	return lat0 + cy/MetresPerDegreeLat, lon0 + cx/(MetresPerDegreeLat*cosLat)
 }
 
+// PointInRing reports whether (lat, lon) falls inside a closed ring using even-odd ray
+// casting. The ring is projected into the same local equirectangular frame the area and
+// centroid use, centred on the test point so the point sits at the origin; a ray then
+// runs along the +x axis and every edge that straddles y=0 to the east toggles the
+// state. This is a project boundary containment check, not survey-grade geometry.
+func PointInRing(ring Ring, lat, lon float64) bool {
+	if len(ring) < 3 {
+		return false
+	}
+	x, y := projectAround(ring, lat, lon)
+	inside := false
+	for i, j := 0, len(x)-1; i < len(x); j, i = i, i+1 {
+		yi, yj := y[i], y[j]
+		if (yi > 0) != (yj > 0) {
+			// x where the edge crosses the point's own latitude (y = 0).
+			xCross := x[i] - yi*(x[j]-x[i])/(yj-yi)
+			if xCross > 0 {
+				inside = !inside
+			}
+		}
+	}
+	return inside
+}
+
 func mean(ring Ring) (lat, lon float64) {
 	n := len(ring) - 1
 	if n < 1 {

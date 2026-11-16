@@ -10,6 +10,7 @@ import ke.co.baharilink.baharimrv.data.remote.CreateActivityRequestDto
 import ke.co.baharilink.baharimrv.data.remote.CreatePlotRequestDto
 import ke.co.baharilink.baharimrv.data.remote.CreateProjectRequest
 import ke.co.baharilink.baharimrv.data.remote.UpdatePlotRequest
+import ke.co.baharilink.baharimrv.data.remote.UpdateProjectRequest
 import ke.co.baharilink.baharimrv.data.remote.DisputeRequest
 import ke.co.baharilink.baharimrv.data.remote.GenerateProofRequest
 import ke.co.baharilink.baharimrv.data.remote.PurchaseRequest
@@ -52,7 +53,14 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     ) = api.satelliteTile(projectId, z, x, y, "ndvi", scene)
     suspend fun monitors() = api.monitors().items
     suspend fun assignMonitor(projectId: String, plotId: String, monitorId: String?) =
-        api.updatePlot(projectId, plotId, UpdatePlotRequest(assignedMonitorId = monitorId))
+        api.updatePlot(projectId, plotId, UpdatePlotRequest(assignedMonitorId = monitorId ?: ""))
+    suspend fun updatePlot(projectId: String, plotId: String, request: UpdatePlotRequest) =
+        api.updatePlot(projectId, plotId, request)
+    suspend fun deletePlot(projectId: String, plotId: String) = api.deletePlot(projectId, plotId)
+    suspend fun updateProject(projectId: String, request: UpdateProjectRequest) =
+        api.updateProject(projectId, request)
+    suspend fun archiveProject(projectId: String) = api.archiveProject(projectId)
+    suspend fun unarchiveProject(projectId: String) = api.unarchiveProject(projectId)
     suspend fun createPlot(projectId: String, request: CreatePlotRequestDto) =
         api.createPlot(projectId, request)
 

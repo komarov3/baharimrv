@@ -58,4 +58,34 @@ class PlotGeometryTest {
         assertEquals(ring.size, polygon.coordinates[0].size)
         assertEquals(listOf(ring[0].first, ring[0].second), polygon.coordinates[0][0])
     }
+
+    @Test
+    fun pointInRingSquareMatchesBackend() {
+        val ring = squareRing(-4.05, 39.67, 200.0)
+        val inside = listOf(-4.05 to 39.67, -4.0505 to 39.6695, -4.0495 to 39.6705)
+        val outside = listOf(-4.06 to 39.67, -4.05 to 39.69, 0.0 to 0.0, -4.04 to 39.67)
+        for ((lat, lon) in inside) {
+            assertTrue("($lat,$lon) must be inside", pointInRing(ring, lat, lon))
+        }
+        for ((lat, lon) in outside) {
+            assertFalse("($lat,$lon) must be outside", pointInRing(ring, lat, lon))
+        }
+    }
+
+    @Test
+    fun pointInRingConcaveMatchesBackend() {
+        // An L-shaped polygon: a 2x2 block with the top-right 1x1 removed.
+        val ring: PlotRing = listOf(0.0 to 0.0, 2.0 to 0.0, 2.0 to 1.0, 1.0 to 1.0, 1.0 to 2.0, 0.0 to 2.0, 0.0 to 0.0)
+        assertTrue(pointInRing(ring, 0.5, 0.5))   // lower-left arm
+        assertTrue(pointInRing(ring, 1.5, 0.5))   // upper-left arm
+        assertTrue(pointInRing(ring, 0.5, 1.5))   // lower-right arm
+        assertFalse(pointInRing(ring, 1.5, 1.5))  // the notch that was cut out
+        assertFalse(pointInRing(ring, 0.5, 2.5))  // fully outside
+    }
+
+    @Test
+    fun pointInRingDegenerateIsNeverInside() {
+        assertFalse(pointInRing(listOf(0.0 to 0.0, 0.0 to 0.0), 0.0, 0.0))
+        assertFalse(pointInRing(emptyList(), 0.0, 0.0))
+    }
 }
