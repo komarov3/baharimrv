@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/baharilink/baharimrv/internal/geo"
 	"github.com/baharilink/baharimrv/internal/models"
 )
 
@@ -67,14 +68,13 @@ func aoiFromPlots(plots []models.Plot) AOI {
 	aoi := AOI{PlotCount: len(plots), Cells: make([]Cell, 0, len(plots))}
 	polygons := make([][][][2]float64, 0, len(plots))
 	for index, plot := range plots {
-		area := plotArea(plot.AreaHectares)
-		ring := cellRing(plot.Latitude, plot.Longitude, area)
+		ring, area := plotCell(plot)
 		raw, _ := json.Marshal(polygonGeometry{Type: "Polygon", Coordinates: [][][2]float64{ring}})
 		aoi.Cells = append(aoi.Cells, Cell{PlotID: plot.ID, Geometry: raw, AreaHectares: area})
 		polygons = append(polygons, [][][2]float64{ring})
 		aoi.CentroidLat += plot.Latitude
 		aoi.CentroidLon += plot.Longitude
-		west, south, east, north := ring[0][0], ring[0][1], ring[1][0], ring[2][1]
+		west, south, east, north := ringBBox(ring)
 		if index == 0 {
 			aoi.MinLon, aoi.MinLat, aoi.MaxLon, aoi.MaxLat = west, south, east, north
 			continue
@@ -89,6 +89,36 @@ func aoiFromPlots(plots []models.Plot) AOI {
 	aoi.FramingBBox = []float64{aoi.MinLon, aoi.MinLat, aoi.MaxLon, aoi.MaxLat}
 	aoi.AnalysisGeom, _ = json.Marshal(multiPolygonGeometry{Type: "MultiPolygon", Coordinates: polygons})
 	return aoi
+}
+
+// plotCell prefers a surveyed boundary over the buffered square. A valid boundary ring
+// is the analysis cell verbatim and its derived area replaces the stated hectares; with
+// no valid boundary the square fallback stands, so boundary-less plots are unchanged.
+// This mirrors s2_worker/aoi.py's cell selection.
+func plotCell(plot models.Plot) ([][2]float64, float64) {
+	if len(plot.Boundary) > 0 {
+		if ring, err := geo.ParsePolygon(plot.Boundary); err == nil {
+			return ring, geo.AreaHectares(ring)
+		}
+	}
+	area := plotArea(plot.AreaHectares)
+	return cellRing(plot.Latitude, plot.Longitude, area), area
+}
+
+// ringBBox spans every vertex, so it is correct for an arbitrary surveyed ring as well
+// as the axis-aligned square fallback.
+func ringBBox(ring [][2]float64) (minLon, minLat, maxLon, maxLat float64) {
+	for index, vertex := range ring {
+		if index == 0 {
+			minLon, minLat, maxLon, maxLat = vertex[0], vertex[1], vertex[0], vertex[1]
+			continue
+		}
+		minLon = math.Min(minLon, vertex[0])
+		minLat = math.Min(minLat, vertex[1])
+		maxLon = math.Max(maxLon, vertex[0])
+		maxLat = math.Max(maxLat, vertex[1])
+	}
+	return
 }
 
 // plotArea reads the numeric string the plot API stores. An unreadable or non-finite

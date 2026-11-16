@@ -84,3 +84,52 @@ def test_rejects_geometry_types_the_read_path_cannot_window():
         aoi.bbox({"type": "Point", "coordinates": [39.8, -3.6]})
     with pytest.raises(ValueError):
         aoi.rings({"type": "GeometryCollection", "geometries": []})
+
+
+def square_ring(lat: float, lon: float, side: float) -> list:
+    dlat = side / 2 / aoi.METRES_PER_DEGREE_LAT
+    dlon = side / 2 / (aoi.METRES_PER_DEGREE_LAT * math.cos(math.radians(lat)))
+    west, east = lon - dlon, lon + dlon
+    south, north = lat - dlat, lat + dlat
+    return [[west, south], [east, south], [east, north], [west, north], [west, south]]
+
+
+def square_polygon(lat: float, lon: float, side: float) -> dict:
+    return {"type": "Polygon", "coordinates": [square_ring(lat, lon, side)]}
+
+
+# These pin the Python math to the same figures the Go geo tests assert, so a boundary
+# recorded on a phone produces identical hectares and centroid on every layer.
+def test_area_of_a_100m_square_is_one_hectare_at_any_latitude():
+    for lat in (0.0, -4.05, 51.5):
+        assert aoi.area_hectares(square_ring(lat, 39.67, 100)) == pytest.approx(1.0, abs=1e-6)
+
+
+def test_centroid_lands_at_the_square_centre():
+    lat, lon = aoi.centroid(square_ring(-4.05, 39.67, 100))
+    assert lat == pytest.approx(-4.05, abs=1e-9)
+    assert lon == pytest.approx(39.67, abs=1e-9)
+
+
+def test_boundary_ring_rejects_unusable_shapes():
+    assert aoi.boundary_ring(None) is None
+    assert aoi.boundary_ring({"type": "Point", "coordinates": [0, 0]}) is None
+    assert aoi.boundary_ring({"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1]]]}) is None
+    assert aoi.boundary_ring({"type": "Polygon", "coordinates": [[[0, 0], [200, 0], [200, 1], [0, 0]]]}) is None
+    assert aoi.boundary_ring(square_polygon(-4.05, 39.67, 100)) is not None
+
+
+def test_plot_cell_prefers_a_surveyed_boundary_over_the_square():
+    boundary = square_polygon(-3.64, 39.836, 100)
+    geometry, area = aoi.plot_cell(-3.64, 39.836, 9.0, boundary)
+    assert area == pytest.approx(1.0, abs=1e-6)
+    assert geometry["coordinates"][0] == boundary["coordinates"][0]
+
+
+def test_plot_cell_falls_back_to_the_square_without_a_usable_boundary():
+    geometry, area = aoi.plot_cell(-3.64, 39.836, 2.5, {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1]]]})
+    assert area == 2.5
+    assert geometry == aoi.cell(-3.64, 39.836, 2.5)
+    none_geometry, none_area = aoi.plot_cell(-3.64, 39.836, 2.5, None)
+    assert none_area == 2.5
+    assert none_geometry == aoi.cell(-3.64, 39.836, 2.5)

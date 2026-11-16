@@ -190,3 +190,59 @@ func TestProjectAOIWithoutPlotsIsUnavailable(t *testing.T) {
 		t.Errorf("aoi = %+v, want an unavailable project with no cells to send", aoi)
 	}
 }
+
+func boundarySquare(lat, lon, side float64) datatypes.JSON {
+	dlat := side / 2 / metresPerDegreeLat
+	dlon := side / 2 / (metresPerDegreeLat * math.Cos(lat*math.Pi/180))
+	w, e := lon-dlon, lon+dlon
+	s, n := lat-dlat, lat+dlat
+	ring := [][]float64{{w, s}, {e, s}, {e, n}, {w, n}, {w, s}}
+	raw, _ := json.Marshal(map[string]any{"type": "Polygon", "coordinates": []any{ring}})
+	return datatypes.JSON(raw)
+}
+
+// A surveyed outline replaces the square: the cell geometry is the boundary ring and the
+// area is derived from it, not the stated hectares (deliberately wrong here).
+func TestBoundaryIsPreferredOverTheSquare(t *testing.T) {
+	boundary := boundarySquare(-3.64, 39.836, 100)
+	plot := models.Plot{ID: "p", Code: "P1", Latitude: -3.64, Longitude: 39.836,
+		AreaHectares: "9.000000", Boundary: boundary}
+	aoi := aoiFromPlots([]models.Plot{plot})
+	if len(aoi.Cells) != 1 {
+		t.Fatalf("expected one cell, got %+v", aoi)
+	}
+	cell := aoi.Cells[0]
+	if math.Abs(cell.AreaHectares-1.0) > 1e-6 {
+		t.Errorf("cell area = %v, want the derived ~1 ha", cell.AreaHectares)
+	}
+	var got, want polygonGeometry
+	if err := json.Unmarshal(cell.Geometry, &got); err != nil {
+		t.Fatalf("parse cell: %v", err)
+	}
+	if err := json.Unmarshal(boundary, &want); err != nil {
+		t.Fatalf("parse boundary: %v", err)
+	}
+	if got.Coordinates[0][0] != want.Coordinates[0][0] {
+		t.Errorf("cell geometry %v is not the boundary ring %v", got.Coordinates[0], want.Coordinates[0])
+	}
+}
+
+// An unreadable boundary must not invent geometry: the square fallback stands.
+func TestInvalidBoundaryFallsBackToSquare(t *testing.T) {
+	plot := models.Plot{ID: "p", Code: "P1", Latitude: -3.64, Longitude: 39.836,
+		AreaHectares: "2.500000",
+		Boundary:     datatypes.JSON(`{"type":"Polygon","coordinates":[[[0,0],[1,0],[1,1],[0,1]]]}`)}
+	aoi := aoiFromPlots([]models.Plot{plot})
+	cell := aoi.Cells[0]
+	if cell.AreaHectares != 2.5 {
+		t.Errorf("cell area = %v, want the stated 2.5 ha fallback", cell.AreaHectares)
+	}
+	square := cellRing(plot.Latitude, plot.Longitude, 2.5)
+	var got polygonGeometry
+	if err := json.Unmarshal(cell.Geometry, &got); err != nil {
+		t.Fatalf("parse cell: %v", err)
+	}
+	if got.Coordinates[0][0] != square[0] {
+		t.Errorf("cell geometry %v is not the square fallback %v", got.Coordinates[0], square)
+	}
+}

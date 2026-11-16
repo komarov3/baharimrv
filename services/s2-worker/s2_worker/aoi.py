@@ -84,3 +84,101 @@ def intersects(a: Geometry, box: tuple[float, float, float, float]) -> bool:
             if max_lon >= x >= min_lon and max_lat >= y >= min_lat:
                 return True
     return False
+
+
+# Shared plot geometry, mirrored line for line in backend/internal/geo/geo.go and the
+# Android capture screen so a boundary recorded on a phone yields the same hectares and
+# centroid on every layer. The live worker receives cells already built by the Go API;
+# these serve the standalone/spike path and keep the two implementations pinned.
+
+def _mean(ring: Ring) -> tuple[float, float]:
+    n = len(ring) - 1 if len(ring) > 1 else len(ring)
+    lon = sum(p[0] for p in ring[:n]) / n
+    lat = sum(p[1] for p in ring[:n]) / n
+    return lat, lon
+
+
+def _project(ring: Ring, lat0: float, lon0: float) -> tuple[list[float], list[float]]:
+    cos_lat = math.cos(math.radians(lat0)) or 1.0
+    xs = [(p[0] - lon0) * cos_lat * METRES_PER_DEGREE_LAT for p in ring]
+    ys = [(p[1] - lat0) * METRES_PER_DEGREE_LAT for p in ring]
+    return xs, ys
+
+
+def area_hectares(ring: Ring) -> float:
+    """Polygon area in hectares via local equirectangular projection + shoelace."""
+    lat0, lon0 = _mean(ring)
+    xs, ys = _project(ring, lat0, lon0)
+    total = 0.0
+    for i in range(len(xs) - 1):
+        total += xs[i] * ys[i + 1] - xs[i + 1] * ys[i]
+    return abs(total) / 2 / 10_000.0
+
+
+def centroid(ring: Ring) -> tuple[float, float]:
+    """Area-weighted centroid as (lat, lon); vertex mean for a degenerate ring."""
+    lat0, lon0 = _mean(ring)
+    xs, ys = _project(ring, lat0, lon0)
+    a = cx = cy = 0.0
+    for i in range(len(xs) - 1):
+        cross = xs[i] * ys[i + 1] - xs[i + 1] * ys[i]
+        a += cross
+        cx += (xs[i] + xs[i + 1]) * cross
+        cy += (ys[i] + ys[i + 1]) * cross
+    if a == 0:
+        return lat0, lon0
+    a /= 2
+    cx /= 6 * a
+    cy /= 6 * a
+    cos_lat = math.cos(math.radians(lat0)) or 1.0
+    return lat0 + cy / METRES_PER_DEGREE_LAT, lon0 + cx / (METRES_PER_DEGREE_LAT * cos_lat)
+
+
+def boundary_ring(geometry: Geometry | None) -> Ring | None:
+    """Validate a GeoJSON Polygon and return its outer ring, or None if unusable.
+
+    Mirrors geo.ParsePolygon: one ring, closed, at least three vertices plus a closing
+    point, finite coordinates inside lon/lat ranges. Holes are rejected for now.
+    """
+    if not isinstance(geometry, dict) or geometry.get("type") != "Polygon":
+        return None
+    coords = geometry.get("coordinates")
+    if not isinstance(coords, list) or len(coords) != 1:
+        return None
+    ring = coords[0]
+    if not isinstance(ring, list) or len(ring) < 4 or ring[0] != ring[-1]:
+        return None
+    for point in ring:
+        if not isinstance(point, (list, tuple)) or len(point) < 2:
+            return None
+        x, y = point[0], point[1]
+        if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+            return None
+        if math.isnan(x) or math.isnan(y) or math.isinf(x) or math.isinf(y):
+            return None
+        if x < -180 or x > 180 or y < -90 or y > 90:
+            return None
+    return ring
+
+
+def _plot_area(value: float | None) -> float:
+    try:
+        area = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    if math.isnan(area) or math.isinf(area) or area < 0:
+        return 0.0
+    return area
+
+
+def plot_cell(lat: float, lon: float, hectares: float | None,
+              boundary: Geometry | None = None) -> tuple[Geometry, float]:
+    """Analysis cell preferring a surveyed boundary over the buffered square.
+
+    Mirrors satellite/aoi.go plotCell: a valid boundary ring is the cell verbatim and
+    its derived area replaces the stated hectares; otherwise the square fallback stands.
+    """
+    ring = boundary_ring(boundary)
+    if ring is not None:
+        return {"type": "Polygon", "coordinates": [ring]}, area_hectares(ring)
+    return cell(lat, lon, hectares), _plot_area(hectares)

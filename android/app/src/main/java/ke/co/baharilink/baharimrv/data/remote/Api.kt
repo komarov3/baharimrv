@@ -160,6 +160,8 @@ data class PlotDto(
     val status: String,
     val chainState: String? = null,
     val ndvi: Double? = null,
+    val boundary: GeoPolygonDto? = null,
+    val gpsAccuracyM: Double? = null,
 )
 
 data class NdviDto(
@@ -211,6 +213,12 @@ data class MethodologiesResponse(
     val items: List<MethodologyDto> = emptyList(),
 )
 
+/** A GeoJSON Polygon in EPSG:4326: one outer ring of [lon, lat] pairs, closed. */
+data class GeoPolygonDto(
+    val coordinates: List<List<List<Double>>>,
+    val type: String = "Polygon",
+)
+
 data class CreatePlotRequestDto(
     val siteName: String,
     val code: String,
@@ -218,6 +226,8 @@ data class CreatePlotRequestDto(
     val longitude: Double,
     val areaHectares: String,
     val assignedMonitorId: String? = null,
+    val boundary: GeoPolygonDto? = null,
+    val gpsAccuracyM: Double? = null,
 )
 
 /** Request to create a planting activity bound to one plot and methodology. */
@@ -820,6 +830,8 @@ data class PlotResponse(
     val longitude: Double,
     val areaHectares: String,
     val assignedMonitorId: String? = null,
+    val boundary: GeoPolygonDto? = null,
+    val gpsAccuracyM: Double? = null,
 )
 
 
@@ -970,6 +982,12 @@ interface BahariMrvApi {
         @Path("id") projectId: String,
         @Path("plotId") plotId: String,
         @Body request: UpdatePlotRequest,
+    ): PlotResponse
+
+    @POST("api/v1/projects/{id}/plots")
+    suspend fun createPlot(
+        @Path("id") projectId: String,
+        @Body request: CreatePlotRequestDto,
     ): PlotResponse
 
 

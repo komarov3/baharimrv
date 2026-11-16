@@ -53,6 +53,8 @@ class ProjectRepository @Inject constructor(private val api: BahariMrvApi) {
     suspend fun monitors() = api.monitors().items
     suspend fun assignMonitor(projectId: String, plotId: String, monitorId: String?) =
         api.updatePlot(projectId, plotId, UpdatePlotRequest(assignedMonitorId = monitorId))
+    suspend fun createPlot(projectId: String, request: CreatePlotRequestDto) =
+        api.createPlot(projectId, request)
 
     suspend fun methodologies() = api.methodologies()
     suspend fun createProject(

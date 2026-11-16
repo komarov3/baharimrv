@@ -78,6 +78,7 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Polygon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -558,6 +559,17 @@ private fun ProjectMap(plots: List<PlotDto>) {
                             true
                         }
                         overlays.add(marker)
+                        plot.boundary?.coordinates?.firstOrNull()?.let { ring ->
+                            if (ring.size >= 3) {
+                                val outline = Polygon().apply {
+                                    points = ring.map { GeoPoint(it[1], it[0]) }
+                                    fillColor = android.graphics.Color.argb(40, 0, 128, 0)
+                                    strokeColor = android.graphics.Color.GREEN
+                                    strokeWidth = 2f
+                                }
+                                overlays.add(outline)
+                            }
+                        }
                     }
                     if (plots.size > 1) {
                         val box = BoundingBox(

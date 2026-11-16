@@ -244,10 +244,10 @@ type Plot struct {
 	Longitude         float64 `json:"longitude"`
 	AreaHectares      string  `gorm:"type:numeric(20,6);not null" json:"areaHectares"`
 	AssignedMonitorID string  `gorm:"type:uuid;index" json:"assignedMonitorId,omitempty"`
-	// Boundary is the surveyed plot outline as a GeoJSON Polygon in EPSG:4326. It is
-	// stored for the phase 6 precision upgrade and not read yet: the analysis cell is
-	// still the square buffered around the centroid, so the sample is only as good as
-	// that position, which is what GpsAccuracyM records.
+	// Boundary is the surveyed plot outline as a GeoJSON Polygon in EPSG:4326. When
+	// present it is the satellite analysis cell and the source of the derived hectares;
+	// when absent the analysis falls back to the square buffered around the centroid,
+	// whose quality is only as good as that position, which GpsAccuracyM records.
 	Boundary     datatypes.JSON `gorm:"type:jsonb" json:"boundary,omitempty"`
 	GpsAccuracyM *float64       `json:"gpsAccuracyM,omitempty"`
 	CreatedAt    time.Time      `json:"createdAt"`

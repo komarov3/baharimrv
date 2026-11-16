@@ -50,7 +50,7 @@ func (r *router) addPlot(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"id": plot.ID, "projectId": plot.ProjectID, "siteId": plot.SiteID, "code": plot.Code,
 		"latitude": plot.Latitude, "longitude": plot.Longitude, "areaHectares": plot.AreaHectares,
-		"assignedMonitorId": plot.AssignedMonitorID,
+		"assignedMonitorId": plot.AssignedMonitorID, "boundary": plot.Boundary, "gpsAccuracyM": plot.GpsAccuracyM,
 	})
 }
 
@@ -864,7 +864,7 @@ func (r *router) updatePlot(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id": plot.ID, "projectId": plot.ProjectID, "siteId": plot.SiteID, "code": plot.Code,
 		"latitude": plot.Latitude, "longitude": plot.Longitude, "areaHectares": plot.AreaHectares,
-		"assignedMonitorId": plot.AssignedMonitorID,
+		"assignedMonitorId": plot.AssignedMonitorID, "boundary": plot.Boundary, "gpsAccuracyM": plot.GpsAccuracyM,
 	})
 }
 

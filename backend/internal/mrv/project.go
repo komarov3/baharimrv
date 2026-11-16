@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/baharilink/baharimrv/internal/domain"
+	"github.com/baharilink/baharimrv/internal/geo"
 	"github.com/baharilink/baharimrv/internal/models"
 	"github.com/baharilink/baharimrv/internal/money"
 	"github.com/baharilink/baharimrv/internal/provenance"
@@ -42,15 +45,17 @@ type Metric struct {
 // activity type are included because the wireframe's site manager lists them per
 // row; both are read straight from the registered plot and activity.
 type PlotView struct {
-	ID           string   `json:"id"`
-	Label        string   `json:"label"`
-	Latitude     float64  `json:"latitude"`
-	Longitude    float64  `json:"longitude"`
-	AreaHectares string   `json:"areaHectares"`
-	ActivityType string   `json:"activityType,omitempty"`
-	Status       string   `json:"status"`
-	ChainState   string   `json:"chainState"`
-	NDVI         *float64 `json:"ndvi,omitempty"`
+	ID           string          `json:"id"`
+	Label        string          `json:"label"`
+	Latitude     float64         `json:"latitude"`
+	Longitude    float64         `json:"longitude"`
+	AreaHectares string          `json:"areaHectares"`
+	ActivityType string          `json:"activityType,omitempty"`
+	Status       string          `json:"status"`
+	ChainState   string          `json:"chainState"`
+	NDVI         *float64        `json:"ndvi,omitempty"`
+	Boundary     json.RawMessage `json:"boundary,omitempty"`
+	GpsAccuracyM *float64        `json:"gpsAccuracyM,omitempty"`
 }
 
 type Alert struct {
@@ -489,7 +494,8 @@ func (s *Service) Dashboard(projectID, userID string) (Dashboard, error) {
 	for _, plot := range plots {
 		activity := activityByPlot[plot.ID]
 		view := PlotView{ID: plot.ID, Label: plot.Code, Latitude: plot.Latitude, Longitude: plot.Longitude,
-			AreaHectares: plot.AreaHectares, Status: "pending", ChainState: "not_recorded"}
+			AreaHectares: plot.AreaHectares, Status: "pending", ChainState: "not_recorded",
+			Boundary: json.RawMessage(plot.Boundary), GpsAccuracyM: plot.GpsAccuracyM}
 		if activity.ID != "" {
 			view.ActivityType = activity.ActivityType
 			view.Status = plotEvidenceState(activity)
@@ -883,12 +889,57 @@ func (s *Service) chainState(activityID string) string {
 
 // CreateProject registers a conservation project with its sites and plots.
 type PlotInput struct {
-	Code              string  `json:"code"`
-	SiteName          string  `json:"siteName"`
-	Latitude          float64 `json:"latitude"`
-	Longitude         float64 `json:"longitude"`
-	AreaHectares      string  `json:"areaHectares"`
-	AssignedMonitorID string  `json:"assignedMonitorId,omitempty"`
+	Code              string          `json:"code"`
+	SiteName          string          `json:"siteName"`
+	Latitude          float64         `json:"latitude"`
+	Longitude         float64         `json:"longitude"`
+	AreaHectares      string          `json:"areaHectares"`
+	AssignedMonitorID string          `json:"assignedMonitorId,omitempty"`
+	Boundary          json.RawMessage `json:"boundary,omitempty"`
+	GpsAccuracyM      *float64        `json:"gpsAccuracyM,omitempty"`
+}
+
+// resolvedPlot is the geometry a plot is stored with. A surveyed boundary overrides the
+// stated area and moves the pin to the polygon centroid; without one the recorded point
+// and stated area stand and the satellite layer falls back to the buffered square.
+type resolvedPlot struct {
+	Latitude     float64
+	Longitude    float64
+	AreaHectares string
+	Boundary     datatypes.JSON
+	GpsAccuracyM *float64
+}
+
+func resolvePlot(code string, input PlotInput) (resolvedPlot, error) {
+	if input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
+		return resolvedPlot{}, domain.Invalid("plot %s has coordinates outside valid ranges", code)
+	}
+	if input.GpsAccuracyM != nil && (*input.GpsAccuracyM < 0 || math.IsNaN(*input.GpsAccuracyM) || math.IsInf(*input.GpsAccuracyM, 0)) {
+		return resolvedPlot{}, domain.Invalid("plot %s has an invalid GPS accuracy", code)
+	}
+	if len(input.Boundary) == 0 || string(input.Boundary) == "null" {
+		area, err := money.ParseQuantity(input.AreaHectares)
+		if err != nil {
+			return resolvedPlot{}, domain.Invalid("plot %s has an invalid area", code)
+		}
+		return resolvedPlot{Latitude: input.Latitude, Longitude: input.Longitude,
+			AreaHectares: money.Quantity(area), GpsAccuracyM: input.GpsAccuracyM}, nil
+	}
+	ring, err := geo.ParsePolygon(input.Boundary)
+	if err != nil {
+		return resolvedPlot{}, domain.Invalid("plot %s has an invalid boundary: %v", code, err)
+	}
+	hectares := geo.AreaHectares(ring)
+	if hectares <= 0 || math.IsNaN(hectares) || math.IsInf(hectares, 0) {
+		return resolvedPlot{}, domain.Invalid("plot %s boundary encloses no area", code)
+	}
+	area, err := money.ParseQuantity(strconv.FormatFloat(hectares, 'f', 6, 64))
+	if err != nil {
+		return resolvedPlot{}, domain.Invalid("plot %s has an invalid area", code)
+	}
+	lat, lon := geo.Centroid(ring)
+	return resolvedPlot{Latitude: lat, Longitude: lon, AreaHectares: money.Quantity(area),
+		Boundary: datatypes.JSON(input.Boundary), GpsAccuracyM: input.GpsAccuracyM}, nil
 }
 
 type ProjectInput struct {
@@ -951,16 +1002,14 @@ func (s *Service) CreateProject(userID string, input ProjectInput, sandboxDemo b
 			if siteID == "" {
 				return domain.Invalid("plot %s references an unknown site", input.Code)
 			}
-			area, err := money.ParseQuantity(input.AreaHectares)
+			resolved, err := resolvePlot(strings.TrimSpace(input.Code), input)
 			if err != nil {
-				return domain.Invalid("plot %s has an invalid area", input.Code)
-			}
-			if input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
-				return domain.Invalid("plot %s has coordinates outside valid ranges", input.Code)
+				return err
 			}
 			plot := models.Plot{
 				ID: uuid.NewString(), ProjectID: project.ID, SiteID: siteID, Code: strings.TrimSpace(input.Code),
-				Latitude: input.Latitude, Longitude: input.Longitude, AreaHectares: money.Quantity(area),
+				Latitude: resolved.Latitude, Longitude: resolved.Longitude, AreaHectares: resolved.AreaHectares,
+				Boundary: resolved.Boundary, GpsAccuracyM: resolved.GpsAccuracyM,
 				AssignedMonitorID: input.AssignedMonitorID, CreatedAt: now, UpdatedAt: now,
 			}
 			if err := tx.Create(&plot).Error; err != nil {
@@ -1070,12 +1119,9 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 	if siteName == "" {
 		return models.Plot{}, domain.Invalid("a site name is required")
 	}
-	area, err := money.ParseQuantity(input.AreaHectares)
+	resolved, err := resolvePlot(code, input)
 	if err != nil {
-		return models.Plot{}, domain.Invalid("plot %s has an invalid area", code)
-	}
-	if input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
-		return models.Plot{}, domain.Invalid("plot %s has coordinates outside valid ranges", code)
+		return models.Plot{}, err
 	}
 	if input.AssignedMonitorID != "" {
 		var monitor models.User
@@ -1093,7 +1139,8 @@ func (s *Service) AddPlot(projectID, userID string, input PlotInput) (models.Plo
 	now := s.now().UTC()
 	plot := models.Plot{
 		ID: uuid.NewString(), ProjectID: projectID, Code: code,
-		Latitude: input.Latitude, Longitude: input.Longitude, AreaHectares: money.Quantity(area),
+		Latitude: resolved.Latitude, Longitude: resolved.Longitude, AreaHectares: resolved.AreaHectares,
+		Boundary: resolved.Boundary, GpsAccuracyM: resolved.GpsAccuracyM,
 		AssignedMonitorID: input.AssignedMonitorID, CreatedAt: now, UpdatedAt: now,
 	}
 	err = s.db.Transaction(func(tx *gorm.DB) error {
